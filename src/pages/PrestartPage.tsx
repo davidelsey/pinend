@@ -56,7 +56,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
   }, [message])
 
   const sync = (minutes: 5 | 4 | 1 | 0) => {
-    void updateSession({ syncedStartTime: syncStartFromSignal(Date.now(), minutes) })
+    void updateSession({ syncedStartTime: syncStartFromSignal(Date.now(), minutes), autoStartArmed: true })
     setMessage(minutes === 0 ? 'Start gun synchronized' : `${minutes}-minute signal synchronized`)
   }
 
@@ -91,7 +91,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
               const [hours, minutes, seconds] = event.target.value.split(':').map(Number)
               const next = new Date()
               next.setHours(hours, minutes, seconds || 0, 0)
-              void updateSession({ syncedStartTime: next.getTime() })
+              void updateSession({ syncedStartTime: next.getTime(), autoStartArmed: true })
             }}
           />
         </label>

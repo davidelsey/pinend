@@ -56,7 +56,7 @@ export function SetupPage({ onEnterPrestart, sensorStatus, onEnableSensors }: Pr
   }
 
   const enterPrestart = async () => {
-    await updateSession({ phase: 'prestart', syncedStartTime: Date.parse(race.scheduledStart) })
+    await updateSession({ phase: 'prestart', syncedStartTime: Date.parse(race.scheduledStart), autoStartArmed: true })
     onEnterPrestart()
   }
 

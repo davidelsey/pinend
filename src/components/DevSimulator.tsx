@@ -18,8 +18,8 @@ export function DevSimulator({ target }: { target?: Coordinate }) {
 
   return (
     <aside className={`simulator ${expanded ? 'simulator--expanded' : ''}`} data-testid="sensor-simulator">
-      <button className="simulator__header" onClick={() => setExpanded((value) => !value)}>
-        <span><Bug size={16} /> Sensor simulator</span>
+      <button className="simulator__header" aria-label="Debug mode: boat simulator" onClick={() => setExpanded((value) => !value)}>
+        <span><Bug size={16} /> Debug mode</span>
         <span className={`status-dot ${simulatorEnabled ? 'status-dot--active' : ''}`} />
       </button>
       {expanded && (
@@ -33,7 +33,7 @@ export function DevSimulator({ target }: { target?: Coordinate }) {
             />
           </label>
           <label>
-            <span>Bearing <strong>{Math.round(simulator.heading)}° T</strong></span>
+            <span>Course / bearing <strong>{Math.round(simulator.heading)}° T</strong></span>
             <input
               type="range"
               min="0"
@@ -63,9 +63,11 @@ export function DevSimulator({ target }: { target?: Coordinate }) {
               onChange={(event) => configureSimulator({ accuracy: Number(event.target.value) })}
             />
           </label>
-          <div className="simulator__coords">
-            {simulator.coordinate.latitude.toFixed(5)}, {simulator.coordinate.longitude.toFixed(5)}
+          <div className="simulator__position">
+            <label><span>Mock latitude</span><input aria-label="Mock latitude" type="number" step="0.00001" value={simulator.coordinate.latitude} onChange={(event) => placeSimulator(Number(event.target.value), simulator.coordinate.longitude)} /></label>
+            <label><span>Mock longitude</span><input aria-label="Mock longitude" type="number" step="0.00001" value={simulator.coordinate.longitude} onChange={(event) => placeSimulator(simulator.coordinate.latitude, Number(event.target.value))} /></label>
           </div>
+          <div className="simulator__coords">{simulator.coordinate.latitude.toFixed(5)}, {simulator.coordinate.longitude.toFixed(5)}</div>
           <div className="button-row">
             <button className="button button--small button--secondary" onClick={() => stepSimulator(30)}>
               <FastForward size={15} /> Move 30 sec

@@ -73,7 +73,7 @@ function PinEndApp() {
   }, [session.phase])
 
   useEffect(() => {
-    if (session.phase !== 'prestart' || now < session.syncedStartTime) {
+    if (session.phase !== 'prestart' || session.autoStartArmed === false || now < session.syncedStartTime) {
       automaticStartInFlight.current = false
       return
     }
@@ -82,7 +82,7 @@ function PinEndApp() {
     void updateSession({ phase: 'racing' }).catch(() => {
       automaticStartInFlight.current = false
     })
-  }, [now, session.phase, session.syncedStartTime, updateSession])
+  }, [now, session.autoStartArmed, session.phase, session.syncedStartTime, updateSession])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
@@ -96,7 +96,7 @@ function PinEndApp() {
       ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing' })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
       : session.phase === 'racing'
         ? <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setTab('race')} />
-        : <FinishedPage onReset={() => void updateSession({ id: crypto.randomUUID(), phase: 'setup', activeWaypointIndex: 0, telemetry: [], roundedAt: {} })} />
+        : <FinishedPage onReset={() => void updateSession({ id: crypto.randomUUID(), phase: 'setup', autoStartArmed: true, activeWaypointIndex: 0, telemetry: [], roundedAt: {} })} />
 
   const content = tab === 'setup'
     ? <SetupPage onEnterPrestart={() => setTab('race')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />

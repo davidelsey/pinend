@@ -55,6 +55,22 @@ describe('primary local race journey', () => {
     expect(await screen.findByText('RACING')).toBeInTheDocument()
   })
 
+  it('lets the sailor return to pre-start after the start time has passed', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
+    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
+    expect(await screen.findByText('RACING')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
+    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
+    await new Promise((resolve) => window.setTimeout(resolve, 400))
+    expect(screen.getByText('PRE-START')).toBeInTheDocument()
+    expect(screen.queryByText('RACING')).not.toBeInTheDocument()
+  })
+
   it('offers one sighting flow for the start line and every race mark', async () => {
     await seedDatabase()
     await database.observations.put({
@@ -88,5 +104,25 @@ describe('primary local race journey', () => {
     expect(targets.getByText(/42.0° true/)).toBeInTheDocument()
     fireEvent.click(targets.getByRole('button', { name: /Delete Clark Island sighting/ }))
     expect(await targets.findByText('No sightings recorded yet.')).toBeInTheDocument()
+  })
+
+  it('lets a developer mock boat position and velocity', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    const simulator = screen.getByTestId('sensor-simulator')
+    fireEvent.click(within(simulator).getByRole('button', { name: 'Debug mode: boat simulator' }))
+    fireEvent.click(within(simulator).getByRole('checkbox', { name: 'Use simulated sensors' }))
+    fireEvent.change(within(simulator).getByRole('spinbutton', { name: 'Mock latitude' }), { target: { value: '-33.90000' } })
+    fireEvent.change(within(simulator).getByRole('spinbutton', { name: 'Mock longitude' }), { target: { value: '151.20000' } })
+    fireEvent.change(within(simulator).getByRole('slider', { name: /Speed/ }), { target: { value: '8.4' } })
+
+    expect(within(simulator).getByText('-33.90000, 151.20000')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
+    const speed = (await screen.findByText('GPS boat speed')).parentElement
+    expect(speed).not.toBeNull()
+    expect(within(speed!).getByText(/8.4/)).toBeInTheDocument()
+    expect(screen.getByText('Current location')).toBeInTheDocument()
+    await waitFor(async () => expect((await database.sessions.get('local-session'))?.phase).toBe('prestart'))
   })
 })

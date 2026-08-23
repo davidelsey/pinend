@@ -10,7 +10,7 @@ import type {
   Sail,
   SensorReading,
 } from '../domain/types'
-import { createSimulator, moveSimulator, setSimulatorPosition, type SimulatorState } from '../services/simulator'
+import { configureSimulator as configureSimulatorState, createSimulator, moveSimulator, setSimulatorPosition, type SimulatorState } from '../services/simulator'
 import { createRaceRepository, seedDatabase } from '../services/repository'
 
 type AppContextValue = {
@@ -139,7 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const configureSimulator = (patch: Partial<Pick<SimulatorState, 'heading' | 'speedKnots' | 'accuracy'>>) =>
-    setSimulator((current) => ({ ...current, ...patch }))
+    setSimulator((current) => configureSimulatorState(current, patch))
 
   const stepSimulator = (seconds: number) => setSimulator((current) => moveSimulator(current, seconds))
   const placeSimulator = (latitude: number, longitude: number, heading?: number) =>

@@ -97,6 +97,7 @@ export type RaceSession = {
   raceId: string
   phase: RacePhase
   syncedStartTime: number
+  autoStartArmed?: boolean
   activeWaypointIndex: number
   selectedSailIds: string[]
   telemetry: SensorReading[]

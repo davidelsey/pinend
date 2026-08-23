@@ -47,6 +47,27 @@ export function moveSimulator(state: SimulatorState, elapsedSeconds: number, tim
   }
 }
 
+export function configureSimulator(
+  state: SimulatorState,
+  patch: Partial<Pick<SimulatorState, 'heading' | 'speedKnots' | 'accuracy'>>,
+  timestamp = Date.now(),
+): SimulatorState {
+  const next = { ...state, ...patch }
+  return {
+    ...next,
+    reading: {
+      ...next.coordinate,
+      timestamp,
+      accuracy: next.accuracy,
+      heading: next.heading,
+      speedKnots: next.speedKnots,
+      source: 'simulator',
+      headingSource: 'simulator',
+      headingReliable: true,
+    },
+  }
+}
+
 export function setSimulatorPosition(
   state: SimulatorState,
   coordinate: Coordinate,

@@ -92,6 +92,7 @@ export const createSeedSession = (): RaceSession => ({
   id: 'local-session',
   raceId: seedRace.id,
   phase: 'setup',
+  autoStartArmed: true,
   syncedStartTime: Date.parse(seedRace.scheduledStart),
   activeWaypointIndex: 0,
   selectedSailIds: seedSails.filter((sail) => sail.location !== 'locker').map((sail) => sail.id),

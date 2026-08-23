@@ -104,7 +104,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const selectPrevious = async () => {
     setShowRounding(false)
     if (session.activeWaypointIndex === 0) {
-      await updateSession({ phase: 'prestart' })
+      await updateSession({ phase: 'prestart', autoStartArmed: false })
       return
     }
     await updateSession({ activeWaypointIndex: session.activeWaypointIndex - 1 })
