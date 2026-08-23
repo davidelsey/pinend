@@ -30,7 +30,7 @@ const toLocalInput = (iso: string) => {
 }
 
 export function SetupPage({ onEnterPrestart, sensorStatus, onEnableSensors }: Props) {
-  const { marks, boat, sails, race, session, saveRace, saveSail, updateSession, online } = useApp()
+  const { marks, boat, sails, race, session, latestReading, saveRace, saveSail, updateSession, online } = useApp()
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
   const [newMarkId, setNewMarkId] = useState(marks[0]?.id ?? '')
   const availableMarks = useMemo(
@@ -102,7 +102,7 @@ export function SetupPage({ onEnterPrestart, sensorStatus, onEnableSensors }: Pr
               <div><span className="step-number">02</span><h2>Course</h2></div>
               <span className="chip">{race.course.length} marks</span>
             </div>
-            <CoursePlot marks={marks} race={race} compact />
+            <CoursePlot marks={marks} race={race} current={latestReading} compact />
             <div className="course-list">
               {race.course.map((waypoint, index) => {
                 const mark = marks.find((item) => item.id === waypoint.markId)

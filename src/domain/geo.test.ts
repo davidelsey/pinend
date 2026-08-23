@@ -5,11 +5,30 @@ import {
   distanceNm,
   intersectSightings,
   resolveMarkPosition,
-  velocityMadeGood,
   timeToLineSeconds,
+  velocityMadeGood,
+  withManualMarkCoordinate,
+  withSightingMarkCoordinate,
+  withoutSightingMarkCoordinate,
 } from './geo'
 
 describe('navigation calculations', () => {
+  it('preserves a constructed definition while applying and removing coordinate overrides', () => {
+    const constructed = {
+      kind: 'constructed' as const,
+      origin: { latitude: -33.86, longitude: 151.24 },
+      distanceNm: 1,
+      bearing: { degrees: 45, reference: 'true' as const },
+    }
+    const manual = { latitude: -33.85, longitude: 151.25 }
+    const sighted = { latitude: -33.84, longitude: 151.26 }
+    const adjusted = withSightingMarkCoordinate(withManualMarkCoordinate(constructed, manual), sighted)
+
+    expect(resolveMarkPosition(adjusted)).toEqual(sighted)
+    const afterDeletingSightings = withoutSightingMarkCoordinate(adjusted)
+    expect(resolveMarkPosition(afterDeletingSightings)).toEqual(manual)
+    expect(afterDeletingSightings).toMatchObject(constructed)
+  })
   it('resolves a mark one nautical mile due north', () => {
     const result = destinationPoint({ latitude: -33.87423, longitude: 151.23377 }, 1, 0)
     expect(result.latitude).toBeCloseTo(-33.85756, 4)

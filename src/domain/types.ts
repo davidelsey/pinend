@@ -8,7 +8,12 @@ export type Bearing = {
   declination?: number
 }
 
-export type MarkPosition =
+type MarkPositionOverrides = {
+  manualCoordinate?: Coordinate
+  sightingCoordinate?: Coordinate
+}
+
+export type MarkPosition = (
   | { kind: 'fixed'; coordinate: Coordinate }
   | { kind: 'variable'; coordinate?: Coordinate }
   | {
@@ -17,6 +22,7 @@ export type MarkPosition =
       distanceNm: number
       bearing: Bearing
     }
+) & MarkPositionOverrides
 
 export type Mark = {
   id: string

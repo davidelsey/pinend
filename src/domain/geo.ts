@@ -57,9 +57,27 @@ export function destinationPoint(origin: Coordinate, distanceInNm: number, beari
 }
 
 export function resolveMarkPosition(position: MarkPosition): Coordinate | undefined {
+  if (position.sightingCoordinate) return position.sightingCoordinate
+  if (position.manualCoordinate) return position.manualCoordinate
   if (position.kind === 'fixed') return position.coordinate
   if (position.kind === 'variable') return position.coordinate
   return destinationPoint(position.origin, position.distanceNm, bearingToTrue(position.bearing))
+}
+
+export const withManualMarkCoordinate = (position: MarkPosition, coordinate: Coordinate): MarkPosition => ({
+  ...position,
+  manualCoordinate: coordinate,
+})
+
+export const withSightingMarkCoordinate = (position: MarkPosition, coordinate: Coordinate): MarkPosition => ({
+  ...position,
+  sightingCoordinate: coordinate,
+})
+
+export const withoutSightingMarkCoordinate = (position: MarkPosition): MarkPosition => {
+  const remaining = { ...position }
+  delete remaining.sightingCoordinate
+  return remaining
 }
 
 export function velocityMadeGood(speedKnots: number, courseTrue: number, bearingToMarkTrue: number): number {

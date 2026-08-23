@@ -7,7 +7,7 @@ import { bearingToTrue, resolveMarkPosition } from '../domain/geo'
 import type { BearingReference, Mark } from '../domain/types'
 
 export function MarksPage() {
-  const { marks, race, saveMark } = useApp()
+  const { marks, race, latestReading, saveMark } = useApp()
   const [showForm, setShowForm] = useState(false)
   const [kind, setKind] = useState<Mark['position']['kind']>('fixed')
   const [name, setName] = useState('')
@@ -40,7 +40,7 @@ export function MarksPage() {
         <button className="button button--primary" onClick={() => setShowForm(true)}><Plus size={17} /> Add mark</button>
       </section>
       <div className="marks-layout">
-        <CoursePlot marks={marks} race={{ ...race, course: marks.map((mark) => ({ id: mark.id, markId: mark.id, rounding: 'either' })) }} />
+        <CoursePlot marks={marks} race={{ ...race, course: marks.map((mark) => ({ id: mark.id, markId: mark.id, rounding: 'either' })) }} current={latestReading} />
         <div className="mark-list">
           {marks.map((mark) => {
             const coordinate = resolveMarkPosition(mark.position)

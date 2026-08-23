@@ -6,7 +6,7 @@ import { DevSimulator } from '../components/DevSimulator'
 import { MapPointPicker } from '../components/MapPointPicker'
 import { SightingCamera } from '../components/SightingCamera'
 import { formatCountdown, syncStartFromSignal } from '../domain/countdown'
-import { distanceMetres, intersectSightings, resolveMarkPosition, timeToLineSeconds } from '../domain/geo'
+import { distanceMetres, intersectSightings, resolveMarkPosition, timeToLineSeconds, withManualMarkCoordinate, withSightingMarkCoordinate, withoutSightingMarkCoordinate } from '../domain/geo'
 import type { Coordinate, LineObservation } from '../domain/types'
 
 type Props = { now: number; onStartRace(): void; sensorStatus: string; onEnableSensors(): void }
@@ -51,6 +51,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
       : selectedMark
         ? resolveMarkPosition(selectedMark.position) ?? null
         : null
+  const selectedMapCoordinate = selectedTarget?.endpoint === 'mark' ? mapCoordinate ?? selectedResolvedCoordinate : selectedResolvedCoordinate
   const crossingSeconds = line && latestReading
     ? timeToLineSeconds(latestReading, latestReading.heading, latestReading.speedKnots, line.pin, line.committee)
     : null
@@ -113,10 +114,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
       const coordinate = intersectSightings(previous, observation)
       const mark = marks.find((item) => item.id === target.markId)
       if (coordinate && mark) {
-        const position = mark.position.kind === 'variable'
-          ? { kind: 'variable' as const, coordinate }
-          : { kind: 'fixed' as const, coordinate }
-        await saveMark({ ...mark, position })
+        await saveMark({ ...mark, position: withSightingMarkCoordinate(mark.position, coordinate) })
         setMessage(`${target.label} position resolved`)
         return true
       }
@@ -131,10 +129,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
     if (selectedTarget?.endpoint !== 'mark' || !mapCoordinate) return
     const mark = marks.find((item) => item.id === selectedTarget.markId)
     if (!mark) return
-    const position = mark.position.kind === 'variable'
-      ? { kind: 'variable' as const, coordinate: mapCoordinate }
-      : { kind: 'fixed' as const, coordinate: mapCoordinate }
-    await saveMark({ ...mark, position })
+    await saveMark({ ...mark, position: withManualMarkCoordinate(mark.position, mapCoordinate) })
     setMapCoordinate(null)
     setMessage(`${mark.name} placed from map`)
   }
@@ -146,6 +141,20 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
     if (minutes < 60) return `${minutes}m ago`
     const hours = Math.round(minutes / 60)
     return `${hours}h ago`
+  }
+
+  const discardObservation = async (observation: LineObservation) => {
+    await deleteObservation(observation.id)
+    if (observation.endpoint !== 'mark' || !observation.markId) return
+    const mark = marks.find((item) => item.id === observation.markId)
+    if (!mark) return
+    const remainingSightings = observations.filter((item) => item.id !== observation.id && item.endpoint === 'mark' && item.markId === observation.markId)
+    let position = withoutSightingMarkCoordinate(mark.position)
+    if (remainingSightings.length >= 2) {
+      const coordinate = intersectSightings(remainingSightings.at(-2)!, remainingSightings.at(-1)!)
+      if (coordinate) position = withSightingMarkCoordinate(position, coordinate)
+    }
+    await saveMark({ ...mark, position })
   }
 
   return (
@@ -259,11 +268,17 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
               <div className="mark-adjustment">
                 <div className="mark-adjustment__heading"><div><MapPin size={16} /><strong>{selectedTarget.label} adjustment</strong></div><span>{selectedObservations.length} sight ray{selectedObservations.length === 1 ? '' : 's'}</span></div>
                 <MapPointPicker
-                  value={selectedTarget.endpoint === 'mark' ? mapCoordinate ?? selectedResolvedCoordinate : selectedResolvedCoordinate}
+                  value={selectedMapCoordinate}
                   onChange={selectedTarget.endpoint === 'mark' ? setMapCoordinate : undefined}
                   observations={selectedObservations}
                   readOnly={selectedTarget.endpoint !== 'mark'}
                 />
+                {selectedTarget.endpoint === 'mark' && selectedMapCoordinate && (
+                  <div className="coordinate-adjustment-fields">
+                    <label><span>Latitude</span><input type="number" step="0.00001" value={selectedMapCoordinate.latitude} onChange={(event) => setMapCoordinate({ ...selectedMapCoordinate, latitude: Number(event.target.value) })} /></label>
+                    <label><span>Longitude</span><input type="number" step="0.00001" value={selectedMapCoordinate.longitude} onChange={(event) => setMapCoordinate({ ...selectedMapCoordinate, longitude: Number(event.target.value) })} /></label>
+                  </div>
+                )}
                 <div className="sighting-history" aria-label={`${selectedTarget.label} sighting history`}>
                   {selectedObservations.length === 0 && <p>No sightings recorded yet.</p>}
                   {selectedObservations.map((observation) => {
@@ -271,7 +286,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
                     return (
                       <div className="sighting-history__item" key={observation.id}>
                         <span><strong>{age}</strong><small>{observation.bearingTrue.toFixed(1)}° true · GPS ±{Math.round(observation.accuracy)} m</small></span>
-                        <button className="icon-button icon-button--danger" aria-label={`Delete ${selectedTarget.label} sighting from ${age}`} onClick={() => void deleteObservation(observation.id)}><Trash2 size={16} /></button>
+                        <button className="icon-button icon-button--danger" aria-label={`Delete ${selectedTarget.label} sighting from ${age}`} onClick={() => void discardObservation(observation)}><Trash2 size={16} /></button>
                       </div>
                     )
                   })}
