@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Anchor, CloudOff, Crosshair, LogIn, MapPinned, Radio, Sailboat, Settings, Waves, Wifi } from 'lucide-react'
 import { AppProvider, useApp } from './app/AppContext'
 import { useDeviceSensors } from './hooks/useDeviceSensors'
@@ -54,6 +54,7 @@ function PinEndApp() {
   const { loading, online, session, updateSession, acceptDeviceReading } = useApp()
   const [tab, setTab] = useState<Tab>('race')
   const [now, setNow] = useState(Date.now())
+  const automaticStartInFlight = useRef(false)
   const sensors = useDeviceSensors(true)
   const wakeLock = useWakeLock(session.phase === 'prestart' || session.phase === 'racing')
 
@@ -70,6 +71,18 @@ function PinEndApp() {
     if (session.phase === 'setup') setTab('setup')
     if (session.phase === 'prestart' || session.phase === 'racing' || session.phase === 'finished') setTab('race')
   }, [session.phase])
+
+  useEffect(() => {
+    if (session.phase !== 'prestart' || now < session.syncedStartTime) {
+      automaticStartInFlight.current = false
+      return
+    }
+    if (automaticStartInFlight.current) return
+    automaticStartInFlight.current = true
+    void updateSession({ phase: 'racing' }).catch(() => {
+      automaticStartInFlight.current = false
+    })
+  }, [now, session.phase, session.syncedStartTime, updateSession])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })

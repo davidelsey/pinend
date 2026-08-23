@@ -1,4 +1,5 @@
-import { Crosshair, Flag, Navigation } from 'lucide-react'
+import { useState } from 'react'
+import { Crosshair, Flag, LocateFixed, Maximize2, Navigation } from 'lucide-react'
 import { resolveMarkPosition } from '../domain/geo'
 import type { Coordinate, Mark, RaceDefinition } from '../domain/types'
 
@@ -12,20 +13,30 @@ type Props = {
 }
 
 export function CoursePlot({ marks, race, current, activeMarkId, line, compact }: Props) {
+  const [view, setView] = useState<'all' | 'course' | 'current'>('all')
   const courseMarks = race.course.flatMap((waypoint) => {
     const mark = marks.find((item) => item.id === waypoint.markId)
     const coordinate = mark ? resolveMarkPosition(mark.position) : undefined
     return mark && coordinate ? [{ ...mark, coordinate }] : []
   })
-  const points = [
+  const allPoints = [
     ...courseMarks.map((mark) => mark.coordinate),
     ...(current ? [current] : []),
     ...(line ? [line.pin, line.committee] : []),
   ]
+  const coursePoints = [
+    ...courseMarks.map((mark) => mark.coordinate),
+    ...(line ? [line.pin, line.committee] : []),
+  ]
+  const points = view === 'current' && current
+    ? [current]
+    : view === 'course' && coursePoints.length > 0
+      ? coursePoints
+      : allPoints
   if (points.length === 0) return <div className="map-empty">No resolved positions yet</div>
   const latitudeValues = points.map((point) => point.latitude)
   const longitudeValues = points.map((point) => point.longitude)
-  const padding = 0.003
+  const padding = view === 'current' ? 0.0015 : 0.003
   const minLatitude = Math.min(...latitudeValues) - padding
   const maxLatitude = Math.max(...latitudeValues) + padding
   const minLongitude = Math.min(...longitudeValues) - padding
@@ -74,12 +85,18 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
             <g transform={`translate(${point.x} ${point.y})`}>
               <circle r="12" fill="#53d3c2" opacity=".2" />
               <path d="M0 -10 L7 8 L0 5 L-7 8Z" fill="#53d3c2" stroke="#071b2f" strokeWidth="2" />
+              <text x="12" y="4" fill="#53d3c2" fontSize="9" fontWeight="800">YOU</text>
             </g>
           )
         })()}
       </svg>
       <div className="map-label map-label--left"><Crosshair size={13} /> Offline plot</div>
       <div className="map-label map-label--right"><Navigation size={13} /> True north</div>
+      <div className="map-controls">
+        <button aria-label="Recenter on current location" disabled={!current} onClick={() => setView('current')}><LocateFixed size={15} /> <span>Recenter</span></button>
+        <button aria-label="Fit all course waypoints" disabled={coursePoints.length === 0} onClick={() => setView('course')}><Maximize2 size={15} /> <span>Fit course</span></button>
+      </div>
+      {current && <div className="map-current-label"><span /> Current location</div>}
       <div className="map-watermark"><Flag size={12} /> PIN END</div>
     </div>
   )

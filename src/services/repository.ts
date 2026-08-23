@@ -75,6 +75,9 @@ export const createRaceRepository = (db = database) => ({
   async saveObservation(observation: LineObservation) {
     await db.observations.put(observation)
   },
+  async deleteObservation(id: string) {
+    await db.observations.delete(id)
+  },
 })
 
 export type RaceRepository = ReturnType<typeof createRaceRepository>

@@ -33,6 +33,7 @@ type AppContextValue = {
   saveSail(sail: Sail): Promise<void>
   saveRace(race: RaceDefinition): Promise<void>
   saveObservation(observation: LineObservation): Promise<void>
+  deleteObservation(id: string): Promise<void>
   setSimulatorEnabled(enabled: boolean): void
   configureSimulator(patch: Partial<Pick<SimulatorState, 'heading' | 'speedKnots' | 'accuracy'>>): void
   stepSimulator(seconds: number): void
@@ -132,6 +133,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await repository.saveObservation(observation)
   }
 
+  const deleteObservation = async (id: string) => {
+    setObservations((current) => current.filter((observation) => observation.id !== id))
+    await repository.deleteObservation(id)
+  }
+
   const configureSimulator = (patch: Partial<Pick<SimulatorState, 'heading' | 'speedKnots' | 'accuracy'>>) =>
     setSimulator((current) => ({ ...current, ...patch }))
 
@@ -171,6 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveSail,
     saveRace,
     saveObservation,
+    deleteObservation,
     setSimulatorEnabled,
     configureSimulator,
     stepSimulator,

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Anchor, Check, Clock3, Crosshair, LocateFixed, Navigation, Radio, Sailboat, TimerReset } from 'lucide-react'
+import { Anchor, Check, Clock3, Crosshair, MapPin, Radio, Sailboat, TimerReset, Trash2, X } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { DevSimulator } from '../components/DevSimulator'
+import { MapPointPicker } from '../components/MapPointPicker'
 import { SightingCamera } from '../components/SightingCamera'
 import { formatCountdown, syncStartFromSignal } from '../domain/countdown'
-import { distanceMetres, intersectSightings, timeToLineSeconds } from '../domain/geo'
-import type { LineObservation } from '../domain/types'
+import { distanceMetres, intersectSightings, resolveMarkPosition, timeToLineSeconds } from '../domain/geo'
+import type { Coordinate, LineObservation } from '../domain/types'
 
 type Props = { now: number; onStartRace(): void; sensorStatus: string; onEnableSensors(): void }
 type CameraTarget = { endpoint: 'pin' | 'committee'; label: string } | { endpoint: 'mark'; markId: string; label: string }
@@ -20,14 +21,36 @@ const resolveEndpoint = (observations: LineObservation[], endpoint: LineObservat
 }
 
 export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }: Props) {
-  const { marks, race, session, observations, latestReading, saveObservation, saveMark, updateSession } = useApp()
+  const { marks, race, session, observations, latestReading, saveObservation, deleteObservation, saveMark, updateSession } = useApp()
   const [message, setMessage] = useState<string | null>(null)
+  const [showSightMarks, setShowSightMarks] = useState(false)
+  const [selectedTarget, setSelectedTarget] = useState<CameraTarget | null>(null)
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null)
+  const [mapCoordinate, setMapCoordinate] = useState<Coordinate | null>(null)
   const remaining = session.syncedStartTime - now
   const pin = useMemo(() => resolveEndpoint(observations, 'pin'), [observations])
   const committee = useMemo(() => resolveEndpoint(observations, 'committee'), [observations])
   const line = pin && committee ? { pin, committee } : null
-  const movableMarks = marks.filter((mark) => mark.position.kind === 'variable')
+  const raceMarks = race.course.reduce<typeof marks>((unique, waypoint) => {
+    const mark = marks.find((item) => item.id === waypoint.markId)
+    return mark && !unique.some((item) => item.id === mark.id) ? [...unique, mark] : unique
+  }, [])
+  const sightingTargets: CameraTarget[] = [
+    { endpoint: 'pin', label: 'Pin end' },
+    { endpoint: 'committee', label: 'Committee boat' },
+    ...raceMarks.map((mark) => ({ endpoint: 'mark' as const, markId: mark.id, label: mark.name })),
+  ]
+  const selectedObservations = selectedTarget
+    ? observations.filter((item) => item.endpoint === selectedTarget.endpoint && (selectedTarget.endpoint !== 'mark' || item.markId === selectedTarget.markId))
+    : []
+  const selectedMark = selectedTarget?.endpoint === 'mark' ? marks.find((mark) => mark.id === selectedTarget.markId) : undefined
+  const selectedResolvedCoordinate = selectedTarget?.endpoint === 'pin'
+    ? pin
+    : selectedTarget?.endpoint === 'committee'
+      ? committee
+      : selectedMark
+        ? resolveMarkPosition(selectedMark.position) ?? null
+        : null
   const crossingSeconds = line && latestReading
     ? timeToLineSeconds(latestReading, latestReading.heading, latestReading.speedKnots, line.pin, line.committee)
     : null
@@ -90,7 +113,10 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
       const coordinate = intersectSightings(previous, observation)
       const mark = marks.find((item) => item.id === target.markId)
       if (coordinate && mark) {
-        await saveMark({ ...mark, position: { kind: 'variable', coordinate } })
+        const position = mark.position.kind === 'variable'
+          ? { kind: 'variable' as const, coordinate }
+          : { kind: 'fixed' as const, coordinate }
+        await saveMark({ ...mark, position })
         setMessage(`${target.label} position resolved`)
         return true
       }
@@ -101,26 +127,25 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
     return true
   }
 
-  const directCapture = async (endpoint: 'pin' | 'committee') => {
-    if (!latestReading) return setMessage('No precise position available')
-    const southObservation: LineObservation = {
-      id: crypto.randomUUID(),
-      sessionId: session.id,
-      endpoint,
-      observer: { latitude: latestReading.latitude - 0.0001, longitude: latestReading.longitude },
-      bearingTrue: 0,
-      accuracy: latestReading.accuracy,
-      timestamp: Date.now(),
-    }
-    const westObservation: LineObservation = {
-      ...southObservation,
-      id: crypto.randomUUID(),
-      observer: { latitude: latestReading.latitude, longitude: latestReading.longitude - 0.0001 },
-      bearingTrue: 90,
-    }
-    await saveObservation(southObservation)
-    await saveObservation(westObservation)
-    setMessage(`${endpoint === 'pin' ? 'Pin' : 'Committee boat'} set from current GPS`)
+  const placeSelectedMark = async () => {
+    if (selectedTarget?.endpoint !== 'mark' || !mapCoordinate) return
+    const mark = marks.find((item) => item.id === selectedTarget.markId)
+    if (!mark) return
+    const position = mark.position.kind === 'variable'
+      ? { kind: 'variable' as const, coordinate: mapCoordinate }
+      : { kind: 'fixed' as const, coordinate: mapCoordinate }
+    await saveMark({ ...mark, position })
+    setMapCoordinate(null)
+    setMessage(`${mark.name} placed from map`)
+  }
+
+  const observationAge = (timestamp: number) => {
+    const seconds = Math.max(0, Math.round((now - timestamp) / 1000))
+    if (seconds < 60) return `${seconds}s ago`
+    const minutes = Math.round(seconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.round(minutes / 60)
+    return `${hours}h ago`
   }
 
   return (
@@ -164,46 +189,14 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
         <div className="content-stack">
           <section className="panel line-panel">
             <div className="panel__heading">
-              <div><Anchor size={18} /><h2>Build the start line</h2></div>
-              <span className={`chip ${line ? 'chip--verified' : ''}`}>{line ? 'Line resolved' : 'Sight both ends'}</span>
+              <div><Anchor size={18} /><h2>Course positions</h2></div>
+              <span className={`chip ${line ? 'chip--verified' : ''}`}>{line ? 'Start line resolved' : 'Start line awaiting sightings'}</span>
             </div>
             <CoursePlot marks={marks} race={race} current={latestReading} line={line} compact />
-            <div className="line-end-grid">
-              {(['pin', 'committee'] as const).map((endpoint) => {
-                const endpointObservations = observations.filter((item) => item.endpoint === endpoint)
-                const resolved = endpoint === 'pin' ? pin : committee
-                return (
-                  <div className={`line-end ${resolved ? 'line-end--resolved' : ''}`} key={endpoint}>
-                    <div className="line-end__title">
-                      <span className={`endpoint-icon endpoint-icon--${endpoint}`}>{endpoint === 'pin' ? <Crosshair size={18} /> : <Sailboat size={18} />}</span>
-                      <div><strong>{endpoint === 'pin' ? 'Pin end' : 'Committee boat'}</strong><small>{endpointObservations.length} sightings</small></div>
-                    </div>
-                    {resolved ? (
-                      <div className="resolved-coordinate"><Check size={15} /> {resolved.latitude.toFixed(5)}, {resolved.longitude.toFixed(5)}</div>
-                    ) : <p>Hold the phone vertically, align the camera crosshair, then repeat after moving.</p>}
-                    <button className="button button--primary button--wide" onClick={() => setCameraTarget({ endpoint, label: endpoint === 'pin' ? 'Pin' : 'Committee boat' })}>
-                      <Navigation size={17} /> Open {endpoint === 'pin' ? 'pin' : 'committee'} viewfinder
-                    </button>
-                    <button className="text-button" onClick={() => void directCapture(endpoint)}><LocateFixed size={14} /> I am beside this endpoint</button>
-                  </div>
-                )
-              })}
+            <div className="sight-marks-summary">
+              <div><Crosshair size={20} /><span><strong>Sight or place race marks</strong><small>Pin end, committee boat, and {raceMarks.length} course marks</small></span></div>
+              <button className="button button--primary" onClick={() => setShowSightMarks(true)}><Crosshair size={17} /> Sight marks</button>
             </div>
-            {movableMarks.length > 0 && (
-              <div className="movable-marks">
-                <div className="movable-marks__heading"><div><Crosshair size={16} /><strong>Other movable marks</strong></div><span>Select any laid mark to sight</span></div>
-                {movableMarks.map((mark) => {
-                  const markObservations = observations.filter((item) => item.endpoint === 'mark' && item.markId === mark.id)
-                  const coordinate = mark.position.kind === 'variable' ? mark.position.coordinate : undefined
-                  return (
-                    <div className="movable-mark-row" key={mark.id}>
-                      <div><strong>{mark.name}</strong><small>{coordinate ? `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}` : `${markObservations.length} of 2 sightings`}</small></div>
-                      <button className="button button--small button--secondary" onClick={() => setCameraTarget({ endpoint: 'mark', markId: mark.id, label: mark.name })}><Navigation size={14} /> Sight mark</button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
             <div className="sensor-strip">
               <Radio size={16} /><span>Sensor: <strong>{latestReading?.source ?? sensorStatus}</strong></span>
               <span>GPS: <strong>{latestReading ? `±${Math.round(latestReading.accuracy)} m` : '—'}</strong></span>
@@ -238,6 +231,64 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
             if (captured) setCameraTarget(null)
           }}
         />
+      )}
+      {showSightMarks && !cameraTarget && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Sight marks">
+          <div className="form-modal sight-marks-modal">
+            <div className="panel__heading">
+              <div><Crosshair size={18} /><h2>Sight marks</h2></div>
+              <button className="icon-button" aria-label="Close sight marks" onClick={() => { setShowSightMarks(false); setSelectedTarget(null); setMapCoordinate(null) }}><X size={18} /></button>
+            </div>
+            <p className="sight-marks-modal__intro">Select a target, then use the crosshair to sight it. Course marks can also be placed or adjusted directly on the map.</p>
+            <div className="sighting-targets">
+              {sightingTargets.map((target) => {
+                const selected = selectedTarget?.endpoint === target.endpoint && (target.endpoint !== 'mark' || (selectedTarget?.endpoint === 'mark' && selectedTarget.markId === target.markId))
+                const count = observations.filter((item) => item.endpoint === target.endpoint && (target.endpoint !== 'mark' || item.markId === target.markId)).length
+                return <button key={target.endpoint === 'mark' ? target.markId : target.endpoint} aria-label={target.label} className={selected ? 'selected' : ''} onClick={() => {
+                  setSelectedTarget(target)
+                  if (target.endpoint === 'mark') {
+                    const mark = marks.find((item) => item.id === target.markId)
+                    setMapCoordinate(mark ? resolveMarkPosition(mark.position) ?? latestReading ?? { latitude: -33.86, longitude: 151.24 } : null)
+                  } else {
+                    setMapCoordinate(null)
+                  }
+                }}><strong>{target.label}</strong><small>{count} sighting{count === 1 ? '' : 's'}</small></button>
+              })}
+            </div>
+            {selectedTarget && (
+              <div className="mark-adjustment">
+                <div className="mark-adjustment__heading"><div><MapPin size={16} /><strong>{selectedTarget.label} adjustment</strong></div><span>{selectedObservations.length} sight ray{selectedObservations.length === 1 ? '' : 's'}</span></div>
+                <MapPointPicker
+                  value={selectedTarget.endpoint === 'mark' ? mapCoordinate ?? selectedResolvedCoordinate : selectedResolvedCoordinate}
+                  onChange={selectedTarget.endpoint === 'mark' ? setMapCoordinate : undefined}
+                  observations={selectedObservations}
+                  readOnly={selectedTarget.endpoint !== 'mark'}
+                />
+                <div className="sighting-history" aria-label={`${selectedTarget.label} sighting history`}>
+                  {selectedObservations.length === 0 && <p>No sightings recorded yet.</p>}
+                  {selectedObservations.map((observation) => {
+                    const age = observationAge(observation.timestamp)
+                    return (
+                      <div className="sighting-history__item" key={observation.id}>
+                        <span><strong>{age}</strong><small>{observation.bearingTrue.toFixed(1)}° true · GPS ±{Math.round(observation.accuracy)} m</small></span>
+                        <button className="icon-button icon-button--danger" aria-label={`Delete ${selectedTarget.label} sighting from ${age}`} onClick={() => void deleteObservation(observation.id)}><Trash2 size={16} /></button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="sighting-actions">
+              {selectedTarget?.endpoint === 'mark' && mapCoordinate && <button className="button button--orange" onClick={() => void placeSelectedMark()}><Check size={17} /> Save map position</button>}
+              <button
+                className="button button--primary sighting-crosshair-button"
+                disabled={!selectedTarget}
+                aria-label={selectedTarget ? `Open ${selectedTarget.label} viewfinder` : 'Select a mark to open viewfinder'}
+                onClick={() => { if (selectedTarget) setCameraTarget(selectedTarget) }}
+              ><Crosshair size={22} /></button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

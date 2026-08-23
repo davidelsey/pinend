@@ -70,7 +70,7 @@ export const seedSails: Sail[] = [
 const todayAt = (hours: number, minutes: number) => {
   const date = new Date()
   date.setHours(hours, minutes, 0, 0)
-  if (date.getTime() < Date.now() - 4 * 60 * 60 * 1000) date.setDate(date.getDate() + 1)
+  if (date.getTime() <= Date.now()) date.setDate(date.getDate() + 1)
   return date.toISOString()
 }
 
