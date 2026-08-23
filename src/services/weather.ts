@@ -16,18 +16,15 @@ export type ForecastSnapshot = {
   stale: boolean
 }
 
-const demoForecast = (): ForecastSnapshot => ({
-  fetchedAt: Date.now(),
-  source: 'Demo forecast',
-  stale: false,
-  hours: [
-    { time: new Date().toISOString(), temperature: 19, windSpeed: 12, windDirection: 38, gust: 17, waveHeight: 0.5 },
-    { time: new Date(Date.now() + 3_600_000).toISOString(), temperature: 20, windSpeed: 14, windDirection: 45, gust: 19, waveHeight: 0.6 },
-    { time: new Date(Date.now() + 7_200_000).toISOString(), temperature: 20, windSpeed: 15, windDirection: 52, gust: 21, waveHeight: 0.7 },
-  ],
-})
+export type MarineSnapshot = {
+  fetchedAt: number
+  currentKnots: number | null
+  currentDirection: number | null
+  seaLevelMetres: number | null
+  stale: boolean
+}
 
-export async function fetchForecast(coordinate: Coordinate): Promise<ForecastSnapshot> {
+export async function fetchForecast(coordinate: Coordinate): Promise<ForecastSnapshot | null> {
   try {
     const params = new URLSearchParams({
       latitude: String(coordinate.latitude),
@@ -54,6 +51,32 @@ export async function fetchForecast(coordinate: Coordinate): Promise<ForecastSna
   } catch {
     const cached = localStorage.getItem('pin-end-forecast')
     if (cached) return { ...(JSON.parse(cached) as ForecastSnapshot), stale: true }
-    return demoForecast()
+    return null
+  }
+}
+
+export async function fetchMarineForecast(coordinate: Coordinate): Promise<MarineSnapshot | null> {
+  try {
+    const params = new URLSearchParams({
+      latitude: String(coordinate.latitude),
+      longitude: String(coordinate.longitude),
+      current: 'ocean_current_velocity,ocean_current_direction,sea_level_height_msl',
+      velocity_unit: 'kn',
+    })
+    const response = await fetch(`https://marine-api.open-meteo.com/v1/marine?${params}`)
+    if (!response.ok) throw new Error('Marine forecast unavailable')
+    const data = await response.json()
+    const snapshot: MarineSnapshot = {
+      fetchedAt: Date.now(),
+      currentKnots: data.current?.ocean_current_velocity ?? null,
+      currentDirection: data.current?.ocean_current_direction ?? null,
+      seaLevelMetres: data.current?.sea_level_height_msl ?? null,
+      stale: false,
+    }
+    localStorage.setItem('pin-end-marine-forecast', JSON.stringify(snapshot))
+    return snapshot
+  } catch {
+    const cached = localStorage.getItem('pin-end-marine-forecast')
+    return cached ? { ...(JSON.parse(cached) as MarineSnapshot), stale: true } : null
   }
 }

@@ -17,6 +17,7 @@ type AppContextValue = {
   loading: boolean
   online: boolean
   marks: Mark[]
+  boats: Boat[]
   boat: Boat
   sails: Sail[]
   race: RaceDefinition
@@ -28,6 +29,7 @@ type AppContextValue = {
   updateSession(patch: Partial<RaceSession>): Promise<void>
   saveMark(mark: Mark): Promise<void>
   saveBoat(boat: Boat): Promise<void>
+  selectBoat(boatId: string): void
   saveSail(sail: Sail): Promise<void>
   saveRace(race: RaceDefinition): Promise<void>
   saveObservation(observation: LineObservation): Promise<void>
@@ -46,8 +48,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [online, setOnline] = useState(navigator.onLine)
   const [marks, setMarks] = useState(seedMarks)
+  const [boats, setBoats] = useState([seedBoat])
   const [boat, setBoat] = useState(seedBoat)
-  const [sails, setSails] = useState(seedSails)
+  const [allSails, setAllSails] = useState(seedSails)
   const [race, setRace] = useState(seedRace)
   const [session, setSession] = useState(createSeedSession)
   const [observations, setObservations] = useState<LineObservation[]>([])
@@ -59,12 +62,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void (async () => {
       await seedDatabase()
       const data = await repository.loadAll()
-      const storedObservations = await repository.getObservations()
+      const activeSession = data.session ?? createSeedSession()
+      const storedObservations = await repository.getObservations(activeSession.id)
       setMarks(data.marks)
-      setBoat(data.boats[0] ?? seedBoat)
-      setSails(data.sails)
+      setBoats(data.boats.length ? data.boats : [seedBoat])
+      const selectedBoatId = localStorage.getItem('pin-end-selected-boat')
+      setBoat(data.boats.find((item) => item.id === selectedBoatId) ?? data.boats[0] ?? seedBoat)
+      setAllSails(data.sails)
       setRace(data.races[0] ?? seedRace)
-      setSession(data.session ?? createSeedSession())
+      setSession(activeSession)
       setObservations(storedObservations)
       setLoading(false)
     })()
@@ -84,6 +90,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateSession = useCallback(
     async (patch: Partial<RaceSession>) => {
       const next = { ...session, ...patch, updatedAt: Date.now() }
+      if (next.id !== session.id) setObservations([])
       setSession(next)
       await repository.saveSession(next)
     },
@@ -96,12 +103,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const saveBoat = async (next: Boat) => {
+    setBoats((current) => [...current.filter((item) => item.id !== next.id), next])
     setBoat(next)
+    localStorage.setItem('pin-end-selected-boat', next.id)
     await repository.saveBoat(next)
   }
 
+  const selectBoat = (boatId: string) => {
+    const selected = boats.find((item) => item.id === boatId)
+    if (!selected) return
+    setBoat(selected)
+    localStorage.setItem('pin-end-selected-boat', boatId)
+    void updateSession({ selectedSailIds: allSails.filter((sail) => sail.boatId === boatId && sail.location !== 'locker').map((sail) => sail.id) })
+  }
+
   const saveSail = async (sail: Sail) => {
-    setSails((current) => [...current.filter((item) => item.id !== sail.id), sail])
+    setAllSails((current) => [...current.filter((item) => item.id !== sail.id), sail])
     await repository.saveSail(sail)
   }
 
@@ -132,10 +149,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await updateSession({ telemetry })
   }, [latestReading, session.telemetry, updateSession])
 
+  const sails = allSails.filter((sail) => sail.boatId === boat.id)
+
   const value: AppContextValue = {
     loading,
     online,
     marks,
+    boats,
     boat,
     sails,
     race,
@@ -147,6 +167,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateSession,
     saveMark,
     saveBoat,
+    selectBoat,
     saveSail,
     saveRace,
     saveObservation,

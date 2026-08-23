@@ -55,7 +55,7 @@ function PinEndApp() {
   const [tab, setTab] = useState<Tab>('race')
   const [now, setNow] = useState(Date.now())
   const sensors = useDeviceSensors(true)
-  const wakeLock = useWakeLock(session.phase === 'racing')
+  const wakeLock = useWakeLock(session.phase === 'prestart' || session.phase === 'racing')
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 250)
@@ -83,7 +83,7 @@ function PinEndApp() {
       ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing' })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
       : session.phase === 'racing'
         ? <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setTab('race')} />
-        : <FinishedPage onReset={() => void updateSession({ phase: 'setup', activeWaypointIndex: 0, telemetry: [], roundedAt: {} })} />
+        : <FinishedPage onReset={() => void updateSession({ id: crypto.randomUUID(), phase: 'setup', activeWaypointIndex: 0, telemetry: [], roundedAt: {} })} />
 
   const content = tab === 'setup'
     ? <SetupPage onEnterPrestart={() => setTab('race')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />

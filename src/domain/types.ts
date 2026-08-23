@@ -44,6 +44,7 @@ export type Boat = {
 
 export type Sail = {
   id: string
+  boatId: string
   name: string
   type: 'mainsail' | 'headsail' | 'spinnaker' | 'staysail' | 'other'
   condition: 'excellent' | 'good' | 'serviceable' | 'repair'
@@ -78,6 +79,11 @@ export type SensorReading = Coordinate & {
   heading: number
   speedKnots: number
   source: 'device' | 'simulator'
+  headingSource?: 'compass' | 'course-over-ground' | 'simulator'
+  headingReliable?: boolean
+  rawHeading?: number
+  rawHeadingReference?: BearingReference
+  declination?: number
 }
 
 export type RaceSession = {
@@ -94,7 +100,9 @@ export type RaceSession = {
 
 export type LineObservation = {
   id: string
-  endpoint: 'pin' | 'committee'
+  sessionId: string
+  endpoint: 'pin' | 'committee' | 'mark'
+  markId?: string
   observer: Coordinate
   bearingTrue: number
   accuracy: number

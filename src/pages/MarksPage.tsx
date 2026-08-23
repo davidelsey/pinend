@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Compass, Crosshair, MapPin, Plus, Radio, Ruler, ShieldCheck } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
+import { MapPointPicker } from '../components/MapPointPicker'
 import { bearingToTrue, resolveMarkPosition } from '../domain/geo'
 import type { BearingReference, Mark } from '../domain/types'
 
@@ -15,6 +16,7 @@ export function MarksPage() {
   const [distance, setDistance] = useState(1)
   const [bearing, setBearing] = useState(0)
   const [reference, setReference] = useState<BearingReference>('true')
+  const [declination, setDeclination] = useState(12.8)
 
   const resolvedCount = useMemo(() => marks.filter((mark) => resolveMarkPosition(mark.position)).length, [marks])
 
@@ -25,7 +27,7 @@ export function MarksPage() {
       ? { kind: 'fixed', coordinate: { latitude, longitude } }
       : kind === 'variable'
         ? { kind: 'variable' }
-        : { kind: 'constructed', origin: { latitude, longitude }, distanceNm: distance, bearing: { degrees: bearing, reference, declination: reference === 'magnetic' ? 12.8 : undefined } }
+        : { kind: 'constructed', origin: { latitude, longitude }, distanceNm: distance, bearing: { degrees: bearing, reference, declination: reference === 'magnetic' ? declination : undefined } }
     await saveMark({ ...base, position })
     setName('')
     setShowForm(false)
@@ -66,8 +68,8 @@ export function MarksPage() {
             <div className="segment-control">
               {(['fixed', 'variable', 'constructed'] as const).map((option) => <button className={kind === option ? 'active' : ''} key={option} onClick={() => setKind(option)}>{option}</button>)}
             </div>
-            {kind !== 'variable' && <div className="form-grid"><label className="field"><span>{kind === 'fixed' ? 'Latitude' : 'Origin latitude'}</span><input type="number" step="0.00001" value={latitude} onChange={(e) => setLatitude(Number(e.target.value))} /></label><label className="field"><span>{kind === 'fixed' ? 'Longitude' : 'Origin longitude'}</span><input type="number" step="0.00001" value={longitude} onChange={(e) => setLongitude(Number(e.target.value))} /></label></div>}
-            {kind === 'constructed' && <><div className="form-grid"><label className="field"><span>Distance (NM)</span><input type="number" step="0.1" value={distance} onChange={(e) => setDistance(Number(e.target.value))} /></label><label className="field"><span>Bearing</span><input type="number" value={bearing} onChange={(e) => setBearing(Number(e.target.value))} /></label></div><div className="segment-control"><button className={reference === 'true' ? 'active' : ''} onClick={() => setReference('true')}>True</button><button className={reference === 'magnetic' ? 'active' : ''} onClick={() => setReference('magnetic')}>Magnetic</button></div><p className="microcopy"><Ruler size={13} /> Magnetic values use the locally stored declination model.</p></>}
+            {kind !== 'variable' && <><MapPointPicker value={{ latitude, longitude }} onChange={(coordinate) => { setLatitude(coordinate.latitude); setLongitude(coordinate.longitude) }} /><div className="form-grid"><label className="field"><span>{kind === 'fixed' ? 'Latitude' : 'Origin latitude'}</span><input type="number" step="0.00001" value={latitude} onChange={(e) => setLatitude(Number(e.target.value))} /></label><label className="field"><span>{kind === 'fixed' ? 'Longitude' : 'Origin longitude'}</span><input type="number" step="0.00001" value={longitude} onChange={(e) => setLongitude(Number(e.target.value))} /></label></div></>}
+            {kind === 'constructed' && <><div className="form-grid"><label className="field"><span>Distance (NM)</span><input type="number" step="0.1" value={distance} onChange={(e) => setDistance(Number(e.target.value))} /></label><label className="field"><span>Bearing</span><input type="number" value={bearing} onChange={(e) => setBearing(Number(e.target.value))} /></label></div><div className="segment-control"><button className={reference === 'true' ? 'active' : ''} onClick={() => setReference('true')}>True</button><button className={reference === 'magnetic' ? 'active' : ''} onClick={() => setReference('magnetic')}>Magnetic</button></div>{reference === 'magnetic' && <label className="field"><span>Magnetic declination (east positive)</span><input type="number" step="0.1" value={declination} onChange={(e) => setDeclination(Number(e.target.value))} /></label>}<p className="microcopy"><Ruler size={13} /> The original bearing and declination are retained with the calculated true bearing.</p></>}
             <button className="button button--primary button--wide" onClick={() => void addMark()}><Plus size={16} /> Add mark</button>
           </div>
         </div>

@@ -73,6 +73,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 
 .button { min-height: 44px; border: 0; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; font-weight: 800; font-size: 13px; transition: transform .15s, background .15s; }
 .button:active { transform: translateY(1px); }
+.button:disabled { cursor: not-allowed; opacity: .45; transform: none; }
 .button--primary { color: white; background: var(--navy); }
 .button--primary:hover { background: var(--navy-3); }
 .button--secondary { color: var(--navy); background: #e8eeec; }
@@ -251,6 +252,9 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .race-bearing span { align-self: flex-start; padding-top: 10px; font-size: 10px; }
 .race-distance { font: 700 16px 'Manrope'; color: #f3f6f4; }
 .race-distance span { color: #6d8692; font-size: 8px; letter-spacing: .12em; }
+.race-eta { width: fit-content; display: flex; align-items: center; gap: 6px; margin: 9px auto 0; padding: 7px 11px; border-radius: 999px; color: #b7e8df; background: rgba(54, 154, 137, .14); font: 700 11px 'Manrope'; }
+.race-eta span { color: #66818c; font-size: 7px; letter-spacing: .1em; }
+.race-eta--unavailable { color: #8398a1; background: rgba(255,255,255,.05); }
 .race-metrics { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; overflow: hidden; margin-bottom: 16px; }
 .metric { padding: 14px 18px; background: #0b263a; border-right: 1px solid rgba(255,255,255,.08); }
 .metric:last-child { border-right: 0; }
@@ -296,6 +300,8 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .page-title { padding: 25px 3px 20px; }
 .page-title h1 { margin: 9px 0 5px; font-size: clamp(33px, 5vw, 50px); letter-spacing: -.05em; }
 .page-title p { color: var(--muted); font-size: 13px; }
+.boat-picker { display: flex; gap: 9px; align-items: center; margin-top: 14px; }
+.boat-picker select { min-height: 44px; min-width: 260px; border: 1px solid #d5dedb; border-radius: 10px; padding: 8px 11px; background: white; }
 .page-title--row { display: flex; justify-content: space-between; align-items: flex-end; }
 .wardrobe-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .sail-card { display: flex; min-height: 115px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: white; }
@@ -329,6 +335,30 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .segment-control { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: 11px; background: #e9eeec; margin-bottom: 16px; }
 .segment-control button { border: 0; border-radius: 8px; background: transparent; padding: 8px; color: #6e7e85; font-size: 10px; font-weight: 800; text-transform: capitalize; }
 .segment-control button.active { background: white; color: var(--navy); box-shadow: 0 2px 7px rgba(7,27,47,.1); }
+.point-picker { position: relative; overflow: hidden; margin-bottom: 15px; border-radius: 13px; background: #092b3f; color: #c2d2d6; }
+.point-picker svg { display: block; width: 100%; height: 175px; cursor: crosshair; }
+.point-picker > span, .point-picker > i { position: absolute; bottom: 9px; display: flex; align-items: center; gap: 4px; padding: 5px 7px; border-radius: 7px; background: rgba(2,14,23,.72); font-size: 8px; font-style: normal; }
+.point-picker > span { left: 9px; }
+.point-picker > i { right: 9px; color: #7fa1aa; }
+
+.prestart-tactics { width: min(420px, 100%); display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; margin: 14px auto 0; }
+.prestart-tactics > div { padding: 9px 12px; border: 1px solid rgba(255,255,255,.1); border-radius: 11px; background: rgba(255,255,255,.06); text-align: left; }
+.prestart-tactics span, .prestart-tactics strong { display: block; }
+.prestart-tactics span { color: #8098a3; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.prestart-tactics strong { margin-top: 3px; color: white; font: 800 17px 'Manrope'; }
+.prestart-tactics small { color: #8098a3; font-size: 9px; }
+.prestart-timing--early strong { color: #ff9a73; }
+.prestart-timing--late strong { color: #f6ca71; }
+.prestart-timing--ontime strong { color: #78dfcb; }
+.movable-marks { margin-top: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; }
+.movable-marks__heading, .movable-mark-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; }
+.movable-marks__heading { color: var(--navy); background: #edf3f0; font-size: 10px; }
+.movable-marks__heading > div { display: flex; align-items: center; gap: 7px; }
+.movable-marks__heading > span { color: var(--muted); font-size: 8px; }
+.movable-mark-row + .movable-mark-row { border-top: 1px solid var(--line); }
+.movable-mark-row strong, .movable-mark-row small { display: block; }
+.movable-mark-row strong { font-size: 11px; }
+.movable-mark-row small { margin-top: 2px; color: var(--muted); font: 500 8px ui-monospace, monospace; }
 
 .login-page { min-height: 100vh; position: relative; overflow: hidden; display: grid; place-items: center; padding: 90px 20px 40px; background: var(--navy); color: var(--cream); }
 .login-brand { position: absolute; top: 28px; left: 34px; display: flex; align-items: center; gap: 11px; letter-spacing: .12em; font-size: 14px; }
@@ -379,6 +409,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .bottom-nav button { min-width: 25%; }
   .countdown-hero { margin-top: -18px; padding: 35px 14px; min-height: 330px; }
   .countdown { font-size: 78px; }
+  .prestart-tactics { grid-template-columns: 1fr 1fr; }
   .signal-buttons { gap: 5px; }
   .signal-buttons button { padding: 9px 3px; }
   .sensor-strip { flex-wrap: wrap; }

@@ -24,7 +24,7 @@ export function useWakeLock(active: boolean) {
   }, [])
 
   useEffect(() => {
-    if (active && document.visibilityState === 'visible') void request()
+    if (active && document.visibilityState === 'visible' && (!sentinel || sentinel.released)) void request()
     if (!active && sentinel && !sentinel.released) void sentinel.release()
   }, [active, request, sentinel])
 

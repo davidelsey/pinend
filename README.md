@@ -1,6 +1,6 @@
 # Pin End
 
-Pin End is an offline-first race preparation and on-water sailing PWA. The current local build includes a seeded Cruising Yacht Club of Australia demo, setup/pre-start/race modes, boats and sail wardrobes, fixed/variable/constructed marks, start-line sightings, navigation calculations, wake-lock handling, and a development sensor simulator.
+Pin End is an offline-first race preparation and on-water sailing PWA. The current local build includes a seeded Cruising Yacht Club of Australia demo, setup/pre-start/race modes, boats and sail wardrobes, fixed/variable/constructed marks, camera-assisted sightings for line ends and movable marks, tactical line-crossing estimates, GPS speed and VMG-based mark ETAs, wake-lock handling, and a development sensor simulator.
 
 ## Run locally
 
@@ -24,7 +24,7 @@ npm run build
 
 Development builds show a dashed **Sensor simulator** panel in setup, pre-start, and race screens. Expand it and enable simulated sensors, then adjust true bearing, speed, and accuracy. You can move the simulated boat by 30 seconds or place it near the active mark. The component is guarded by `import.meta.env.DEV`, so it is excluded from production behavior.
 
-For start-line triangulation, enable the simulator, open an endpoint viewfinder, align its crosshair, and capture. Move at least 25 metres, adjust the bearing back toward the endpoint, and repeat. On a phone, the viewfinder uses the rear camera while the phone is held vertically; camera frames are never saved or uploaded. The **I am beside this endpoint** control provides a direct GPS alternative.
+For triangulation, enable the simulator, open an endpoint or movable-mark viewfinder, align its crosshair, and capture. Move at least 25 metres, adjust the bearing back toward the target, and repeat. Pin end and committee boat are presented first, with other variable marks below them. On a phone, the viewfinder uses the rear camera while the phone is held vertically; camera frames are never saved or uploaded. The **I am beside this endpoint** control provides a direct GPS alternative for the start line.
 
 ## PWA and offline behavior
 

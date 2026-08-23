@@ -22,6 +22,8 @@ import { Metric } from '../components/Metric'
 import { formatCountdown } from '../domain/countdown'
 import { distanceNm, initialBearing, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
 import { shouldSuggestRounding } from '../domain/rounding'
+import { cyca } from '../data/seed'
+import { fetchForecast, fetchMarineForecast, type ForecastSnapshot, type MarineSnapshot } from '../services/weather'
 
 type Props = { now: number; wakeLockStatus: string; onFinish(): void }
 
@@ -37,6 +39,8 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     updateSession,
   } = useApp()
   const [showRounding, setShowRounding] = useState(false)
+  const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
+  const [marine, setMarine] = useState<MarineSnapshot | null>(null)
   const navigationReading = latestReading ?? session.telemetry.at(-1) ?? null
   const activeWaypoint = race.course[session.activeWaypointIndex]
   const activeMark = marks.find((mark) => mark.id === activeWaypoint?.markId)
@@ -46,7 +50,18 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const vmg = navigationReading && bearing != null
     ? velocityMadeGood(navigationReading.speedKnots, navigationReading.heading, bearing)
     : null
+  const etaSeconds = distance != null && vmg != null && vmg > 0.1 ? (distance / vmg) * 3600 : null
+  const etaLabel = etaSeconds == null
+    ? 'No closing VMG'
+    : etaSeconds >= 3600
+      ? `${Math.floor(etaSeconds / 3600)}h ${Math.round((etaSeconds % 3600) / 60)}m`
+      : `${Math.floor(etaSeconds / 60)}m ${Math.round(etaSeconds % 60)}s`
   const elapsed = now - session.syncedStartTime
+
+  useEffect(() => {
+    void fetchForecast(cyca.coordinate).then(setForecast)
+    void fetchMarineForecast(cyca.coordinate).then(setMarine)
+  }, [])
 
   useEffect(() => {
     if (!simulatorEnabled) return
@@ -99,10 +114,11 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           <h1>{activeMark?.name ?? 'Course complete'}</h1>
           <div className="race-bearing"><Navigation size={28} /><strong>{bearing == null ? '—' : Math.round(bearing).toString().padStart(3, '0')}°</strong><span>T</span></div>
           <div className="race-distance">{distance == null ? '—' : distance.toFixed(distance < 1 ? 2 : 1)} <span>NM TO MARK</span></div>
+          <div className={`race-eta ${etaSeconds == null ? 'race-eta--unavailable' : ''}`}><Clock3 size={14} /> ETA {etaLabel} <span>AT CURRENT VMG</span></div>
         </section>
 
         <div className="race-metrics">
-          <Metric label="Speed" value={navigationReading?.speedKnots.toFixed(1) ?? '—'} unit="kn" icon={<Gauge size={15} />} />
+          <Metric label="GPS boat speed" value={navigationReading?.speedKnots.toFixed(1) ?? '—'} unit="kn" icon={<Gauge size={15} />} />
           <Metric label="VMG" value={vmg?.toFixed(1) ?? '—'} unit="kn" icon={<ArrowRight size={15} />} />
           <Metric label="Course" value={navigationReading ? Math.round(navigationReading.heading).toString().padStart(3, '0') : '—'} unit="°T" icon={<Compass size={15} />} />
           <Metric label="Accuracy" value={navigationReading ? Math.round(navigationReading.accuracy).toString() : '—'} unit="m" icon={<Radio size={15} />} />
@@ -120,9 +136,9 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
 
           <aside className="race-sidebar">
             <section className="race-info-card">
-              <div><Wind size={18} /><span>Forecast wind</span><strong>045° T · 14 kn</strong></div>
-              <div><Navigation size={18} /><span>Model current</span><strong>0.4 kn · 172° T</strong></div>
-              <small>Cached before start · advisory only</small>
+              <div><Wind size={18} /><span>Forecast wind</span><strong>{forecast?.hours[0] ? `${Math.round(forecast.hours[0].windDirection).toString().padStart(3, '0')}° T · ${Math.round(forecast.hours[0].windSpeed)} kn` : 'Unavailable'}</strong></div>
+              <div><Navigation size={18} /><span>Model current</span><strong>{marine?.currentKnots != null && marine.currentDirection != null ? `${marine.currentKnots.toFixed(1)} kn · ${Math.round(marine.currentDirection).toString().padStart(3, '0')}° T` : 'Unavailable'}</strong></div>
+              <small>{forecast?.stale || marine?.stale ? 'Cached data' : 'Latest downloaded data'} · advisory only</small>
             </section>
             <section className="race-info-card system-status">
               <div><Shield size={18} /><span>Offline race pack</span><strong>Ready</strong></div>

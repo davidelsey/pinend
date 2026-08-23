@@ -15,10 +15,14 @@ export class PinEndDatabase extends Dexie {
     this.version(1).stores({
       marks: 'id, name, provenance',
       boats: 'id, name',
-      sails: 'id, type, location',
+      sails: 'id, boatId, type, location',
       races: 'id, clubId, series',
       sessions: 'id, raceId, phase, updatedAt',
       observations: 'id, endpoint, timestamp',
+    })
+    this.version(2).stores({
+      observations: 'id, sessionId, endpoint, timestamp',
+      sails: 'id, boatId, type, location',
     })
   }
 }
@@ -65,8 +69,8 @@ export const createRaceRepository = (db = database) => ({
   async saveRace(race: RaceDefinition) {
     await db.races.put(race)
   },
-  async getObservations() {
-    return db.observations.orderBy('timestamp').toArray()
+  async getObservations(sessionId: string) {
+    return db.observations.where('sessionId').equals(sessionId).sortBy('timestamp')
   },
   async saveObservation(observation: LineObservation) {
     await db.observations.put(observation)

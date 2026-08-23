@@ -4,7 +4,7 @@ import { useApp } from '../app/AppContext'
 import type { Sail } from '../domain/types'
 
 export function BoatPage() {
-  const { boat, sails, saveBoat, saveSail } = useApp()
+  const { boats, boat, sails, saveBoat, saveSail, selectBoat } = useApp()
   const [draft, setDraft] = useState(boat)
   const [showAddSail, setShowAddSail] = useState(false)
   const [newSail, setNewSail] = useState<Pick<Sail, 'name' | 'type' | 'condition' | 'location'>>({
@@ -17,6 +17,12 @@ export function BoatPage() {
         <span className="eyebrow"><Sailboat size={14} /> Your boat</span>
         <h1>{boat.name}</h1>
         <p>Particulars and sail wardrobe stay available on this device.</p>
+        <div className="boat-picker">
+          <select value={boat.id} onChange={(event) => { selectBoat(event.target.value); setDraft(boats.find((item) => item.id === event.target.value) ?? boat) }}>
+            {boats.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.sailNumber}</option>)}
+          </select>
+          <button className="button button--secondary" onClick={() => setDraft({ id: crypto.randomUUID(), name: 'New boat', sailNumber: '', design: '', lengthMetres: 0, draftMetres: 0 })}><Plus size={16} /> New boat</button>
+        </div>
       </section>
       <div className="content-grid">
         <div className="content-stack">
@@ -65,7 +71,7 @@ export function BoatPage() {
           <form className="form-modal" onSubmit={(event) => {
             event.preventDefault()
             if (!newSail.name.trim()) return
-            void saveSail({ ...newSail, id: crypto.randomUUID() })
+            void saveSail({ ...newSail, id: crypto.randomUUID(), boatId: boat.id })
             setShowAddSail(false)
           }}>
             <div className="panel__heading"><h2>Add a sail</h2><button type="button" className="icon-button" onClick={() => setShowAddSail(false)}><Trash2 size={17} /></button></div>

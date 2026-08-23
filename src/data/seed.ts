@@ -60,11 +60,11 @@ export const seedBoat: Boat = {
 }
 
 export const seedSails: Sail[] = [
-  { id: 'main-1', name: 'Race main', type: 'mainsail', condition: 'good', location: 'rigged' },
-  { id: 'jib-1', name: 'J1 Light', type: 'headsail', condition: 'excellent', location: 'wardrobe' },
-  { id: 'jib-3', name: 'J3 Heavy', type: 'headsail', condition: 'good', location: 'locker' },
-  { id: 'spin-1', name: 'A2 Runner', type: 'spinnaker', condition: 'good', location: 'wardrobe' },
-  { id: 'spin-2', name: 'A4 Heavy', type: 'spinnaker', condition: 'serviceable', location: 'locker' },
+  { id: 'main-1', boatId: seedBoat.id, name: 'Race main', type: 'mainsail', condition: 'good', location: 'rigged' },
+  { id: 'jib-1', boatId: seedBoat.id, name: 'J1 Light', type: 'headsail', condition: 'excellent', location: 'wardrobe' },
+  { id: 'jib-3', boatId: seedBoat.id, name: 'J3 Heavy', type: 'headsail', condition: 'good', location: 'locker' },
+  { id: 'spin-1', boatId: seedBoat.id, name: 'A2 Runner', type: 'spinnaker', condition: 'good', location: 'wardrobe' },
+  { id: 'spin-2', boatId: seedBoat.id, name: 'A4 Heavy', type: 'spinnaker', condition: 'serviceable', location: 'locker' },
 ]
 
 const todayAt = (hours: number, minutes: number) => {

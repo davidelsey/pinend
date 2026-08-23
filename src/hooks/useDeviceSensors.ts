@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { normalizeBearing } from '../domain/geo'
 import type { SensorReading } from '../domain/types'
 
 type PermissionEvent = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> }
 
-export function useDeviceSensors(enabled: boolean) {
+export function useDeviceSensors(enabled: boolean, declinationDegrees = 12.8) {
   const [reading, setReading] = useState<SensorReading | null>(null)
   const [status, setStatus] = useState<'idle' | 'ready' | 'denied' | 'unavailable'>('idle')
-  const heading = useRef(0)
+  const magneticHeading = useRef<number | null>(null)
 
   const requestPermission = useCallback(async () => {
     try {
-      const orientationEvent = DeviceOrientationEvent as PermissionEvent
-      if (orientationEvent.requestPermission) {
+      const orientationEvent = typeof DeviceOrientationEvent === 'undefined' ? null : DeviceOrientationEvent as PermissionEvent
+      if (orientationEvent?.requestPermission) {
         const permission = await orientationEvent.requestPermission()
         if (permission !== 'granted') {
           setStatus('denied')
@@ -37,19 +38,30 @@ export function useDeviceSensors(enabled: boolean) {
     if (!enabled || status !== 'ready') return
     const onOrientation = (event: DeviceOrientationEvent) => {
       const iosHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
-      heading.current = iosHeading ?? (event.alpha == null ? heading.current : (360 - event.alpha) % 360)
+      if (iosHeading != null) magneticHeading.current = iosHeading
+      else if (event.absolute && event.alpha != null) magneticHeading.current = normalizeBearing(360 - event.alpha)
     }
     window.addEventListener('deviceorientation', onOrientation, true)
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        const compassHeading = magneticHeading.current
+        const courseOverGround = position.coords.heading
+        const heading = compassHeading != null
+          ? normalizeBearing(compassHeading + declinationDegrees)
+          : courseOverGround ?? 0
         setReading({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           timestamp: position.timestamp,
           accuracy: position.coords.accuracy,
-          heading: position.coords.heading ?? heading.current,
+          heading,
           speedKnots: (position.coords.speed ?? 0) * 1.94384,
           source: 'device',
+          headingSource: compassHeading != null ? 'compass' : 'course-over-ground',
+          headingReliable: compassHeading != null,
+          rawHeading: compassHeading ?? courseOverGround ?? undefined,
+          rawHeadingReference: compassHeading != null ? 'magnetic' : 'true',
+          declination: compassHeading != null ? declinationDegrees : undefined,
         })
       },
       () => setStatus('unavailable'),
@@ -59,7 +71,7 @@ export function useDeviceSensors(enabled: boolean) {
       window.removeEventListener('deviceorientation', onOrientation, true)
       navigator.geolocation.clearWatch(watchId)
     }
-  }, [enabled, status])
+  }, [declinationDegrees, enabled, status])
 
   return { reading, status, requestPermission }
 }

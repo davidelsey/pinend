@@ -6,13 +6,14 @@ type Endpoint = LineObservation['endpoint']
 
 type Props = {
   endpoint: Endpoint
+  label?: string
   reading: SensorReading | null
   simulated: boolean
   onCapture(): void | Promise<void>
   onClose(): void
 }
 
-export function SightingCamera({ endpoint, reading, simulated, onCapture, onClose }: Props) {
+export function SightingCamera({ endpoint, label, reading, simulated, onCapture, onClose }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const stream = useRef<MediaStream | null>(null)
   const [cameraState, setCameraState] = useState<'starting' | 'ready' | 'blocked'>(simulated ? 'ready' : 'starting')
@@ -51,7 +52,7 @@ export function SightingCamera({ endpoint, reading, simulated, onCapture, onClos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const endpointLabel = endpoint === 'pin' ? 'pin' : 'committee boat'
+  const endpointLabel = label ?? (endpoint === 'pin' ? 'pin' : endpoint === 'committee' ? 'committee boat' : 'movable mark')
   const canCapture = cameraState === 'ready' && Boolean(reading)
 
   return (

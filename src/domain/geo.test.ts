@@ -6,6 +6,7 @@ import {
   intersectSightings,
   resolveMarkPosition,
   velocityMadeGood,
+  timeToLineSeconds,
 } from './geo'
 
 describe('navigation calculations', () => {
@@ -46,5 +47,27 @@ describe('navigation calculations', () => {
     )
     expect(intersection).not.toBeNull()
     expect(distanceNm(intersection!, target)).toBeLessThan(0.04)
+  })
+
+  it('projects time until the boat crosses the start line', () => {
+    const seconds = timeToLineSeconds(
+      { latitude: -33.87, longitude: 151.24 },
+      0,
+      6,
+      { latitude: -33.869, longitude: 151.239 },
+      { latitude: -33.869, longitude: 151.241 },
+    )
+    expect(seconds).toBeGreaterThan(30)
+    expect(seconds).toBeLessThan(45)
+  })
+
+  it('does not estimate a crossing behind the boat', () => {
+    expect(timeToLineSeconds(
+      { latitude: -33.87, longitude: 151.24 },
+      180,
+      6,
+      { latitude: -33.869, longitude: 151.239 },
+      { latitude: -33.869, longitude: 151.241 },
+    )).toBeNull()
   })
 })

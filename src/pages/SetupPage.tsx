@@ -37,6 +37,7 @@ export function SetupPage({ onEnterPrestart, sensorStatus, onEnableSensors }: Pr
     () => marks.filter((mark) => !race.course.some((waypoint) => waypoint.markId === mark.id)),
     [marks, race.course],
   )
+  const courseReady = race.course.length > 0 && race.course.every((waypoint) => marks.some((item) => item.id === waypoint.markId))
 
   useEffect(() => {
     void fetchForecast(cyca.coordinate).then(setForecast)
@@ -177,7 +178,7 @@ export function SetupPage({ onEnterPrestart, sensorStatus, onEnableSensors }: Pr
                 <small>gust {Math.round(hour.gust)}</small>
               </div>
             ))}
-            <p className="microcopy">{forecast?.source ?? 'Loading'} · advisory forecast</p>
+            <p className="microcopy">{forecast ? `${forecast.source}${forecast.stale ? ' · cached' : ''}` : 'Forecast unavailable'} · advisory only</p>
           </section>
 
           <section className="panel readiness-panel">
@@ -194,8 +195,8 @@ export function SetupPage({ onEnterPrestart, sensorStatus, onEnableSensors }: Pr
       </div>
 
       <div className="sticky-action">
-        <div><strong>Race pack ready</strong><span>{race.course.length} marks · {session.selectedSailIds.length} sails · saved on device</span></div>
-        <button className="button button--primary" onClick={() => void enterPrestart()}>Enter pre-start <ChevronRight size={18} /></button>
+        <div><strong>{courseReady ? 'Race pack ready' : 'Add at least one course mark'}</strong><span>{race.course.length} marks · {session.selectedSailIds.length} sails · saved on device</span></div>
+        <button className="button button--primary" disabled={!courseReady} onClick={() => void enterPrestart()}>Enter pre-start <ChevronRight size={18} /></button>
       </div>
     </div>
   )

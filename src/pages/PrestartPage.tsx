@@ -5,10 +5,11 @@ import { CoursePlot } from '../components/CoursePlot'
 import { DevSimulator } from '../components/DevSimulator'
 import { SightingCamera } from '../components/SightingCamera'
 import { formatCountdown, syncStartFromSignal } from '../domain/countdown'
-import { distanceMetres, intersectSightings } from '../domain/geo'
+import { distanceMetres, intersectSightings, timeToLineSeconds } from '../domain/geo'
 import type { LineObservation } from '../domain/types'
 
 type Props = { now: number; onStartRace(): void; sensorStatus: string; onEnableSensors(): void }
+type CameraTarget = { endpoint: 'pin' | 'committee'; label: string } | { endpoint: 'mark'; markId: string; label: string }
 
 const resolveEndpoint = (observations: LineObservation[], endpoint: LineObservation['endpoint']) => {
   const endpointObservations = observations.filter((item) => item.endpoint === endpoint)
@@ -19,13 +20,32 @@ const resolveEndpoint = (observations: LineObservation[], endpoint: LineObservat
 }
 
 export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }: Props) {
-  const { marks, race, session, observations, latestReading, saveObservation, updateSession } = useApp()
+  const { marks, race, session, observations, latestReading, saveObservation, saveMark, updateSession } = useApp()
   const [message, setMessage] = useState<string | null>(null)
-  const [cameraEndpoint, setCameraEndpoint] = useState<'pin' | 'committee' | null>(null)
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null)
   const remaining = session.syncedStartTime - now
   const pin = useMemo(() => resolveEndpoint(observations, 'pin'), [observations])
   const committee = useMemo(() => resolveEndpoint(observations, 'committee'), [observations])
   const line = pin && committee ? { pin, committee } : null
+  const movableMarks = marks.filter((mark) => mark.position.kind === 'variable')
+  const crossingSeconds = line && latestReading
+    ? timeToLineSeconds(latestReading, latestReading.heading, latestReading.speedKnots, line.pin, line.committee)
+    : null
+  const lineTimingDelta = crossingSeconds == null ? null : crossingSeconds - Math.max(remaining / 1000, 0)
+  const unavailableLineTiming = !line
+    ? 'Set the start line'
+    : !latestReading
+      ? 'Waiting for GPS'
+      : latestReading.speedKnots <= 0.1
+        ? 'Build boat speed'
+        : 'Not on a crossing course'
+  const lineTiming = lineTimingDelta == null
+    ? { label: unavailableLineTiming, tone: 'unknown' }
+    : Math.abs(lineTimingDelta) <= 1
+      ? { label: 'On time', tone: 'ontime' }
+      : lineTimingDelta < 0
+        ? { label: `${Math.round(Math.abs(lineTimingDelta))}s early`, tone: 'early' }
+        : { label: `${Math.round(lineTimingDelta)}s late`, tone: 'late' }
 
   useEffect(() => {
     if (!message) return
@@ -38,25 +58,46 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
     setMessage(minutes === 0 ? 'Start gun synchronized' : `${minutes}-minute signal synchronized`)
   }
 
-  const capture = async (endpoint: 'pin' | 'committee') => {
+  const capture = async (target: CameraTarget) => {
     if (!latestReading) {
       setMessage('Enable device sensors or the development simulator first')
       return false
     }
-    const previous = observations.filter((item) => item.endpoint === endpoint).at(-1)
+    if (latestReading.headingReliable === false) {
+      setMessage('An absolute compass heading is required for a sighting')
+      return false
+    }
+    const targetObservations = observations.filter((item) =>
+      item.endpoint === target.endpoint && (target.endpoint !== 'mark' || item.markId === target.markId),
+    )
+    const previous = targetObservations.at(-1)
     if (previous && distanceMetres(previous.observer, latestReading) < 25) {
       setMessage('Move at least 25 m before the second sighting')
       return false
     }
-    await saveObservation({
+    const observation: LineObservation = {
       id: crypto.randomUUID(),
-      endpoint,
+      sessionId: session.id,
+      endpoint: target.endpoint,
+      markId: target.endpoint === 'mark' ? target.markId : undefined,
       observer: { latitude: latestReading.latitude, longitude: latestReading.longitude },
       bearingTrue: latestReading.heading,
       accuracy: latestReading.accuracy,
       timestamp: Date.now(),
-    })
-    setMessage(`${endpoint === 'pin' ? 'Pin' : 'Committee boat'} sighting saved`)
+    }
+    await saveObservation(observation)
+    if (target.endpoint === 'mark' && previous) {
+      const coordinate = intersectSightings(previous, observation)
+      const mark = marks.find((item) => item.id === target.markId)
+      if (coordinate && mark) {
+        await saveMark({ ...mark, position: { kind: 'variable', coordinate } })
+        setMessage(`${target.label} position resolved`)
+        return true
+      }
+      setMessage('Sightings do not intersect reliably—move farther and try again')
+      return false
+    }
+    setMessage(`${target.label} sighting saved`)
     return true
   }
 
@@ -64,6 +105,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
     if (!latestReading) return setMessage('No precise position available')
     const southObservation: LineObservation = {
       id: crypto.randomUUID(),
+      sessionId: session.id,
       endpoint,
       observer: { latitude: latestReading.latitude - 0.0001, longitude: latestReading.longitude },
       bearingTrue: 0,
@@ -91,6 +133,10 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
         </div>
         <div className={`countdown ${remaining <= 60_000 ? 'countdown--urgent' : ''}`}>{formatCountdown(remaining)}</div>
         <div className="countdown-hero__time"><Clock3 size={16} /> Start {new Date(session.syncedStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+        <div className="prestart-tactics">
+          <div><span>GPS boat speed</span><strong>{latestReading ? latestReading.speedKnots.toFixed(1) : '—'} <small>kn</small></strong></div>
+          <div className={`prestart-timing prestart-timing--${lineTiming.tone}`}><span>Estimated line crossing</span><strong>{lineTiming.label}</strong></div>
+        </div>
         <div className="signal-buttons">
           {[5, 4, 1, 0].map((minute) => (
             <button key={minute} onClick={() => sync(minute as 5 | 4 | 1 | 0)}>
@@ -135,7 +181,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
                     {resolved ? (
                       <div className="resolved-coordinate"><Check size={15} /> {resolved.latitude.toFixed(5)}, {resolved.longitude.toFixed(5)}</div>
                     ) : <p>Hold the phone vertically, align the camera crosshair, then repeat after moving.</p>}
-                    <button className="button button--primary button--wide" onClick={() => setCameraEndpoint(endpoint)}>
+                    <button className="button button--primary button--wide" onClick={() => setCameraTarget({ endpoint, label: endpoint === 'pin' ? 'Pin' : 'Committee boat' })}>
                       <Navigation size={17} /> Open {endpoint === 'pin' ? 'pin' : 'committee'} viewfinder
                     </button>
                     <button className="text-button" onClick={() => void directCapture(endpoint)}><LocateFixed size={14} /> I am beside this endpoint</button>
@@ -143,6 +189,21 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
                 )
               })}
             </div>
+            {movableMarks.length > 0 && (
+              <div className="movable-marks">
+                <div className="movable-marks__heading"><div><Crosshair size={16} /><strong>Other movable marks</strong></div><span>Select any laid mark to sight</span></div>
+                {movableMarks.map((mark) => {
+                  const markObservations = observations.filter((item) => item.endpoint === 'mark' && item.markId === mark.id)
+                  const coordinate = mark.position.kind === 'variable' ? mark.position.coordinate : undefined
+                  return (
+                    <div className="movable-mark-row" key={mark.id}>
+                      <div><strong>{mark.name}</strong><small>{coordinate ? `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}` : `${markObservations.length} of 2 sightings`}</small></div>
+                      <button className="button button--small button--secondary" onClick={() => setCameraTarget({ endpoint: 'mark', markId: mark.id, label: mark.name })}><Navigation size={14} /> Sight mark</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             <div className="sensor-strip">
               <Radio size={16} /><span>Sensor: <strong>{latestReading?.source ?? sensorStatus}</strong></span>
               <span>GPS: <strong>{latestReading ? `±${Math.round(latestReading.accuracy)} m` : '—'}</strong></span>
@@ -162,18 +223,19 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
       </div>
 
       <div className="sticky-action sticky-action--dark">
-        <div><strong>{line ? 'Start line ready' : 'You can refine the line while approaching'}</strong><span>Screen wake lock activates in race mode</span></div>
+        <div><strong>{line ? 'Start line ready' : 'You can refine the line while approaching'}</strong><span>Screen wake lock is active during pre-start and racing when supported</span></div>
         <button className="button button--orange" onClick={onStartRace}><Sailboat size={18} /> Start race mode</button>
       </div>
-      {cameraEndpoint && (
+      {cameraTarget && (
         <SightingCamera
-          endpoint={cameraEndpoint}
+          endpoint={cameraTarget.endpoint}
+          label={cameraTarget.label}
           reading={latestReading}
           simulated={latestReading?.source === 'simulator'}
-          onClose={() => setCameraEndpoint(null)}
+          onClose={() => setCameraTarget(null)}
           onCapture={async () => {
-            const captured = await capture(cameraEndpoint)
-            if (captured) setCameraEndpoint(null)
+            const captured = await capture(cameraTarget)
+            if (captured) setCameraTarget(null)
           }}
         />
       )}

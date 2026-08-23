@@ -66,6 +66,38 @@ export function velocityMadeGood(speedKnots: number, courseTrue: number, bearing
   return speedKnots * Math.cos(radians(normalizeBearing(courseTrue - bearingToMarkTrue)))
 }
 
+export function timeToLineSeconds(
+  position: Coordinate,
+  headingTrue: number,
+  speedKnots: number,
+  pin: Coordinate,
+  committee: Coordinate,
+): number | null {
+  if (speedKnots <= 0.1) return null
+
+  const metresPerLatitudeDegree = 111_320
+  const metresPerLongitudeDegree = metresPerLatitudeDegree * Math.cos(radians(position.latitude))
+  const toLocalPoint = (coordinate: Coordinate) => ({
+    x: (coordinate.longitude - position.longitude) * metresPerLongitudeDegree,
+    y: (coordinate.latitude - position.latitude) * metresPerLatitudeDegree,
+  })
+  const start = toLocalPoint(pin)
+  const end = toLocalPoint(committee)
+  const line = { x: end.x - start.x, y: end.y - start.y }
+  const course = { x: Math.sin(radians(headingTrue)), y: Math.cos(radians(headingTrue)) }
+  const cross = (first: { x: number; y: number }, second: { x: number; y: number }) =>
+    first.x * second.y - first.y * second.x
+  const denominator = cross(course, line)
+  if (Math.abs(denominator) < 0.001) return null
+
+  const distanceAlongCourse = cross(start, line) / denominator
+  const positionAlongLine = cross(start, course) / denominator
+  if (distanceAlongCourse < 0 || positionAlongLine < 0 || positionAlongLine > 1) return null
+
+  const speedMetresPerSecond = (speedKnots * METRES_PER_NAUTICAL_MILE) / 3600
+  return distanceAlongCourse / speedMetresPerSecond
+}
+
 type Sighting = { observer: Coordinate; bearingTrue: number }
 
 export function intersectSightings(first: Sighting, second: Sighting): Coordinate | null {

@@ -135,12 +135,14 @@ create table public.race_sessions (
 create table public.line_observations (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.race_sessions(id) on delete cascade,
-  endpoint text not null check (endpoint in ('pin', 'committee')),
+  endpoint text not null check (endpoint in ('pin', 'committee', 'mark')),
+  mark_id uuid references public.marks(id) on delete cascade,
   observer extensions.geography(point, 4326) not null,
   bearing_true numeric(6, 2) not null,
   accuracy_metres numeric(8, 2) not null,
   observed_at timestamptz not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  check ((endpoint = 'mark' and mark_id is not null) or (endpoint <> 'mark' and mark_id is null))
 );
 
 create index clubs_location_index on public.clubs using gist(location);

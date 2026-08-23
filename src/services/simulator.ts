@@ -22,6 +22,8 @@ export function createSimulator(coordinate: Coordinate): SimulatorState {
       heading: 22,
       speedKnots: 6.2,
       source: 'simulator',
+      headingSource: 'simulator',
+      headingReliable: true,
     },
   }
 }
@@ -39,6 +41,8 @@ export function moveSimulator(state: SimulatorState, elapsedSeconds: number, tim
       heading: state.heading,
       speedKnots: state.speedKnots,
       source: 'simulator',
+      headingSource: 'simulator',
+      headingReliable: true,
     },
   }
 }
@@ -60,6 +64,8 @@ export function setSimulatorPosition(
       heading,
       speedKnots: state.speedKnots,
       source: 'simulator',
+      headingSource: 'simulator',
+      headingReliable: true,
     },
   }
 }
