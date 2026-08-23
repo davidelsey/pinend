@@ -247,6 +247,10 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .race-focus__topline { display: flex; justify-content: center; gap: 18px; color: #617c89; font-size: 9px; font-weight: 800; letter-spacing: .11em; }
 .rounding-instruction { display: inline-flex; align-items: center; gap: 5px; color: var(--orange); }
 .race-focus h1 { font-size: clamp(32px, 6vw, 58px); letter-spacing: -.055em; margin: 8px 0 5px; }
+.race-mark-selector { display: grid; grid-template-columns: 44px minmax(0, auto) 44px; align-items: center; justify-content: center; gap: 10px; }
+.race-mark-selector button { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; color: #bfd0d6; background: rgba(255,255,255,.05); }
+.race-mark-selector button:disabled { opacity: .25; }
+.race-mark-selector h1 { min-width: min(48vw, 400px); }
 .race-bearing { display: flex; justify-content: center; align-items: center; gap: 5px; color: var(--sea); }
 .race-bearing strong { font-size: clamp(36px, 6vw, 58px); letter-spacing: -.04em; }
 .race-bearing span { align-self: flex-start; padding-top: 10px; font-size: 10px; }

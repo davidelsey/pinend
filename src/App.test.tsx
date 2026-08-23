@@ -22,5 +22,21 @@ describe('primary local race journey', () => {
 
     await waitFor(() => expect(screen.getByText('RACING')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /Mark rounded/i })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Boat' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
+    expect(await screen.findByRole('heading', { name: 'Windward mark' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
+    expect(await screen.findByRole('heading', { name: 'Clark Island' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
+    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Start race mode/i }))
+    expect(await screen.findByText('RACING')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Boat' }))
+    expect(await screen.findByRole('heading', { name: 'Second Wind' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Race' }))
+    expect(await screen.findByText('RACING')).toBeInTheDocument()
   })
 })

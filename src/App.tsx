@@ -102,14 +102,12 @@ function PinEndApp() {
         </header>
       )}
       <div className="app-content">{content}</div>
-      {!inRace && (
-        <nav className="bottom-nav" aria-label="Primary navigation">
-          <button className={tab === 'setup' ? 'active' : ''} onClick={() => setTab('setup')}><Settings size={20} /><span>Setup</span></button>
-          <button className={tab === 'race' ? 'active' : ''} onClick={() => setTab('race')}><Anchor size={20} /><span>Race</span><i className={`phase-indicator phase-indicator--${session.phase}`} /></button>
-          <button className={tab === 'boat' ? 'active' : ''} onClick={() => setTab('boat')}><Sailboat size={20} /><span>Boat</span></button>
-          <button className={tab === 'marks' ? 'active' : ''} onClick={() => setTab('marks')}><MapPinned size={20} /><span>Marks</span></button>
-        </nav>
-      )}
+      <nav className="bottom-nav" aria-label="Primary navigation">
+        <button className={tab === 'setup' ? 'active' : ''} onClick={() => setTab('setup')}><Settings size={20} /><span>Setup</span></button>
+        <button className={tab === 'race' ? 'active' : ''} onClick={() => setTab('race')}><Anchor size={20} /><span>Race</span><i className={`phase-indicator phase-indicator--${session.phase}`} /></button>
+        <button className={tab === 'boat' ? 'active' : ''} onClick={() => setTab('boat')}><Sailboat size={20} /><span>Boat</span></button>
+        <button className={tab === 'marks' ? 'active' : ''} onClick={() => setTab('marks')}><MapPinned size={20} /><span>Marks</span></button>
+      </nav>
     </div>
   )
 }

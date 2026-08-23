@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Check,
+  ChevronLeft,
   ChevronRight,
   Clock3,
   Compass,
@@ -97,6 +98,21 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     setShowRounding(false)
   }
 
+  const selectPrevious = async () => {
+    setShowRounding(false)
+    if (session.activeWaypointIndex === 0) {
+      await updateSession({ phase: 'prestart' })
+      return
+    }
+    await updateSession({ activeWaypointIndex: session.activeWaypointIndex - 1 })
+  }
+
+  const selectNext = async () => {
+    if (session.activeWaypointIndex >= race.course.length - 1) return
+    setShowRounding(false)
+    await updateSession({ activeWaypointIndex: session.activeWaypointIndex + 1 })
+  }
+
   return (
     <div className="race-view">
       <header className="race-header">
@@ -111,7 +127,11 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
             <span>LEG {session.activeWaypointIndex + 1} OF {race.course.length}</span>
             <span className="rounding-instruction"><RotateCw size={14} /> Leave to {activeWaypoint?.rounding}</span>
           </div>
-          <h1>{activeMark?.name ?? 'Course complete'}</h1>
+          <div className="race-mark-selector">
+            <button aria-label="Previous mark" onClick={() => void selectPrevious()}><ChevronLeft size={24} /></button>
+            <h1>{activeMark?.name ?? 'Course complete'}</h1>
+            <button aria-label="Next mark" disabled={session.activeWaypointIndex >= race.course.length - 1} onClick={() => void selectNext()}><ChevronRight size={24} /></button>
+          </div>
           <div className="race-bearing"><Navigation size={28} /><strong>{bearing == null ? '—' : Math.round(bearing).toString().padStart(3, '0')}°</strong><span>T</span></div>
           <div className="race-distance">{distance == null ? '—' : distance.toFixed(distance < 1 ? 2 : 1)} <span>NM TO MARK</span></div>
           <div className={`race-eta ${etaSeconds == null ? 'race-eta--unavailable' : ''}`}><Clock3 size={14} /> ETA {etaLabel} <span>AT CURRENT VMG</span></div>
