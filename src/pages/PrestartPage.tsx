@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Anchor, Check, Clock3, Crosshair, Radio, Sailboat, TimerReset } from 'lucide-react'
+import { Anchor, Camera, Check, Clock3, Crosshair, MapPinned, Radio, Sailboat, TimerReset } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { DevSimulator } from '../components/DevSimulator'
-import { SightMarksDialog } from '../components/SightMarksDialog'
+import { SightMarksDialog, type SightTargetRef } from '../components/SightMarksDialog'
 import { formatCountdown, syncStartFromSignal } from '../domain/countdown'
-import { intersectSightings, timeToLineSeconds } from '../domain/geo'
+import { intersectSightings, resolveMarkPosition, timeToLineSeconds } from '../domain/geo'
 import type { LineObservation } from '../domain/types'
 
 type Props = { now: number; onStartRace(): void; sensorStatus: string; onEnableSensors(): void }
@@ -22,6 +22,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
   const { marks, race, session, observations, latestReading, updateSession } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const [showSightMarks, setShowSightMarks] = useState(false)
+  const [directMarkAction, setDirectMarkAction] = useState<{ key: number; target: SightTargetRef; action: 'sight' | 'position' } | null>(null)
   const remaining = session.syncedStartTime - now
   const pin = useMemo(() => resolveEndpoint(observations, 'pin'), [observations])
   const committee = useMemo(() => resolveEndpoint(observations, 'committee'), [observations])
@@ -109,6 +110,19 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
               <div><Crosshair size={20} /><span><strong>Sight or place race marks</strong><small>Pin end, committee boat, and {raceMarks.length} course marks</small></span></div>
               <button className="button button--primary" onClick={() => setShowSightMarks(true)}><Crosshair size={17} /> Sight marks</button>
             </div>
+            <section className="prestart-course-marks" aria-label="Course marks">
+              <div className="prestart-course-marks__heading"><div><MapPinned size={18} /><h3>Course marks</h3></div><span>{raceMarks.length} in use</span></div>
+              {raceMarks.map((mark) => {
+                const positioned = Boolean(resolveMarkPosition(mark.position))
+                return <div className="prestart-course-mark" key={mark.id}>
+                  <span><strong>{mark.name}</strong><small>{positioned ? 'Position available' : 'Position needed'}</small></span>
+                  <div>
+                    <button className="button button--secondary" aria-label={`Sight ${mark.name}`} onClick={() => setDirectMarkAction({ key: Date.now(), target: { endpoint: 'mark', markId: mark.id }, action: 'sight' })}><Camera size={16} /> Sight</button>
+                    <button className="button button--secondary" aria-label={`Position ${mark.name}`} onClick={() => setDirectMarkAction({ key: Date.now(), target: { endpoint: 'mark', markId: mark.id }, action: 'position' })}><MapPinned size={16} /> Position</button>
+                  </div>
+                </div>
+              })}
+            </section>
             <div className="sensor-strip">
               <Radio size={16} /><span>Sensor: <strong>{latestReading?.source ?? sensorStatus}</strong></span>
               <span>GPS: <strong>{latestReading ? `±${Math.round(latestReading.accuracy)} m` : '—'}</strong></span>
@@ -132,6 +146,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
         <button className="button button--orange" onClick={onStartRace}><Sailboat size={18} /> Start race mode</button>
       </div>
       <SightMarksDialog now={now} open={showSightMarks} onClose={() => setShowSightMarks(false)} />
+      {directMarkAction && <SightMarksDialog key={directMarkAction.key} now={now} open initialTarget={directMarkAction.target} initialAction={directMarkAction.action} onClose={() => setDirectMarkAction(null)} />}
     </div>
   )
 }

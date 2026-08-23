@@ -14,7 +14,8 @@ import { MapPointPicker } from './MapPointPicker'
 import { SightingCamera } from './SightingCamera'
 
 type SightingTarget = { endpoint: 'pin' | 'committee'; label: string } | { endpoint: 'mark'; markId: string; label: string }
-type Props = { now: number; open: boolean; onClose(): void }
+export type SightTargetRef = { endpoint: 'pin' | 'committee' } | { endpoint: 'mark'; markId: string }
+type Props = { now: number; open: boolean; onClose(): void; initialTarget?: SightTargetRef; initialAction?: 'sight' | 'position' }
 
 const observationsFor = (observations: LineObservation[], target: SightingTarget) => observations.filter((item) =>
   item.endpoint === target.endpoint && (target.endpoint !== 'mark' || item.markId === target.markId),
@@ -25,7 +26,7 @@ const resolveEndpoint = (observations: LineObservation[], endpoint: 'pin' | 'com
   return sightings.length >= 2 ? intersectSightings(sightings.at(-2)!, sightings.at(-1)!) : null
 }
 
-export function SightMarksDialog({ now, open, onClose }: Props) {
+export function SightMarksDialog({ now, open, onClose, initialTarget, initialAction }: Props) {
   const { marks, race, session, observations, latestReading, saveObservation, deleteObservation, saveMark } = useApp()
   const [selectedTarget, setSelectedTarget] = useState<SightingTarget | null>(null)
   const [cameraTarget, setCameraTarget] = useState<SightingTarget | null>(null)
@@ -40,6 +41,19 @@ export function SightMarksDialog({ now, open, onClose }: Props) {
     { endpoint: 'committee', label: 'Committee boat' },
     ...raceMarks.map((mark) => ({ endpoint: 'mark' as const, markId: mark.id, label: mark.name })),
   ]
+  useEffect(() => {
+    if (!open || !initialTarget) return
+    const target = targets.find((candidate) => candidate.endpoint === initialTarget.endpoint && (candidate.endpoint !== 'mark' || (initialTarget.endpoint === 'mark' && candidate.markId === initialTarget.markId)))
+    if (!target) return
+    setSelectedTarget(target)
+    if (target.endpoint === 'mark') {
+      const mark = marks.find((item) => item.id === target.markId)
+      setMapCoordinate(mark ? resolveMarkPosition(mark.position) ?? latestReading ?? { latitude: -33.86, longitude: 151.24 } : null)
+    }
+    if (initialAction === 'sight') setCameraTarget(target)
+  // The dialog is keyed by the caller for each direct action.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const selectedObservations = selectedTarget ? observationsFor(observations, selectedTarget) : []
   const selectedMark = selectedTarget?.endpoint === 'mark' ? marks.find((mark) => mark.id === selectedTarget.markId) : undefined
   const resolvedCoordinate = selectedTarget?.endpoint === 'pin'
@@ -50,6 +64,11 @@ export function SightMarksDialog({ now, open, onClose }: Props) {
         ? resolveMarkPosition(selectedMark.position) ?? null
         : null
   const selectedMapCoordinate = selectedTarget?.endpoint === 'mark' ? mapCoordinate ?? resolvedCoordinate : resolvedCoordinate
+  const otherMarks = raceMarks.flatMap((mark) => {
+    if (mark.id === selectedMark?.id) return []
+    const coordinate = resolveMarkPosition(mark.position)
+    return coordinate ? [{ id: mark.id, label: mark.name, coordinate }] : []
+  })
 
   useEffect(() => {
     if (!message) return
@@ -127,11 +146,11 @@ export function SightMarksDialog({ now, open, onClose }: Props) {
   return (
     <>
       {message && <div className="toast"><Check size={16} /> {message}</div>}
-      <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Sight marks">
-        <div className="form-modal sight-marks-modal">
-          <div className="panel__heading"><div><Crosshair size={18} /><h2>Sight marks</h2></div><button className="icon-button" aria-label="Close sight marks" onClick={close}><X size={18} /></button></div>
-          <p className="sight-marks-modal__intro">Select a target, then use the crosshair to sight it. Course marks can also be placed or adjusted directly on the map.</p>
-          <div className="sighting-targets">
+      <div className={`modal-backdrop ${initialAction === 'position' ? 'modal-backdrop--position' : ''}`} role="dialog" aria-modal="true" aria-label={initialAction === 'position' && selectedTarget ? `Position ${selectedTarget.label}` : 'Sight marks'}>
+        <div className={`form-modal sight-marks-modal ${initialAction === 'position' ? 'sight-marks-modal--position' : ''}`}>
+          <div className="panel__heading"><div>{initialAction === 'position' ? <MapPin size={18} /> : <Crosshair size={18} />}<h2>{initialAction === 'position' && selectedTarget ? `Position ${selectedTarget.label}` : 'Sight marks'}</h2></div><button className="icon-button" aria-label={initialAction === 'position' ? 'Close mark position' : 'Close sight marks'} onClick={close}><X size={18} /></button></div>
+          {!initialTarget && <p className="sight-marks-modal__intro">Select a target, then use the crosshair to sight it. Course marks can also be placed or adjusted directly on the map.</p>}
+          {!initialTarget && <div className="sighting-targets">
             {targets.map((target) => {
               const selected = selectedTarget?.endpoint === target.endpoint && (target.endpoint !== 'mark' || (selectedTarget?.endpoint === 'mark' && selectedTarget.markId === target.markId))
               const count = observationsFor(observations, target).length
@@ -143,10 +162,10 @@ export function SightMarksDialog({ now, open, onClose }: Props) {
                 } else setMapCoordinate(null)
               }}><strong>{target.label}</strong><small>{count} sighting{count === 1 ? '' : 's'}</small></button>
             })}
-          </div>
+          </div>}
           {selectedTarget && <div className="mark-adjustment">
             <div className="mark-adjustment__heading"><div><MapPin size={16} /><strong>{selectedTarget.label} adjustment</strong></div><span>{selectedObservations.length} sight ray{selectedObservations.length === 1 ? '' : 's'}</span></div>
-            <MapPointPicker value={selectedMapCoordinate} onChange={selectedTarget.endpoint === 'mark' ? setMapCoordinate : undefined} observations={selectedObservations} readOnly={selectedTarget.endpoint !== 'mark'} />
+            <MapPointPicker value={selectedMapCoordinate} onChange={selectedTarget.endpoint === 'mark' ? setMapCoordinate : undefined} observations={selectedObservations} readOnly={selectedTarget.endpoint !== 'mark'} otherMarks={otherMarks} />
             {selectedTarget.endpoint === 'mark' && selectedMapCoordinate && <div className="coordinate-adjustment-fields">
               <label><span>Latitude</span><input type="number" step="0.00001" value={selectedMapCoordinate.latitude} onChange={(event) => setMapCoordinate({ ...selectedMapCoordinate, latitude: Number(event.target.value) })} /></label>
               <label><span>Longitude</span><input type="number" step="0.00001" value={selectedMapCoordinate.longitude} onChange={(event) => setMapCoordinate({ ...selectedMapCoordinate, longitude: Number(event.target.value) })} /></label>
@@ -158,7 +177,7 @@ export function SightMarksDialog({ now, open, onClose }: Props) {
           </div>}
           <div className="sighting-actions">
             {selectedTarget?.endpoint === 'mark' && mapCoordinate && <button className="button button--orange" onClick={() => void saveMapPosition()}><Check size={17} /> Save map position</button>}
-            <button className="button button--primary sighting-crosshair-button" disabled={!selectedTarget} aria-label={selectedTarget ? `Open ${selectedTarget.label} viewfinder` : 'Select a mark to open viewfinder'} onClick={() => { if (selectedTarget) setCameraTarget(selectedTarget) }}><Crosshair size={22} /></button>
+            {initialAction !== 'position' && <button className="button button--primary sighting-crosshair-button" disabled={!selectedTarget} aria-label={selectedTarget ? `Open ${selectedTarget.label} viewfinder` : 'Select a mark to open viewfinder'} onClick={() => { if (selectedTarget) setCameraTarget(selectedTarget) }}><Crosshair size={22} /></button>}
           </div>
         </div>
       </div>

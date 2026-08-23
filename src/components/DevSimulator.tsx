@@ -1,5 +1,5 @@
 import { Bug, FastForward, LocateFixed, Navigation, SlidersHorizontal } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../app/AppContext'
 import type { Coordinate } from '../domain/types'
 
@@ -13,17 +13,37 @@ export function DevSimulator({ target }: { target?: Coordinate }) {
     placeSimulator,
   } = useApp()
   const [expanded, setExpanded] = useState(false)
+  const [latitudeDraft, setLatitudeDraft] = useState(String(simulator.coordinate.latitude))
+  const [longitudeDraft, setLongitudeDraft] = useState(String(simulator.coordinate.longitude))
+  const [positionError, setPositionError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLatitudeDraft(String(simulator.coordinate.latitude))
+    setLongitudeDraft(String(simulator.coordinate.longitude))
+  }, [simulator.coordinate.latitude, simulator.coordinate.longitude])
+
+  const applyPosition = () => {
+    const latitude = Number(latitudeDraft)
+    const longitude = Number(longitudeDraft)
+    if (latitudeDraft.trim() === '' || longitudeDraft.trim() === '' || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      setPositionError('Enter a latitude from -90 to 90 and longitude from -180 to 180')
+      return
+    }
+    setPositionError(null)
+    placeSimulator(latitude, longitude)
+  }
 
   if (!import.meta.env.DEV) return null
 
   return (
     <aside className={`simulator ${expanded ? 'simulator--expanded' : ''}`} data-testid="sensor-simulator">
-      <button className="simulator__header" aria-label="Debug mode: boat simulator" onClick={() => setExpanded((value) => !value)}>
+      <button className="simulator__header" aria-label="Debug mode: boat simulator" aria-expanded={expanded} aria-controls="debug-simulator-controls" aria-describedby="debug-simulator-status" onClick={() => setExpanded((value) => !value)}>
         <span><Bug size={16} /> Debug mode</span>
-        <span className={`status-dot ${simulatorEnabled ? 'status-dot--active' : ''}`} />
+        <span className={`status-dot ${simulatorEnabled ? 'status-dot--active' : ''}`} aria-hidden="true" />
       </button>
+      <span id="debug-simulator-status" className="sr-only">Simulated sensors {simulatorEnabled ? 'enabled' : 'disabled'}</span>
       {expanded && (
-        <div className="simulator__body">
+        <div className="simulator__body" id="debug-simulator-controls">
           <label className="toggle-row">
             <span><SlidersHorizontal size={15} /> Use simulated sensors</span>
             <input
@@ -64,9 +84,11 @@ export function DevSimulator({ target }: { target?: Coordinate }) {
             />
           </label>
           <div className="simulator__position">
-            <label><span>Mock latitude</span><input aria-label="Mock latitude" type="number" step="0.00001" value={simulator.coordinate.latitude} onChange={(event) => placeSimulator(Number(event.target.value), simulator.coordinate.longitude)} /></label>
-            <label><span>Mock longitude</span><input aria-label="Mock longitude" type="number" step="0.00001" value={simulator.coordinate.longitude} onChange={(event) => placeSimulator(simulator.coordinate.latitude, Number(event.target.value))} /></label>
+            <label><span>Mock latitude</span><input aria-label="Mock latitude" type="number" step="0.00001" value={latitudeDraft} onChange={(event) => setLatitudeDraft(event.target.value)} /></label>
+            <label><span>Mock longitude</span><input aria-label="Mock longitude" type="number" step="0.00001" value={longitudeDraft} onChange={(event) => setLongitudeDraft(event.target.value)} /></label>
           </div>
+          {positionError && <p className="simulator__error" role="alert">{positionError}</p>}
+          <button className="button button--small button--secondary" onClick={applyPosition}><LocateFixed size={15} /> Apply position</button>
           <div className="simulator__coords">{simulator.coordinate.latitude.toFixed(5)}, {simulator.coordinate.longitude.toFixed(5)}</div>
           <div className="button-row">
             <button className="button button--small button--secondary" onClick={() => stepSimulator(30)}>
