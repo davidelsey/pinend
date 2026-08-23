@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "clubId": "cyca",
+  "clubName": "Cruising Yacht Club of Australia",
+  "season": "2021-2022",
+  "coordinateDatum": "WGS84",
+  "source": {
+    "title": "CYCA Sailing Program 2021-2022",
+    "url": "https://cyca.com.au/wp-content/uploads/2021/09/20212022-Sailing-Program-FINAL-1.pdf",
+    "retrievedOn": "2026-08-23",
+    "notes": "CYCA states that all published positions and distances are approximate. Coordinate locations are conversions of positions printed in the source. chartApproximateCoordinate values were digitised from the inside-back-cover CYCA Harbour & S.O.P.S. Marks map and are low-confidence because the chart expressly states NOT TO SCALE."
+  },
+  "marks": [
+    {
+      "id": "cyca-a1",
+      "shortName": "A1",
+      "name": "A1 laid mark position",
+      "location": { "kind": "coordinate", "latitude": -33.825, "longitude": 151.325 },
+      "description": "Laid-mark position approximately 1.2 NM east of North Head.",
+      "sourcePdfPages": [29, 94]
+    },
+    {
+      "id": "cyca-a2",
+      "shortName": "A2",
+      "name": "A2 laid mark position",
+      "location": { "kind": "coordinate", "latitude": -33.783333, "longitude": 151.361667 },
+      "description": "Coordinate appears on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-a3",
+      "shortName": "A3",
+      "name": "A3 laid mark position",
+      "location": { "kind": "coordinate", "latitude": -33.85, "longitude": 151.308333 },
+      "description": "Laid-mark position approximately 1.1 NM east of Macquarie Light.",
+      "sourcePdfPages": [29, 94]
+    },
+    {
+      "id": "cyca-a4",
+      "shortName": "A4",
+      "name": "A4 laid mark position",
+      "location": { "kind": "coordinate", "latitude": -33.866667, "longitude": 151.361667 },
+      "description": "Coordinate appears on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-as",
+      "shortName": "AS",
+      "name": "AS yellow spar mark",
+      "location": { "kind": "variable" },
+      "description": "Yellow Australian Sailing spar mark; the sailing instructions allow AS marks to be replaced without warning.",
+      "sourcePdfPages": [29]
+    },
+    {
+      "id": "cyca-b",
+      "shortName": "B",
+      "name": "B laid mark",
+      "location": { "kind": "relative", "reference": "A1 or A3", "distanceNm": 2, "bearingRule": "to windward" },
+      "description": "Laid mark 2 NM to windward of A1 or A3.",
+      "sourcePdfPages": [29]
+    },
+    {
+      "id": "cyca-bblm",
+      "shortName": "BBLM",
+      "name": "Botany Bay laid mark",
+      "location": { "kind": "coordinate", "latitude": -34, "longitude": 151.271667 },
+      "description": "Orange inflatable mark approximately 1.1 NM east of Cape Banks.",
+      "sourcePdfPages": [29, 35, 43, 56, 74]
+    },
+    {
+      "id": "cyca-c",
+      "shortName": "C",
+      "name": "C laid mark",
+      "location": { "kind": "relative", "reference": "course axis", "bearingRule": "port-side triangle apex", "distanceNm": 1.4 },
+      "description": "Laid to port of the course axis to form a triangle; BC and AC, or DC and AC, are each 1.4 NM.",
+      "sourcePdfPages": [29]
+    },
+    {
+      "id": "cyca-ci",
+      "shortName": "CI",
+      "name": "Clarke Island",
+      "location": { "kind": "namedPlace", "placeName": "Clarke Island, Sydney Harbour" },
+      "chartApproximateCoordinate": { "latitude": -33.86384, "longitude": 151.23965, "confidence": "low" },
+      "description": "Clarke Island.",
+      "sourcePdfPages": [29, 35, 43, 81]
+    },
+    {
+      "id": "cyca-cp",
+      "shortName": "CP",
+      "name": "Cannae Point mark",
+      "location": { "kind": "relative", "reference": "Flagstaff on Cannae Point", "distanceMetres": 200, "bearingTrue": 270 },
+      "chartApproximateCoordinate": { "latitude": -33.82009, "longitude": 151.27037, "confidence": "low" },
+      "description": "Australian Sailing mark 200 m west of the flagstaff on Cannae Point.",
+      "sourcePdfPages": [29, 35]
+    },
+    {
+      "id": "cyca-d",
+      "shortName": "D",
+      "name": "D laid mark",
+      "location": { "kind": "relative", "reference": "A1", "distanceNm": 2, "bearingRule": "to leeward" },
+      "description": "Laid mark 2 NM to leeward of A1.",
+      "sourcePdfPages": [29]
+    },
+    {
+      "id": "cyca-lb",
+      "shortName": "LB",
+      "name": "Inner South Head port lateral mark",
+      "location": { "kind": "coordinate", "latitude": -33.833333, "longitude": 151.277017 },
+      "description": "Red port lateral mark approximately 0.2 NM west of Inner South Head; designated as a passing mark, not a rounding mark.",
+      "sourcePdfPages": [29, 43, 56, 65, 74]
+    },
+    {
+      "id": "cyca-lm",
+      "shortName": "LM",
+      "name": "CYCA laid mark",
+      "location": { "kind": "variable" },
+      "description": "CYCA yellow or orange inflatable laid mark, approximately 1.8 m high.",
+      "sourcePdfPages": [29, 35, 43, 56, 65, 74, 81, 86]
+    },
+    {
+      "id": "cyca-m",
+      "shortName": "M",
+      "name": "M laid mark",
+      "location": { "kind": "relative", "reference": "A1 and A3", "distanceNm": 1, "bearingRule": "to windward" },
+      "description": "Laid mark with a yellow band, approximately 1 NM to windward of A1 and A3.",
+      "sourcePdfPages": [29]
+    },
+    {
+      "id": "cyca-me",
+      "shortName": "ME",
+      "name": "Manly East mark",
+      "location": { "kind": "namedPlace", "placeName": "Manly East, Sydney Harbour" },
+      "chartApproximateCoordinate": { "latitude": -33.80978, "longitude": 151.27077, "confidence": "low" },
+      "description": "Australian Sailing mark at Manly East.",
+      "sourcePdfPages": [29, 35, 43]
+    },
+    {
+      "id": "cyca-mw",
+      "shortName": "MW",
+      "name": "Manly West mark",
+      "location": { "kind": "relative", "reference": "ME", "distanceMetres": 200, "bearingTrue": 270 },
+      "chartApproximateCoordinate": { "latitude": -33.80978, "longitude": 151.26777, "confidence": "low" },
+      "description": "Australian Sailing mark 200 m west of the Manly East mark.",
+      "sourcePdfPages": [29, 35, 43]
+    },
+    {
+      "id": "cyca-sim",
+      "shortName": "SIM",
+      "name": "Shark Island mark",
+      "location": { "kind": "relative", "reference": "Shark Island", "bearingRule": "south-east" },
+      "chartApproximateCoordinate": { "latitude": -33.86047, "longitude": 151.25817, "confidence": "low" },
+      "description": "Australian Sailing mark south-east of Shark Island; the water between the mark and the island is a continuing obstruction.",
+      "sourcePdfPages": [29, 35, 43, 81, 86]
+    },
+    {
+      "id": "cyca-jb",
+      "shortName": "JB",
+      "name": "Junction Bell",
+      "location": { "kind": "relative", "reference": "Sow and Pigs Reef", "distanceNm": 0.4, "bearingRule": "north-east" },
+      "chartApproximateCoordinate": { "latitude": -33.8342, "longitude": 151.2709, "confidence": "low" },
+      "description": "Junction Bell approximately 0.4 NM north-east of Sow and Pigs Reef.",
+      "sourcePdfPages": [35]
+    },
+    {
+      "id": "cyca-si",
+      "shortName": "SI",
+      "name": "Shark Island",
+      "location": { "kind": "namedPlace", "placeName": "Shark Island, Sydney Harbour" },
+      "chartApproximateCoordinate": { "latitude": -33.85982, "longitude": 151.25738, "confidence": "low" },
+      "description": "Shark Island.",
+      "sourcePdfPages": [35]
+    },
+    {
+      "id": "cyca-s2",
+      "shortName": "S2",
+      "name": "S2 laid mark",
+      "location": { "kind": "relative", "reference": "North Head", "distanceNm": 3.5, "bearingRule": "committee-vessel bearing minus 90 degrees" },
+      "description": "Laid mark 3.5 NM from North Head on the displayed bearing minus 90 degrees.",
+      "sourcePdfPages": [35]
+    },
+    {
+      "id": "cyca-s3",
+      "shortName": "S3",
+      "name": "S3 laid mark",
+      "location": { "kind": "relative", "reference": "North Head", "distanceNm": 3.5, "bearingRule": "committee-vessel bearing plus 90 degrees" },
+      "description": "Laid mark 3.5 NM from North Head on the displayed bearing plus 90 degrees.",
+      "sourcePdfPages": [35]
+    },
+    {
+      "id": "cyca-lim",
+      "shortName": "LIM",
+      "name": "Lion Island mark",
+      "location": { "kind": "coordinate", "latitude": -33.56, "longitude": 151.333333 },
+      "description": "Yellow or orange inflatable mark with a CYCA band.",
+      "sourcePdfPages": [43, 56, 74]
+    },
+    {
+      "id": "cyca-lmb",
+      "shortName": "LMB",
+      "name": "8 NM bearing-course mark",
+      "location": { "kind": "relative", "reference": "North Head", "distanceNm": 8, "bearingRule": "bearing displayed by the committee vessel" },
+      "description": "Orange inflatable mark 8 NM from North Head on the committee-vessel bearing.",
+      "sourcePdfPages": [43]
+    },
+    {
+      "id": "cyca-lmb2",
+      "shortName": "LMB2",
+      "name": "12 NM bearing-course mark",
+      "location": { "kind": "relative", "reference": "North Head", "distanceNm": 12, "bearingRule": "bearing displayed by the committee vessel" },
+      "description": "Orange inflatable mark 12 NM from North Head on the committee-vessel bearing.",
+      "sourcePdfPages": [43]
+    },
+    {
+      "id": "cyca-ph",
+      "shortName": "PH",
+      "name": "Port Hacking mark",
+      "location": { "kind": "coordinate", "latitude": -34.071667, "longitude": 151.181667 },
+      "description": "Yellow inflatable mark at the published approximate position.",
+      "sourcePdfPages": [43, 56, 74]
+    },
+    {
+      "id": "cyca-bi",
+      "shortName": "BI",
+      "name": "Bird Islet",
+      "location": { "kind": "coordinate", "latitude": -33.233333, "longitude": 151.603333 },
+      "description": "Bird Islet, approximately 3.5 NM north-north-east of Norah Head Light.",
+      "sourcePdfPages": [56]
+    },
+    {
+      "id": "cyca-br",
+      "shortName": "BR",
+      "name": "Bull Rock",
+      "location": { "kind": "coordinate", "latitude": -33.276667, "longitude": 151.583333 },
+      "description": "Bull Rock, approximately 0.7 NM north-north-east of Norah Head Light.",
+      "sourcePdfPages": [56]
+    },
+    {
+      "id": "cyca-ct",
+      "shortName": "CT",
+      "name": "Cabbage Tree Island",
+      "location": { "kind": "coordinate", "latitude": -32.69, "longitude": 152.225 },
+      "description": "Cabbage Tree Island, approximately 3.6 NM north-north-east of Port Stephens Light.",
+      "sourcePdfPages": [56]
+    },
+    {
+      "id": "cyca-fi",
+      "shortName": "FI",
+      "name": "Flinders Islet",
+      "location": { "kind": "coordinate", "latitude": -34.458333, "longitude": 150.93 },
+      "description": "Flinders Islet, approximately 1 NM north-east of Port Kembla Harbour.",
+      "sourcePdfPages": [56]
+    },
+    {
+      "id": "cyca-ti",
+      "shortName": "TI",
+      "name": "Tollgate Islands",
+      "location": { "kind": "coordinate", "latitude": -35.75, "longitude": 150.258333 },
+      "description": "Tollgate Islands, approximately 2 NM east of Denhams Beach in Batemans Bay.",
+      "sourcePdfPages": [56]
+    },
+    {
+      "id": "cyca-bass-is",
+      "shortName": "Bass Is",
+      "name": "Bass Island",
+      "location": { "kind": "coordinate", "latitude": -34.465, "longitude": 150.945833 },
+      "description": "Bass Island, approximately 1 NM south-east of Flinders Islet.",
+      "sourcePdfPages": [65, 74]
+    },
+    {
+      "id": "cyca-mi",
+      "shortName": "MI",
+      "name": "Montague Island",
+      "location": { "kind": "coordinate", "latitude": -36.25, "longitude": 150.225 },
+      "description": "Montague Island, approximately 4 NM east of Narooma.",
+      "sourcePdfPages": [66, 74]
+    },
+    {
+      "id": "cyca-wp1",
+      "shortName": "WP1",
+      "name": "Virtual mark WP1",
+      "location": { "kind": "coordinate", "latitude": -33.466667, "longitude": 151.716667 },
+      "description": "Virtual mark approximately 13 NM east of Terrigal; rounding quadrant bearings are defined in the sailing instructions.",
+      "sourcePdfPages": [66, 75]
+    },
+    {
+      "id": "cyca-wp2",
+      "shortName": "WP2",
+      "name": "Virtual mark WP2",
+      "location": { "kind": "coordinate", "latitude": -34.2, "longitude": 151.716667 },
+      "description": "Virtual mark approximately 29 NM east of Cronulla; rounding quadrant bearings are defined in the sailing instructions.",
+      "sourcePdfPages": [66, 75]
+    },
+    {
+      "id": "cyca-wp3",
+      "shortName": "WP3",
+      "name": "Virtual mark WP3",
+      "location": { "kind": "coordinate", "latitude": -33.65, "longitude": 151.5 },
+      "description": "Virtual mark approximately 9 NM east of Mona Vale; rounding quadrant bearings are defined in the sailing instructions.",
+      "sourcePdfPages": [66, 75]
+    },
+    {
+      "id": "cyca-wp4",
+      "shortName": "WP4",
+      "name": "Virtual mark WP4",
+      "location": { "kind": "coordinate", "latitude": -34, "longitude": 151.5 },
+      "description": "Virtual mark approximately 13 NM east of Kurnell; rounding quadrant bearings are defined in the sailing instructions.",
+      "sourcePdfPages": [66, 75]
+    },
+    {
+      "id": "cyca-bh",
+      "shortName": "BH",
+      "name": "Bradleys Head safe water mark",
+      "location": { "kind": "relative", "reference": "Bradleys Head", "distanceMetres": 300, "bearingRule": "south-east" },
+      "chartApproximateCoordinate": { "latitude": -33.8572, "longitude": 151.24477, "confidence": "low" },
+      "description": "Safe water mark 300 m south-east of Bradleys Head.",
+      "sourcePdfPages": [81]
+    },
+    {
+      "id": "cyca-gh",
+      "shortName": "GH",
+      "name": "Georges Head mark",
+      "location": { "kind": "relative", "reference": "Georges Head", "distanceMetres": 200, "bearingRule": "south-west" },
+      "chartApproximateCoordinate": { "latitude": -33.84396, "longitude": 151.25017, "confidence": "low" },
+      "description": "Northernmost Australian Sailing mark in Chowder Bay, 200 m south-west of Georges Head.",
+      "sourcePdfPages": [81, 86]
+    },
+    {
+      "id": "cyca-np",
+      "shortName": "NP",
+      "name": "Nielsen Park mark",
+      "location": { "kind": "namedPlace", "placeName": "Nielsen Park, Sydney Harbour" },
+      "chartApproximateCoordinate": { "latitude": -33.85069, "longitude": 151.25917, "confidence": "low" },
+      "description": "Australian Sailing mark at Nielsen Park.",
+      "sourcePdfPages": [81]
+    },
+    {
+      "id": "cyca-ob",
+      "shortName": "OB",
+      "name": "Obelisk Beach mark",
+      "location": { "kind": "relative", "reference": "Obelisk Beach", "distanceMetres": 300, "bearingRule": "east-south-east" },
+      "chartApproximateCoordinate": { "latitude": -33.83658, "longitude": 151.25497, "confidence": "low" },
+      "description": "Australian Sailing mark 300 m east-south-east of Obelisk Beach in Obelisk Bay.",
+      "sourcePdfPages": [81]
+    },
+    {
+      "id": "cyca-pp",
+      "shortName": "PP",
+      "name": "Point Piper mark",
+      "location": { "kind": "relative", "reference": "Point Piper", "distanceMetres": 200, "bearingTrue": 0 },
+      "chartApproximateCoordinate": { "latitude": -33.86436, "longitude": 151.24977, "confidence": "low" },
+      "description": "Australian Sailing mark 200 m north of Point Piper.",
+      "sourcePdfPages": [81, 86]
+    },
+    {
+      "id": "cyca-tb",
+      "shortName": "TB",
+      "name": "Taylor Bay mark",
+      "location": { "kind": "relative", "reference": "Bradleys Head", "distanceMetres": 400, "bearingRule": "north-east" },
+      "chartApproximateCoordinate": { "latitude": -33.85546, "longitude": 151.24417, "confidence": "low" },
+      "description": "Australian Sailing mark in Taylor Bay, 400 m north-east of Bradleys Head.",
+      "sourcePdfPages": [81]
+    },
+    {
+      "id": "cyca-cc",
+      "shortName": "CC",
+      "name": "Lady Bay west mark",
+      "location": { "kind": "relative", "reference": "Lady Bay", "distanceMetres": 150, "bearingTrue": 270 },
+      "chartApproximateCoordinate": { "latitude": -33.83712, "longitude": 151.27157, "confidence": "low" },
+      "description": "Australian Sailing mark 150 m west of Lady Bay.",
+      "sourcePdfPages": [86]
+    },
+    {
+      "id": "cyca-ec2",
+      "shortName": "EC2",
+      "name": "Eastern Channel 2 mark",
+      "location": { "kind": "relative", "reference": "EC", "distanceMetres": 150, "bearingRule": "south-west" },
+      "chartApproximateCoordinate": { "latitude": -33.847, "longitude": 151.26277, "confidence": "low" },
+      "description": "Australian Sailing mark 150 m south-west of EC.",
+      "sourcePdfPages": [86]
+    },
+    {
+      "id": "cyca-ld",
+      "shortName": "LD",
+      "name": "Shark Island north light beacon",
+      "location": { "kind": "relative", "reference": "Shark Island", "distanceMetres": 100, "bearingTrue": 0 },
+      "chartApproximateCoordinate": { "latitude": -33.8573, "longitude": 151.25637, "confidence": "low" },
+      "description": "Fixed light beacon 100 m north of Shark Island.",
+      "sourcePdfPages": [86]
+    },
+    {
+      "id": "cyca-sp",
+      "shortName": "SP",
+      "name": "Sow and Pigs south-west mark",
+      "location": { "kind": "relative", "reference": "Sow and Pigs Reef", "distanceMetres": 150, "bearingRule": "south-west" },
+      "chartApproximateCoordinate": { "latitude": -33.83984, "longitude": 151.26397, "confidence": "low" },
+      "description": "Australian Sailing mark 150 m south-west of Sow and Pigs Reef.",
+      "sourcePdfPages": [86]
+    },
+    {
+      "id": "cyca-gp",
+      "shortName": "GP",
+      "name": "Grotto Point mark",
+      "location": { "kind": "chartApproximation", "latitude": -33.82367, "longitude": 151.25317, "confidence": "low" },
+      "description": "Mark labelled GP near Grotto Point on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-cbs",
+      "shortName": "CBS",
+      "name": "CBS harbour mark",
+      "location": { "kind": "chartApproximation", "latitude": -33.84548, "longitude": 151.24737, "confidence": "low" },
+      "description": "Mark labelled CBS in Chowder Bay on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-ec",
+      "shortName": "EC",
+      "name": "Eastern Channel mark",
+      "location": { "kind": "chartApproximation", "latitude": -33.84548, "longitude": 151.26497, "confidence": "low" },
+      "description": "Mark labelled EC west of Watsons Bay on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-n1",
+      "shortName": "N1",
+      "name": "N1 harbour mark",
+      "location": { "kind": "chartApproximation", "latitude": -33.8674, "longitude": 151.22377, "confidence": "low" },
+      "description": "Mark labelled N1 west of Clarke Island on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-n2",
+      "shortName": "N2",
+      "name": "N2 harbour mark",
+      "location": { "kind": "chartApproximation", "latitude": -33.86316, "longitude": 151.23117, "confidence": "low" },
+      "description": "Mark labelled N2 north-west of Clarke Island on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-n3",
+      "shortName": "N3",
+      "name": "N3 harbour mark",
+      "location": { "kind": "chartApproximation", "latitude": -33.86175, "longitude": 151.23857, "confidence": "low" },
+      "description": "Mark labelled N3 north of Clarke Island on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    },
+    {
+      "id": "cyca-n4",
+      "shortName": "N4",
+      "name": "N4 harbour mark",
+      "location": { "kind": "chartApproximation", "latitude": -33.86718, "longitude": 151.23117, "confidence": "low" },
+      "description": "Mark labelled N4 south-west of Clarke Island on the CYCA Harbour and S.O.P.S. marks chart.",
+      "sourcePdfPages": [94]
+    }
+  ]
+}
