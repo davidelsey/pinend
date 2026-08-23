@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Clock3,
   Compass,
+  Crosshair,
   Flag,
   Gauge,
   Navigation,
@@ -20,6 +21,7 @@ import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { DevSimulator } from '../components/DevSimulator'
 import { Metric } from '../components/Metric'
+import { SightMarksDialog } from '../components/SightMarksDialog'
 import { formatCountdown } from '../domain/countdown'
 import { distanceNm, initialBearing, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
 import { shouldSuggestRounding } from '../domain/rounding'
@@ -40,6 +42,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     updateSession,
   } = useApp()
   const [showRounding, setShowRounding] = useState(false)
+  const [showSightMarks, setShowSightMarks] = useState(false)
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
   const [marine, setMarine] = useState<MarineSnapshot | null>(null)
   const navigationReading = latestReading ?? session.telemetry.at(-1) ?? null
@@ -170,6 +173,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
         </div>
 
         <div className="race-actions">
+          <button className="button button--secondary" onClick={() => setShowSightMarks(true)}><Crosshair size={18} /> Sight marks</button>
           <button className="button button--race-next" onClick={() => setShowRounding(true)}>
             <Flag size={18} /> Mark rounded <ChevronRight size={18} />
           </button>
@@ -192,6 +196,8 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           </div>
         </div>
       )}
+
+      <SightMarksDialog now={now} open={showSightMarks} onClose={() => setShowSightMarks(false)} />
 
       {wakeLockStatus === 'blocked' && (
         <div className="race-warning"><AlertTriangle size={15} /> Screen lock was blocked by the device. Keep the display active manually.</div>
