@@ -65,7 +65,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .field { display: grid; gap: 7px; margin-bottom: 15px; }
-.field > span, .simulator label > span { font-size: 11px; text-transform: uppercase; letter-spacing: .075em; font-weight: 800; color: #687981; }
+.field > span { font-size: 11px; text-transform: uppercase; letter-spacing: .075em; font-weight: 800; color: #687981; }
 .field input, .field select, .add-row select, .course-row select, .sail-check select, .sail-card select { width: 100%; min-height: 44px; border: 1px solid #d5dedb; background: white; border-radius: 10px; padding: 9px 11px; color: var(--ink); outline: none; }
 .field input:focus, .field select:focus, select:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,107,53,.1); }
 .select-like { min-height: 52px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; border: 1px solid #d5dedb; border-radius: 12px; padding: 10px 13px; background: white; }
@@ -162,22 +162,29 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .phase-indicator { width: 6px; height: 6px; border-radius: 50%; background: #9aa5aa; position: absolute; right: 31px; top: 13px; }
 .phase-indicator--prestart, .phase-indicator--racing { background: var(--orange); box-shadow: 0 0 0 3px rgba(255,107,53,.14); }
 
-.simulator { border: 1px dashed #e0a889; border-radius: 15px; overflow: hidden; background: #fff9f5; }
-.simulator__header { width: 100%; border: 0; background: transparent; min-height: 44px; padding: 10px 13px; display: flex; align-items: center; justify-content: space-between; color: #9a4b2b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-.simulator__header > span { display: flex; gap: 7px; align-items: center; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #c9c9c9; }
-.status-dot--active { background: var(--orange); box-shadow: 0 0 0 4px rgba(255,107,53,.14); }
-.simulator__body { padding: 3px 13px 13px; display: grid; gap: 11px; }
-.simulator label { display: grid; gap: 4px; }
-.simulator label > span { display: flex; justify-content: space-between; }
-.simulator input[type='range'] { accent-color: var(--orange); width: 100%; }
 .toggle-row { grid-template-columns: 1fr auto; align-items: center; }
 .toggle-row > span { justify-content: flex-start !important; gap: 6px; }
 .toggle-row input { width: 34px; height: 18px; accent-color: var(--orange); }
-.simulator__coords { font: 600 11px ui-monospace, monospace; color: #76564a; background: #f7eae3; border-radius: 8px; padding: 7px; text-align: center; }
-.simulator__position { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.simulator__position input { width: 100%; min-width: 0; border: 1px solid #e0c6b8; border-radius: 8px; padding: 7px; color: #76564a; background: white; font: 600 10px ui-monospace, monospace; }
-.simulator__error { margin: -4px 0 0; color: #a83f25; font-size: 9px; line-height: 1.4; }
+.debug-map-panel { width: min(920px, 100%); overflow: hidden; border-radius: 18px; background: var(--navy); box-shadow: 0 16px 45px rgba(7,27,47,.18); }
+.simulator-map { position: relative; min-height: 480px; color: white; background: #082b40; touch-action: none; user-select: none; }
+.simulator-map > svg { display: block; width: 100%; min-height: 480px; height: min(62vh, 650px); touch-action: none; }
+.simulator-map__mark circle { fill: #f5f1e8; stroke: #071b2f; stroke-width: .7; }
+.simulator-map__mark text { fill: #f5f1e8; font-size: 2.25px; font-weight: 800; paint-order: stroke; stroke: #082b40; stroke-width: .7px; }
+.simulator-map__vector { stroke: #ffb37f; stroke-width: 1.2; stroke-dasharray: 2 1.6; }
+.simulator-map__touch-target { fill: transparent; stroke: none; }
+.simulator-map__boat, .simulator-map__handle { cursor: grab; }
+.simulator-map__boat:active, .simulator-map__handle:active { cursor: grabbing; }
+.simulator-map__boat path { fill: #53d3c2; stroke: #071b2f; stroke-width: .8; }
+.simulator-map__boat text { fill: #a7efe5; font-size: 2.5px; font-weight: 900; paint-order: stroke; stroke: #082b40; stroke-width: .8px; }
+.simulator-map__handle circle:not(.simulator-map__touch-target) { fill: var(--orange); stroke: white; stroke-width: .65; }
+.simulator-map__handle path { fill: none; stroke: white; stroke-width: .6; stroke-linecap: round; }
+.simulator-map__legend { position: absolute; z-index: 2; right: 12px; bottom: 12px; left: 12px; display: flex; justify-content: space-between; gap: 10px; pointer-events: none; }
+.simulator-map__legend span { display: flex; align-items: center; gap: 5px; padding: 7px 9px; border-radius: 8px; color: #dcebee; background: rgba(3,18,30,.78); font-size: 9px; font-weight: 800; }
+.debug-map-panel__controls { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(230px, 1fr) auto; align-items: center; gap: 16px; padding: 12px 14px; color: white; background: #071b2f; }
+.debug-map-panel__controls .toggle-row { padding: 0; color: white; background: transparent; }
+.debug-accuracy { display: grid; gap: 5px; font-size: 9px; }
+.debug-accuracy span { display: flex; justify-content: space-between; color: #9eb3bc; }
+.debug-map-panel__controls .button-row { margin: 0; flex-wrap: nowrap; }
 
 .countdown-hero { margin: -32px calc((100vw - min(1240px, calc(100vw - 36px))) / -2) 24px; min-height: 365px; padding: 44px max(24px, calc((100vw - 1050px)/2)); background: var(--navy); color: white; text-align: center; }
 .countdown-hero__meta { display: flex; justify-content: center; gap: 14px; align-items: center; color: #829aa6; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
@@ -312,11 +319,6 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .race-info-card strong { font-size: 11px; }
 .race-info-card small { display: block; padding: 9px 0; color: #59717d; font-size: 8px; }
 .system-status svg { color: var(--orange); }
-.race-sidebar .simulator { border-color: #875039; background: #1c2932; }
-.race-sidebar .simulator__body { color: #cad4d7; }
-.race-sidebar .simulator__header { color: #ff9a73; }
-.race-sidebar .simulator label > span { color: #82949b; }
-.race-sidebar .simulator__coords { background: #263741; color: #b8c3c8; }
 .race-sidebar .button--secondary { background: #263c49; color: white; }
 .race-actions { display: flex; justify-content: center; margin-top: 18px; }
 .button--race-next { min-width: 260px; color: var(--navy); background: var(--orange); }
@@ -475,7 +477,8 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .sticky-action { bottom: 72px; }
   .sensor-mini { display: none; }
   .race-sidebar { grid-template-columns: repeat(2, 1fr); }
-  .race-sidebar .simulator { grid-column: 1 / -1; }
+  .debug-map-panel__controls { grid-template-columns: 1fr 1fr; }
+  .debug-map-panel__controls .button-row { grid-column: 1 / -1; }
 }
 
 @media (max-width: 560px) {
@@ -492,9 +495,14 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .sticky-action { padding: 9px; }
   .sticky-action > div { display: none; }
   .sticky-action .button { width: 100%; }
-  .bottom-nav button { min-width: 25%; }
+  .bottom-nav button { flex: 1; min-width: 0; }
   .countdown-hero { margin-top: -18px; padding: 35px 14px; min-height: 330px; }
   .countdown { font-size: 78px; }
+  .simulator-map, .simulator-map > svg { min-height: 430px; }
+  .simulator-map > svg { height: 56vh; }
+  .simulator-map__legend { flex-direction: column; align-items: flex-start; }
+  .debug-map-panel__controls { grid-template-columns: 1fr; }
+  .debug-map-panel__controls .button-row { grid-column: auto; display: grid; grid-template-columns: 1fr 1fr; }
   .prestart-tactics { grid-template-columns: 1fr 1fr; }
   .signal-buttons { gap: 5px; }
   .signal-buttons button { padding: 9px 3px; }
@@ -505,7 +513,6 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .race-metrics { grid-template-columns: repeat(2, 1fr); }
   .metric { border-bottom: 1px solid rgba(255,255,255,.08); }
   .race-sidebar { grid-template-columns: 1fr; }
-  .race-sidebar .simulator { grid-column: auto; }
   .page-title--row { display: block; }
   .page-title--row .button { margin-top: 8px; }
   .mark-card { grid-template-columns: auto 1fr; }

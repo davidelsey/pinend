@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { database } from './services/repository'
 
@@ -23,7 +23,7 @@ describe('primary local race journey', () => {
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Course' })).not.toBeInTheDocument()
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' })
-    expect(within(navigation).getAllByRole('button').map((button) => button.textContent)).toEqual(['Setup', 'Marks', 'Race', 'Boat'])
+    expect(within(navigation).getAllByRole('button').map((button) => button.textContent)).toEqual(['Setup', 'Marks', 'Race', 'Boat', 'Debug'])
 
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
     expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
@@ -353,11 +353,10 @@ describe('primary local race journey', () => {
     await confirmCourseAndEnterPrestart()
     fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
     expect(await screen.findByText('RACING')).toBeInTheDocument()
-
-    const simulator = screen.getByTestId('sensor-simulator')
-    fireEvent.click(within(simulator).getByRole('button', { name: 'Debug mode: boat simulator' }))
-    fireEvent.click(within(simulator).getByRole('checkbox', { name: 'Use simulated sensors' }))
-    fireEvent.click(within(simulator).getByRole('button', { name: 'Near next mark' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Use simulated sensors' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Near / }))
+    fireEvent.click(screen.getByRole('button', { name: 'Race' }))
 
     await waitFor(() => expect(screen.getByText('M TO MARK').closest('.race-distance')).toHaveTextContent(/^\d+ M TO MARK$/))
   })
@@ -381,21 +380,72 @@ describe('primary local race journey', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
-    const simulator = screen.getByTestId('sensor-simulator')
-    fireEvent.click(within(simulator).getByRole('button', { name: 'Debug mode: boat simulator' }))
-    fireEvent.click(within(simulator).getByRole('checkbox', { name: 'Use simulated sensors' }))
-    fireEvent.change(within(simulator).getByRole('spinbutton', { name: 'Mock latitude' }), { target: { value: '' } })
-    expect(within(simulator).getByText('-33.87423, 151.23377')).toBeInTheDocument()
-    fireEvent.click(within(simulator).getByRole('button', { name: 'Apply position' }))
-    expect(within(simulator).getByRole('alert')).toHaveTextContent('latitude from -90 to 90')
-    fireEvent.change(within(simulator).getByRole('spinbutton', { name: 'Mock latitude' }), { target: { value: '-33.90000' } })
-    fireEvent.change(within(simulator).getByRole('spinbutton', { name: 'Mock longitude' }), { target: { value: '151.20000' } })
-    fireEvent.change(within(simulator).getByRole('slider', { name: /Speed/ }), { target: { value: '8.4' } })
-    fireEvent.click(within(simulator).getByRole('button', { name: 'Apply position' }))
-
-    expect(within(simulator).getByText('-33.90000, 151.20000')).toBeInTheDocument()
-    expect(within(simulator).getByText('8.4 kn')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
+    expect(await screen.findByRole('heading', { name: 'Drive the simulated boat.' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Drag the boat and its speed handle on the simulator map' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Drag boat position' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Drag to set heading and speed' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Use simulated sensors' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Setup' }))
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
     expect(await screen.findByText('Current location')).toBeInTheDocument()
+  })
+
+  it('responds to simulator changes made in another window', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
+    const remoteSimulator = {
+      coordinate: { latitude: -33.91, longitude: 151.21 },
+      heading: 180,
+      speedKnots: 9.3,
+      accuracy: 3,
+      reading: {
+        latitude: -33.91,
+        longitude: 151.21,
+        timestamp: 1234,
+        accuracy: 3,
+        heading: 180,
+        speedKnots: 9.3,
+        source: 'simulator',
+        headingSource: 'simulator',
+        headingReliable: true,
+        deviceHeading: 180,
+        courseOverGround: 180,
+      },
+    }
+
+    localStorage.setItem('pin-end-dev-simulator', JSON.stringify({ enabled: true, simulator: remoteSimulator }))
+    const storageSpy = vi.spyOn(Storage.prototype, 'setItem')
+    fireEvent(window, new StorageEvent('storage', {
+      key: 'pin-end-dev-simulator',
+      newValue: JSON.stringify({ enabled: true, simulator: remoteSimulator }),
+    }))
+
+    expect(screen.getByRole('checkbox', { name: 'Use simulated sensors' })).toBeChecked()
+    expect(screen.getByText(/9\.3 kn/)).toBeInTheDocument()
+    expect(storageSpy.mock.calls.filter(([key]) => key === 'pin-end-dev-simulator')).toHaveLength(0)
+
+    const newerSimulator = { ...remoteSimulator, speedKnots: 13, reading: { ...remoteSimulator.reading, speedKnots: 13 } }
+    localStorage.setItem('pin-end-dev-simulator', JSON.stringify({ enabled: true, simulator: newerSimulator }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move 30 sec' }))
+    expect(JSON.parse(localStorage.getItem('pin-end-dev-simulator') ?? '{}').simulator.speedKnots).toBe(13)
+    storageSpy.mockRestore()
+  })
+
+  it('persists local simulator controls for a separate window', async () => {
+    const firstWindow = render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
+    fireEvent.change(screen.getByRole('slider', { name: 'GPS accuracy' }), { target: { value: '11' } })
+    expect(JSON.parse(localStorage.getItem('pin-end-dev-simulator') ?? '{}').simulator.accuracy).toBe(11)
+
+    firstWindow.unmount()
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
+    expect(screen.getByText('±11 m')).toBeInTheDocument()
   })
 })

@@ -20,7 +20,6 @@ import {
 } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
-import { DevSimulator } from '../components/DevSimulator'
 import { Metric } from '../components/Metric'
 import { formatCountdown } from '../domain/countdown'
 import { distanceNm, initialBearing, nauticalMilesToMetres, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
@@ -192,7 +191,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
               <div><Sailboat size={18} /><span>Screen awake</span><strong>{wakeLockStatus}</strong></div>
               <div><Radio size={18} /><span>Sensor source</span><strong>{latestReading?.source ?? (navigationReading ? 'last saved fix' : 'waiting')}</strong></div>
             </section>
-            <DevSimulator target={target} />
           </aside>
         </div>
 

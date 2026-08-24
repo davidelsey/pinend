@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Anchor, CloudOff, Crosshair, LogIn, MapPinned, Radio, Sailboat, Settings, Waves, Wifi } from 'lucide-react'
+import { Anchor, Bug, CloudOff, Crosshair, LogIn, MapPinned, Radio, Sailboat, Settings, Waves, Wifi } from 'lucide-react'
 import { AppProvider, useApp } from './app/AppContext'
 import { useDeviceSensors } from './hooks/useDeviceSensors'
 import { useWakeLock } from './hooks/useWakeLock'
@@ -10,8 +10,9 @@ import { MarksPage } from './pages/MarksPage'
 import { PrestartPage } from './pages/PrestartPage'
 import { RacePage } from './pages/RacePage'
 import { SetupPage } from './pages/SetupPage'
+import { DebugPage } from './pages/DebugPage'
 
-type Tab = 'setup' | 'race' | 'boat' | 'marks'
+type Tab = 'setup' | 'race' | 'boat' | 'marks' | 'debug'
 
 function LoginPage({ onLocal }: { onLocal(): void }) {
   const [error, setError] = useState<string | null>(null)
@@ -102,7 +103,13 @@ function PinEndApp() {
 
   const content = tab === 'setup'
     ? <SetupPage onConfirmCourse={() => setTab('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
-    : tab === 'marks' ? <MarksPage onEnterPrestart={() => setTab('race')} /> : tab === 'race' ? raceContent : <BoatPage />
+    : tab === 'marks'
+      ? <MarksPage onEnterPrestart={() => setTab('race')} />
+      : tab === 'race'
+        ? raceContent
+        : tab === 'boat'
+          ? <BoatPage />
+          : <DebugPage />
 
   const inRace = tab === 'race' && (session.phase === 'prestart' || session.phase === 'racing')
   return (
@@ -122,6 +129,7 @@ function PinEndApp() {
         <button className={tab === 'marks' ? 'active' : ''} onClick={() => setTab('marks')}><MapPinned size={20} /><span>Marks</span></button>
         <button className={tab === 'race' ? 'active' : ''} onClick={() => setTab('race')}><Anchor size={20} /><span>Race</span><i className={`phase-indicator phase-indicator--${session.phase}`} /></button>
         <button className={tab === 'boat' ? 'active' : ''} onClick={() => setTab('boat')}><Sailboat size={20} /><span>Boat</span></button>
+        {import.meta.env.DEV && <button className={tab === 'debug' ? 'active' : ''} onClick={() => setTab('debug')}><Bug size={20} /><span>Debug</span></button>}
       </nav>
     </div>
   )

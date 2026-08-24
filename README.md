@@ -22,7 +22,7 @@ npm run build
 
 ## Development sensor simulator
 
-Development builds show a dashed **Sensor simulator** panel in setup, pre-start, and race screens. Expand it and enable simulated sensors, then adjust true bearing, speed, and accuracy. You can move the simulated boat by 30 seconds or place it near the active mark. The component is guarded by `import.meta.env.DEV`, so it is excluded from production behavior.
+Development builds add a **Debug** page to the bottom navigation. Open it to enable simulated sensors, then adjust true bearing, speed, accuracy, and position. You can move the simulated boat by 30 seconds or place it near the active mark. Simulator changes are shared live across same-origin tabs and windows, so the Debug page can remain open beside a separate race display. The page is guarded by `import.meta.env.DEV`, so it is excluded from production behavior.
 
 For triangulation, enable the simulator, open an endpoint or movable-mark viewfinder, align its crosshair, and capture. Move at least 25 metres, adjust the bearing back toward the target, and repeat. Pin end and committee boat are presented first, with other variable marks below them. On a phone, the viewfinder uses the rear camera while the phone is held vertically; camera frames are never saved or uploaded. The **I am beside this endpoint** control provides a direct GPS alternative for the start line.
 

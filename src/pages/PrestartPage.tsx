@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock3, Compass, Flag, Gauge, Navigation, Sailboat, Shield, TimerReset } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
-import { DevSimulator } from '../components/DevSimulator'
 import { Metric } from '../components/Metric'
 import { isStartWaypoint } from '../domain/course'
 import { formatCountdown, syncStartFromSignal } from '../domain/countdown'
-import { intersectSightings, resolveMarkPosition, timeToLineSeconds } from '../domain/geo'
+import { intersectSightings, timeToLineSeconds } from '../domain/geo'
 import type { LineObservation } from '../domain/types'
 
 type Props = { now: number; onStartRace(): void; sensorStatus: string; onEnableSensors(): void; wakeLockStatus: string }
@@ -33,7 +32,6 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
   const line = pin && committee ? { pin, committee } : null
   const selectedWaypoint = race.course[safePreviewIndex]
   const selectedMark = marks.find((mark) => mark.id === selectedWaypoint?.markId)
-  const selectedTarget = selectedMark ? resolveMarkPosition(selectedMark.position) : undefined
   const crossingSeconds = line && latestReading
     ? timeToLineSeconds(latestReading, latestReading.heading, latestReading.speedKnots, line.pin, line.committee)
     : null
@@ -144,7 +142,6 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
               <div><AlertTriangle size={18} /><span>Navigation aid only</span><strong>Keep a proper lookout</strong></div>
               <small>Race documents and safe navigation always take precedence.</small>
             </section>
-            <DevSimulator target={selectedTarget ?? pin ?? undefined} />
           </aside>
         </div>
 

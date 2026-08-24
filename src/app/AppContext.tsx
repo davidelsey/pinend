@@ -50,6 +50,28 @@ type AppContextValue = {
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
+const simulatorStorageKey = 'pin-end-dev-simulator'
+
+type SimulatorSnapshot = {
+  enabled: boolean
+  simulator: SimulatorState
+}
+
+function parseSimulatorSnapshot(value: string): SimulatorSnapshot | null {
+  try {
+    const snapshot = JSON.parse(value) as SimulatorSnapshot
+    if (typeof snapshot.enabled !== 'boolean' || !snapshot.simulator?.reading) return null
+    return snapshot
+  } catch {
+    return null
+  }
+}
+
+function readSimulatorSnapshot(fallback: SimulatorState): SimulatorSnapshot {
+  if (!import.meta.env.DEV) return { enabled: false, simulator: fallback }
+  const stored = localStorage.getItem(simulatorStorageKey)
+  return stored ? parseSimulatorSnapshot(stored) ?? { enabled: false, simulator: fallback } : { enabled: false, simulator: fallback }
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const repository = useMemo(() => createRaceRepository(), [])
@@ -66,8 +88,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const raceSelectionRef = useRef(0)
   const [session, setSession] = useState(createSeedSession)
   const [observations, setObservations] = useState<LineObservation[]>([])
-  const [simulatorEnabled, setSimulatorEnabled] = useState(false)
-  const [simulator, setSimulator] = useState(() => createSimulator(cyca.coordinate))
+  const [simulatorSnapshot, setSimulatorSnapshot] = useState(() => readSimulatorSnapshot(createSimulator(cyca.coordinate)))
+  const { enabled: simulatorEnabled, simulator } = simulatorSnapshot
   const [deviceReading, setDeviceReading] = useState<SensorReading | null>(null)
 
   useEffect(() => {
@@ -102,6 +124,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('offline', goOffline)
     }
   }, [])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const syncSimulator = (event: StorageEvent) => {
+      if (event.key !== simulatorStorageKey || !event.newValue) return
+      const stored = localStorage.getItem(simulatorStorageKey)
+      const snapshot = stored ? parseSimulatorSnapshot(stored) : null
+      if (snapshot) setSimulatorSnapshot(snapshot)
+    }
+    window.addEventListener('storage', syncSimulator)
+    return () => window.removeEventListener('storage', syncSimulator)
+  }, [])
+
+  const updateSimulatorSnapshot = useCallback((update: (current: SimulatorSnapshot) => SimulatorSnapshot) => {
+    setSimulatorSnapshot((current) => {
+      const stored = import.meta.env.DEV ? localStorage.getItem(simulatorStorageKey) : null
+      const latest = stored ? parseSimulatorSnapshot(stored) ?? current : current
+      const next = update(latest)
+      if (import.meta.env.DEV) localStorage.setItem(simulatorStorageKey, JSON.stringify(next))
+      return next
+    })
+  }, [])
+
+  const setSimulatorEnabled = useCallback((enabled: boolean) => {
+    updateSimulatorSnapshot((current) => ({ ...current, enabled }))
+  }, [updateSimulatorSnapshot])
 
   const updateSession = useCallback(
     async (patch: Partial<RaceSession>) => {
@@ -189,11 +237,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const configureSimulator = (patch: Partial<Pick<SimulatorState, 'heading' | 'speedKnots' | 'accuracy'>>) =>
-    setSimulator((current) => configureSimulatorState(current, patch))
+    updateSimulatorSnapshot((current) => ({ ...current, simulator: configureSimulatorState(current.simulator, patch) }))
 
-  const stepSimulator = (seconds: number) => setSimulator((current) => moveSimulator(current, seconds))
+  const stepSimulator = (seconds: number) =>
+    updateSimulatorSnapshot((current) => ({ ...current, simulator: moveSimulator(current.simulator, seconds) }))
   const placeSimulator = (latitude: number, longitude: number, heading?: number) =>
-    setSimulator((current) => setSimulatorPosition(current, { latitude, longitude }, heading))
+    updateSimulatorSnapshot((current) => ({ ...current, simulator: setSimulatorPosition(current.simulator, { latitude, longitude }, heading) }))
 
   const latestReading = simulatorEnabled ? simulator.reading : deviceReading
 

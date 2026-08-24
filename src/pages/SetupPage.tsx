@@ -14,7 +14,6 @@ import {
   Wind,
 } from 'lucide-react'
 import { useApp } from '../app/AppContext'
-import { DevSimulator } from '../components/DevSimulator'
 import { cyca } from '../data/seed'
 import { CREW_POSITIONS, type CrewPosition, type Mark } from '../domain/types'
 import { fetchForecast, type ForecastSnapshot } from '../services/weather'
@@ -237,7 +236,6 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
             <div className="readiness-item"><CloudSun size={16} /><span>Forecast</span><strong>{online ? 'Updated' : 'Cached'}</strong></div>
             <button className="button button--secondary button--wide" onClick={onEnableSensors}>Prepare device sensors</button>
           </section>
-          <DevSimulator />
         </aside>}
       </div>
 
