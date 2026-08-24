@@ -71,7 +71,7 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
 
   return (
     <div className={`course-plot ${compact ? 'course-plot--compact' : ''}`} aria-label="Offline course plot">
-      <svg viewBox="0 0 400 310" role="img">
+      <svg viewBox="0 0 400 310" role="img" aria-label="Offline course plot">
         <defs>
           <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
             <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(160,205,218,.09)" strokeWidth="1" />

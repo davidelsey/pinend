@@ -228,6 +228,16 @@ describe('primary local race journey', () => {
     await confirmCourseAndEnterPrestart()
 
     expect(await screen.findByText('PRE-START')).toBeInTheDocument()
+    const prestartInstruments = screen.getByRole('main', { name: 'Pre-start instruments' })
+    expect(prestartInstruments).toHaveClass('race-main')
+    expect(within(prestartInstruments).getAllByText('Estimated line crossing')).not.toHaveLength(0)
+    expect(within(prestartInstruments).getByText('GPS boat speed')).toBeInTheDocument()
+    expect(within(prestartInstruments).getByRole('img', { name: 'Offline course plot' })).toBeInTheDocument()
+    expect(within(prestartInstruments).getByRole('button', { name: /5:00 Warning/i })).toBeInTheDocument()
+    expect(within(prestartInstruments).getByRole('button', { name: /4:00 Preparatory/i })).toBeInTheDocument()
+    expect(within(prestartInstruments).getByRole('button', { name: /1:00 One minute/i })).toBeInTheDocument()
+    expect(within(prestartInstruments).getByText('Keep a proper lookout')).toBeInTheDocument()
+    expect(document.querySelector('.app-shell')).toHaveClass('app-shell--racing')
     fireEvent.click(screen.getByRole('button', { name: /Start race mode/i }))
 
     await waitFor(() => expect(screen.getByText('RACING')).toBeInTheDocument())

@@ -95,7 +95,7 @@ function PinEndApp() {
   const raceContent = session.phase === 'setup'
     ? <SetupPage onConfirmCourse={() => setTab('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
     : session.phase === 'prestart'
-      ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing', activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
+      ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing', activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} wakeLockStatus={wakeLock.status} />
       : session.phase === 'racing'
         ? <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setTab('race')} />
         : <FinishedPage onReset={() => void updateSession({ id: crypto.randomUUID(), phase: 'setup', autoStartArmed: true, activeWaypointIndex: 0, selectedSailIds: [], crewAssignments: [], telemetry: [], roundedAt: {} })} />
@@ -104,7 +104,7 @@ function PinEndApp() {
     ? <SetupPage onConfirmCourse={() => setTab('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
     : tab === 'marks' ? <MarksPage onEnterPrestart={() => setTab('race')} /> : tab === 'race' ? raceContent : <BoatPage />
 
-  const inRace = tab === 'race' && session.phase === 'racing'
+  const inRace = tab === 'race' && (session.phase === 'prestart' || session.phase === 'racing')
   return (
     <div className={`app-shell ${inRace ? 'app-shell--racing' : ''}`}>
       {!inRace && (
