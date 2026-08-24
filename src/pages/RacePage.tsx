@@ -24,7 +24,6 @@ import { formatCountdown } from '../domain/countdown'
 import { distanceNm, initialBearing, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
 import { shouldSuggestRounding } from '../domain/rounding'
 import { cyca } from '../data/seed'
-import { isStartWaypoint } from '../domain/course'
 import { fetchForecast, fetchMarineForecast, type ForecastSnapshot, type MarineSnapshot } from '../services/weather'
 
 type Props = { now: number; wakeLockStatus: string; onFinish(): void }
@@ -101,8 +100,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
 
   const selectPrevious = async () => {
     setShowRounding(false)
-    const previousWaypoint = race.course[session.activeWaypointIndex - 1]
-    if (session.activeWaypointIndex === 0 || previousWaypoint && isStartWaypoint(previousWaypoint)) {
+    if (session.activeWaypointIndex === 0) {
       await updateSession({ phase: 'prestart', autoStartArmed: false })
       return
     }
