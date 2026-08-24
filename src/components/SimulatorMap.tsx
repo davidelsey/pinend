@@ -1,5 +1,5 @@
 import { Crosshair, Navigation } from 'lucide-react'
-import { useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { normalizeBearing, resolveMarkPosition } from '../domain/geo'
 import type { Coordinate, Mark, RaceDefinition } from '../domain/types'
 
@@ -41,7 +41,8 @@ export function SimulatorMap({ coordinate, heading, speedKnots, marks, race, onP
     const position = resolveMarkPosition(mark.position)
     return position ? [{ id: waypoint.id, label: `${index + 1} · ${mark.shortName}`, coordinate: position }] : []
   })
-  const [bounds] = useState(() => fitBounds([coordinate, ...courseMarks.map((mark) => mark.coordinate)]))
+  const [bounds, setBounds] = useState(() => fitBounds([coordinate, ...courseMarks.map((mark) => mark.coordinate)]))
+  const [dragging, setDragging] = useState(false)
   const activeControl = useRef<'boat' | 'vector' | null>(null)
   const project = (value: Coordinate) => ({
     x: ((value.longitude - bounds.west) / (bounds.east - bounds.west)) * 100,
@@ -55,9 +56,16 @@ export function SimulatorMap({ coordinate, heading, speedKnots, marks, race, onP
     y: boat.y - Math.cos(headingRadians) * handleLength,
   }
   const coordinateAt = (event: PointerEvent<SVGSVGElement>) => {
+    const matrix = event.currentTarget.getScreenCTM?.()
+    const svgPoint = event.currentTarget.createSVGPoint?.()
+    const localPoint = matrix && svgPoint ? (() => {
+      svgPoint.x = event.clientX
+      svgPoint.y = event.clientY
+      return svgPoint.matrixTransform(matrix.inverse())
+    })() : null
     const rect = event.currentTarget.getBoundingClientRect()
-    const x = Math.min(100, Math.max(0, (event.clientX - rect.left) / (rect.width || 1) * 100))
-    const y = Math.min(100, Math.max(0, (event.clientY - rect.top) / (rect.height || 1) * 100))
+    const x = Math.min(100, Math.max(0, localPoint?.x ?? (event.clientX - rect.left) / (rect.width || 1) * 100))
+    const y = Math.min(100, Math.max(0, localPoint?.y ?? (event.clientY - rect.top) / (rect.height || 1) * 100))
     return {
       point: { x, y },
       coordinate: {
@@ -84,12 +92,39 @@ export function SimulatorMap({ coordinate, heading, speedKnots, marks, race, onP
     const control = (event.target as Element).closest<SVGElement>('[data-simulator-control]')?.dataset.simulatorControl
     if (control !== 'boat' && control !== 'vector') return
     activeControl.current = control
+    setDragging(true)
     event.currentTarget.setPointerCapture?.(event.pointerId)
     update(event)
   }
   const pointerUp = (event: PointerEvent<SVGSVGElement>) => {
     activeControl.current = null
+    setDragging(false)
     event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }
+
+  useEffect(() => {
+    if (dragging || (boat.x >= 32 && boat.x <= 68 && boat.y >= 32 && boat.y <= 68)) return
+    const latitudeSpan = bounds.north - bounds.south
+    const longitudeSpan = bounds.east - bounds.west
+    setBounds({ north: coordinate.latitude + latitudeSpan / 2, south: coordinate.latitude - latitudeSpan / 2, east: coordinate.longitude + longitudeSpan / 2, west: coordinate.longitude - longitudeSpan / 2 })
+  }, [boat.x, boat.y, bounds.east, bounds.north, bounds.south, bounds.west, coordinate.latitude, coordinate.longitude, dragging])
+  const moveBoatWithKeyboard = (event: KeyboardEvent<SVGGElement>) => {
+    const deltas: Record<string, Coordinate> = {
+      ArrowUp: { latitude: 0.0001, longitude: 0 },
+      ArrowDown: { latitude: -0.0001, longitude: 0 },
+      ArrowLeft: { latitude: 0, longitude: -0.0001 },
+      ArrowRight: { latitude: 0, longitude: 0.0001 },
+    }
+    const delta = deltas[event.key]
+    if (!delta) return
+    event.preventDefault()
+    onPosition({ latitude: coordinate.latitude + delta.latitude, longitude: coordinate.longitude + delta.longitude })
+  }
+  const changeVectorWithKeyboard = (event: KeyboardEvent<SVGGElement>) => {
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return
+    event.preventDefault()
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') onVector(normalizeBearing(heading + (event.key === 'ArrowLeft' ? -5 : 5)), speedKnots)
+    else onVector(heading, Math.min(MAX_SPEED_KNOTS, Math.max(0, speedKnots + (event.key === 'ArrowUp' ? 0.5 : -0.5))))
   }
 
   return (
@@ -104,8 +139,8 @@ export function SimulatorMap({ coordinate, heading, speedKnots, marks, race, onP
         {courseMarks.length > 1 && <polyline points={courseMarks.map((mark) => { const point = project(mark.coordinate); return `${point.x},${point.y}` }).join(' ')} fill="none" stroke="#f5f1e8" strokeWidth=".7" strokeDasharray="2 2" opacity=".58" />}
         {courseMarks.map((mark) => { const point = project(mark.coordinate); const alignLeft = point.x > 75; return <g key={mark.id} transform={`translate(${point.x} ${point.y})`} className="simulator-map__mark"><circle r="1.8" /><text x={alignLeft ? -2.8 : 2.8} y="1" textAnchor={alignLeft ? 'end' : 'start'}>{mark.label}</text></g> })}
         <line className="simulator-map__vector" x1={boat.x} y1={boat.y} x2={handle.x} y2={handle.y} />
-        <g transform={`translate(${handle.x} ${handle.y})`} data-simulator-control="vector" className="simulator-map__handle" role="button" aria-label="Drag to set heading and speed"><circle r="5.5" className="simulator-map__touch-target" /><circle r="2.8" /><path d="M-1.4 0h2.8M0-1.4v2.8" /></g>
-        <g transform={`translate(${boat.x} ${boat.y})`} data-simulator-control="boat" className="simulator-map__boat" role="button" aria-label="Drag boat position"><circle r="7" className="simulator-map__touch-target" /><g transform={`rotate(${normalizeBearing(heading)})`}><path d="M0 -5 L3.8 4 L0 2.5 L-3.8 4Z" /></g><text x="5" y="1.4">YOU</text></g>
+        <g transform={`translate(${handle.x} ${handle.y})`} data-simulator-control="vector" className="simulator-map__handle" role="button" tabIndex={0} aria-label="Drag to set heading and speed" onKeyDown={changeVectorWithKeyboard}><circle r="5.5" className="simulator-map__touch-target" /><circle r="2.8" /><path d="M-1.4 0h2.8M0-1.4v2.8" /></g>
+        <g transform={`translate(${boat.x} ${boat.y})`} data-simulator-control="boat" className="simulator-map__boat" role="button" tabIndex={0} aria-label="Drag boat position" onKeyDown={moveBoatWithKeyboard}><circle r="7" className="simulator-map__touch-target" /><g transform={`rotate(${normalizeBearing(heading)})`}><path d="M0 -5 L3.8 4 L0 2.5 L-3.8 4Z" /></g><text x="5" y="1.4">YOU</text></g>
       </svg>
       <div className="simulator-map__legend"><span><Crosshair size={13} /> Drag YOU to move</span><span><Navigation size={13} /> Drag handle · {Math.round(normalizeBearing(heading))}° · {speedKnots.toFixed(1)} kn</span></div>
     </div>

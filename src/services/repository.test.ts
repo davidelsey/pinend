@@ -24,10 +24,16 @@ describe('offline race repository', () => {
       updatedAt: 200,
     }
     await firstRepository.saveSession(session)
+    const reading = { latitude: -33.86, longitude: 151.24, timestamp: 150, accuracy: 3, heading: 90, speedKnots: 6, source: 'simulator' as const }
+    await firstRepository.saveTelemetry(session.id, reading)
 
     const recovered = await createRaceRepository(database).getActiveSession()
 
-    expect(recovered).toEqual(session)
+    expect(recovered).toEqual({ ...session, telemetry: [reading] })
+
+    const reset = { ...session, phase: 'prestart' as const, telemetry: [], updatedAt: 300 }
+    await firstRepository.resetSession(reset)
+    await expect(createRaceRepository(database).getActiveSession()).resolves.toEqual(reset)
   })
 
   it('removes a discarded sighting from offline storage', async () => {

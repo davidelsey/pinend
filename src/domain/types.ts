@@ -89,6 +89,8 @@ export type RaceDefinition = {
   name: string
   fleet: string
   scheduledStart: string
+  /** Optional time correction factor applied to elapsed race time. */
+  handicap?: number
   course: CourseWaypoint[]
 }
 

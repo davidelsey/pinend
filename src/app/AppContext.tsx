@@ -60,7 +60,21 @@ type SimulatorSnapshot = {
 function parseSimulatorSnapshot(value: string): SimulatorSnapshot | null {
   try {
     const snapshot = JSON.parse(value) as SimulatorSnapshot
-    if (typeof snapshot.enabled !== 'boolean' || !snapshot.simulator?.reading) return null
+    const finite = (candidate: unknown): candidate is number => typeof candidate === 'number' && Number.isFinite(candidate)
+    const coordinate = snapshot.simulator?.coordinate
+    const reading = snapshot.simulator?.reading
+    if (
+      typeof snapshot.enabled !== 'boolean'
+      || !coordinate || !reading
+      || !finite(coordinate.latitude) || coordinate.latitude < -90 || coordinate.latitude > 90
+      || !finite(coordinate.longitude) || coordinate.longitude < -180 || coordinate.longitude > 180
+      || !finite(snapshot.simulator.heading) || snapshot.simulator.heading < 0 || snapshot.simulator.heading >= 360
+      || !finite(snapshot.simulator.speedKnots) || snapshot.simulator.speedKnots < 0 || snapshot.simulator.speedKnots > 20
+      || !finite(snapshot.simulator.accuracy) || snapshot.simulator.accuracy < 1 || snapshot.simulator.accuracy > 50
+      || !finite(reading.latitude) || !finite(reading.longitude) || !finite(reading.timestamp)
+      || !finite(reading.accuracy) || !finite(reading.heading) || !finite(reading.speedKnots)
+      || reading.source !== 'simulator'
+    ) return null
     return snapshot
   } catch {
     return null
@@ -89,6 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState(createSeedSession)
   const [observations, setObservations] = useState<LineObservation[]>([])
   const [simulatorSnapshot, setSimulatorSnapshot] = useState(() => readSimulatorSnapshot(createSimulator(cyca.coordinate)))
+  const simulatorSnapshotRef = useRef(simulatorSnapshot)
   const { enabled: simulatorEnabled, simulator } = simulatorSnapshot
   const [deviceReading, setDeviceReading] = useState<SensorReading | null>(null)
 
@@ -131,20 +146,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (event.key !== simulatorStorageKey || !event.newValue) return
       const stored = localStorage.getItem(simulatorStorageKey)
       const snapshot = stored ? parseSimulatorSnapshot(stored) : null
-      if (snapshot) setSimulatorSnapshot(snapshot)
+      if (snapshot) {
+        simulatorSnapshotRef.current = snapshot
+        setSimulatorSnapshot(snapshot)
+      }
     }
     window.addEventListener('storage', syncSimulator)
     return () => window.removeEventListener('storage', syncSimulator)
   }, [])
 
   const updateSimulatorSnapshot = useCallback((update: (current: SimulatorSnapshot) => SimulatorSnapshot) => {
-    setSimulatorSnapshot((current) => {
+    const apply = () => {
       const stored = import.meta.env.DEV ? localStorage.getItem(simulatorStorageKey) : null
-      const latest = stored ? parseSimulatorSnapshot(stored) ?? current : current
+      const latest = stored ? parseSimulatorSnapshot(stored) ?? simulatorSnapshotRef.current : simulatorSnapshotRef.current
       const next = update(latest)
+      simulatorSnapshotRef.current = next
       if (import.meta.env.DEV) localStorage.setItem(simulatorStorageKey, JSON.stringify(next))
-      return next
-    })
+      setSimulatorSnapshot(next)
+    }
+    const locks = navigator.locks
+    if (import.meta.env.DEV && locks) void locks.request(simulatorStorageKey, apply)
+    else apply()
   }, [])
 
   const setSimulatorEnabled = useCallback((enabled: boolean) => {
@@ -156,7 +178,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const next = { ...session, ...patch, updatedAt: Date.now() }
       if (next.id !== session.id) setObservations([])
       setSession(next)
-      await repository.saveSession(next)
+      if (patch.telemetry?.length === 0) await repository.resetSession(next)
+      else await repository.saveSession(next)
+      if (patch.phase === 'finished') {
+        const completed = await repository.getSessionForRace(next.raceId)
+        if (completed?.id === next.id) setSession(completed)
+      }
     },
     [repository, session],
   )
@@ -250,9 +277,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!latestReading) return
     const last = session.telemetry.at(-1)
     if (last?.timestamp === latestReading.timestamp) return
-    const telemetry = [...session.telemetry.slice(-3599), latestReading]
+    const telemetry = [...session.telemetry.slice(-3_599), latestReading]
+    await repository.saveTelemetry(session.id, latestReading)
     await updateSession({ telemetry })
-  }, [latestReading, session.telemetry, updateSession])
+  }, [latestReading, repository, session.id, session.telemetry, updateSession])
 
   const sails = allSails.filter((sail) => sail.boatId === boat.id)
 

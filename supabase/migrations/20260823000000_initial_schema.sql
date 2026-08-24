@@ -38,6 +38,7 @@ create table public.races (
   series_id uuid not null references public.series(id) on delete cascade,
   name text not null,
   scheduled_start timestamptz not null,
+  handicap_tcf numeric(7, 4) check (handicap_tcf > 0),
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now()
 );

@@ -31,7 +31,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
   const [crewEntry, setCrewEntry] = useState('')
   const [showNewRace, setShowNewRace] = useState(false)
-  const [newRace, setNewRace] = useState({ series: '', name: '', fleet: race.fleet, scheduledStart: toLocalInput(new Date(Date.now() + 3_600_000).toISOString()) })
+  const [newRace, setNewRace] = useState({ series: '', name: '', fleet: race.fleet, handicap: '', scheduledStart: toLocalInput(new Date(Date.now() + 3_600_000).toISOString()) })
   const courseReady = race.course.length > 0 && race.course.every((waypoint) => marks.some((item) => item.id === waypoint.markId))
   const seriesOptions = [...new Set(races.map((item) => item.series).filter(Boolean))].sort()
   const fleetOptions = [...new Set(races.map((item) => item.fleet).filter(Boolean))].sort()
@@ -57,6 +57,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
       name: newRace.name.trim(),
       fleet: newRace.fleet.trim() || 'Open fleet',
       scheduledStart: new Date(newRace.scheduledStart).toISOString(),
+      handicap: Number(newRace.handicap) > 0 ? Number(newRace.handicap) : undefined,
       course: [
         { id: crypto.randomUUID(), markId: startId, rounding: 'either' as const, role: 'start' as const },
         { id: crypto.randomUUID(), markId: finishId, rounding: 'either' as const, role: 'finish' as const },
@@ -67,7 +68,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
     await saveRace(created)
     await updateSession({ id: crypto.randomUUID(), raceId: created.id, phase: 'setup', autoStartArmed: true, syncedStartTime: Date.parse(created.scheduledStart), activeWaypointIndex: 0, telemetry: [], roundedAt: {} })
     setShowNewRace(false)
-    setNewRace({ series: '', name: '', fleet: created.fleet, scheduledStart: toLocalInput(new Date(Date.now() + 3_600_000).toISOString()) })
+    setNewRace({ series: '', name: '', fleet: created.fleet, handicap: '', scheduledStart: toLocalInput(new Date(Date.now() + 3_600_000).toISOString()) })
   }
 
   const chooseRace = (raceId: string) => {
@@ -134,7 +135,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
           {showNewRace && <section className="panel new-race-panel" role="group" aria-label="New race details">
             <div className="panel__heading"><div><Plus size={18} /><h2>Create new race</h2></div></div>
             <label className="field"><span>Club</span><div className="select-like"><strong>{cyca.shortName}</strong><span>{cyca.name}</span></div></label>
-            <div className="form-grid"><label className="field"><span>Series</span><input role="combobox" list="setup-series-options" value={newRace.series} onChange={(event) => setNewRace({ ...newRace, series: event.target.value })} /></label><label className="field"><span>Race name</span><input autoFocus value={newRace.name} onChange={(event) => setNewRace({ ...newRace, name: event.target.value })} /></label><label className="field"><span>Fleet</span><input role="combobox" list="setup-fleet-options" value={newRace.fleet} onChange={(event) => setNewRace({ ...newRace, fleet: event.target.value })} /></label><label className="field"><span>Scheduled start</span><input type="datetime-local" value={newRace.scheduledStart} onChange={(event) => setNewRace({ ...newRace, scheduledStart: event.target.value })} /></label></div>
+            <div className="form-grid"><label className="field"><span>Series</span><input role="combobox" list="setup-series-options" value={newRace.series} onChange={(event) => setNewRace({ ...newRace, series: event.target.value })} /></label><label className="field"><span>Race name</span><input autoFocus value={newRace.name} onChange={(event) => setNewRace({ ...newRace, name: event.target.value })} /></label><label className="field"><span>Fleet</span><input role="combobox" list="setup-fleet-options" value={newRace.fleet} onChange={(event) => setNewRace({ ...newRace, fleet: event.target.value })} /></label><label className="field"><span>Handicap / TCF</span><input aria-label="Handicap / TCF" type="number" min="0.001" step="0.001" placeholder="Optional" value={newRace.handicap} onChange={(event) => setNewRace({ ...newRace, handicap: event.target.value })} /></label><label className="field"><span>Scheduled start</span><input type="datetime-local" value={newRace.scheduledStart} onChange={(event) => setNewRace({ ...newRace, scheduledStart: event.target.value })} /></label></div>
             <div className="new-race-form__actions"><button className="button button--secondary" onClick={() => setShowNewRace(false)}>Cancel</button><button className="button button--primary" disabled={!newRace.name.trim() || !newRace.scheduledStart} onClick={() => void createRace()}><Plus size={15} /> Create race</button></div>
           </section>}
 
@@ -148,6 +149,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
               <label className="field"><span>Series</span><input role="combobox" list="setup-series-options" value={race.series} onChange={(e) => updateRaceField('series', e.target.value)} /></label>
               <label className="field"><span>Race</span><input value={race.name} onChange={(e) => updateRaceField('name', e.target.value)} /></label>
               <label className="field"><span>Fleet</span><input role="combobox" list="setup-fleet-options" value={race.fleet} onChange={(e) => updateRaceField('fleet', e.target.value)} /></label>
+              <label className="field"><span>Handicap / TCF</span><input aria-label="Current race handicap / TCF" type="number" min="0.001" step="0.001" placeholder="Optional" value={race.handicap ?? ''} onChange={(e) => void saveRace({ ...race, handicap: Number(e.target.value) > 0 ? Number(e.target.value) : undefined })} /></label>
               <label className="field">
                 <span>Scheduled start</span>
                 <input

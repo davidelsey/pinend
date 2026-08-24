@@ -1,6 +1,8 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { createSeedSession, finishLineMark, seedBoat, seedMarks, seedRace, seedSails, startLineMark } from '../data/seed'
-import type { Boat, Coordinate, CrewMember, LineObservation, Mark, RaceDefinition, RaceSession, Sail } from '../domain/types'
+import type { Boat, Coordinate, CrewMember, LineObservation, Mark, RaceDefinition, RaceSession, Sail, SensorReading } from '../domain/types'
+
+type StoredTelemetry = SensorReading & { id: string; sessionId: string }
 
 export class PinEndDatabase extends Dexie {
   marks!: EntityTable<Mark, 'id'>
@@ -10,6 +12,7 @@ export class PinEndDatabase extends Dexie {
   sessions!: EntityTable<RaceSession, 'id'>
   observations!: EntityTable<LineObservation, 'id'>
   crew!: EntityTable<CrewMember, 'id'>
+  telemetry!: EntityTable<StoredTelemetry, 'id'>
 
   constructor(name = 'pin-end') {
     super(name)
@@ -66,6 +69,17 @@ export class PinEndDatabase extends Dexie {
         await markTable.put({ ...finish, position: { ...finish.position, pointA: start.position.pointA, pointB: start.position.pointB, linkedToMarkId: start.id } })
       }
     })
+    this.version(7).stores({
+      telemetry: 'id, sessionId, timestamp',
+    }).upgrade(async (transaction) => {
+      const sessions = await transaction.table('sessions').toArray() as RaceSession[]
+      const fixes = sessions.flatMap((session) => session.telemetry.map((reading) => ({ ...reading, id: `${session.id}:${reading.timestamp}`, sessionId: session.id })))
+      if (fixes.length) await transaction.table('telemetry').bulkPut(fixes)
+      await transaction.table('sessions').toCollection().modify((session: RaceSession) => { session.telemetry = [] })
+    })
+    this.version(8).stores({
+      telemetry: 'id, sessionId, timestamp, [sessionId+timestamp]',
+    })
   }
 }
 
@@ -82,17 +96,40 @@ export async function seedDatabase(db = database): Promise<void> {
   })
 }
 
+const hydrateSession = async (db: PinEndDatabase, session: RaceSession | undefined) => {
+  if (!session) return undefined
+  const telemetryQuery = db.telemetry.where('[sessionId+timestamp]').between([session.id, Dexie.minKey], [session.id, Dexie.maxKey])
+  const telemetry = session.phase === 'finished'
+    ? await telemetryQuery.toArray()
+    : (await telemetryQuery.reverse().limit(3_600).toArray()).reverse()
+  return { ...session, telemetry: telemetry.map((stored) => {
+    const reading = { ...stored } as Partial<StoredTelemetry>
+    delete reading.id
+    delete reading.sessionId
+    return reading as SensorReading
+  }) }
+}
+
 export const createRaceRepository = (db = database) => ({
   async getActiveSession() {
     const sessions = await db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing', 'finished']).toArray()
-    return sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0]
+    return hydrateSession(db, sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0])
   },
   async getSessionForRace(raceId: string) {
     const sessions = await db.sessions.where('raceId').equals(raceId).toArray()
-    return sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0]
+    return hydrateSession(db, sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0])
   },
   async saveSession(session: RaceSession) {
-    await db.sessions.put(session)
+    await db.sessions.put({ ...session, telemetry: [] })
+  },
+  async saveTelemetry(sessionId: string, reading: SensorReading) {
+    await db.telemetry.put({ ...reading, id: `${sessionId}:${reading.timestamp}`, sessionId })
+  },
+  async resetSession(session: RaceSession) {
+    await db.transaction('rw', [db.sessions, db.telemetry], async () => {
+      await db.telemetry.where('sessionId').equals(session.id).delete()
+      await db.sessions.put({ ...session, telemetry: [] })
+    })
   },
   async loadAll() {
     const [marks, boats, sails, races, crew, sessions] = await Promise.all([
@@ -103,7 +140,7 @@ export const createRaceRepository = (db = database) => ({
       db.crew.toArray(),
       db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing', 'finished']).toArray(),
     ])
-    const session = sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0]
+    const session = await hydrateSession(db, sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0])
     return { marks, boats, sails, races, crew, session }
   },
   async saveMark(mark: Mark) {

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { destinationPoint } from './domain/geo'
 import { database } from './services/repository'
 
 const confirmCourseAndEnterPrestart = async () => {
@@ -11,6 +12,7 @@ const confirmCourseAndEnterPrestart = async () => {
 
 describe('primary local race journey', () => {
   beforeEach(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 10))
     await database.delete()
     await database.open()
     localStorage.clear()
@@ -144,6 +146,7 @@ describe('primary local race journey', () => {
     fireEvent.change(within(form).getByLabelText('Series'), { target: { value: 'Winter Series' } })
     fireEvent.change(within(form).getByLabelText('Race name'), { target: { value: 'Race 1' } })
     fireEvent.change(within(form).getByLabelText('Fleet'), { target: { value: 'Division 2' } })
+    fireEvent.change(within(form).getByLabelText('Handicap / TCF'), { target: { value: '0.932' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Create race' }))
 
     expect(await within(races).findByText('Race 1')).toBeInTheDocument()
@@ -151,6 +154,7 @@ describe('primary local race journey', () => {
     expect(await screen.findByLabelText('Race')).toHaveValue('Race 1')
     const savedRace = (await database.races.toArray()).find((item) => item.name === 'Race 1')!
     expect(savedRace.course[0]).toMatchObject({ role: 'start' })
+    expect(savedRace.handicap).toBe(0.932)
     expect(savedRace.course.at(-1)).toMatchObject({ role: 'finish' })
     expect(savedRace.course[0].markId).not.toBe('start-line')
     const savedFinish = await database.marks.get(savedRace.course.at(-1)!.markId)
@@ -326,7 +330,13 @@ describe('primary local race journey', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Confirm mark rounding' })).getByRole('button', { name: /Confirm & advance/i }))
 
     expect(await screen.findByRole('heading', { name: 'Finished.' })).toBeInTheDocument()
-    expect(screen.getByText('roundings').closest('span')).toHaveTextContent('1 roundings')
+    const statistics = screen.getByRole('region', { name: 'Race statistics' })
+    expect(within(statistics).getByText('Total distance sailed')).toBeInTheDocument()
+    expect(within(statistics).getByText('Average GPS speed')).toBeInTheDocument()
+    expect(within(statistics).getByText('Total duration')).toBeInTheDocument()
+    expect(within(statistics).getByText('Corrected time')).toBeInTheDocument()
+    expect(screen.getByText('No handicap')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Actual sailed route and replay' })).toBeInTheDocument()
   })
 
   it('keeps start-line positioning and sighting on the deduplicated Marks view', async () => {
@@ -430,8 +440,22 @@ describe('primary local race journey', () => {
     const newerSimulator = { ...remoteSimulator, speedKnots: 13, reading: { ...remoteSimulator.reading, speedKnots: 13 } }
     localStorage.setItem('pin-end-dev-simulator', JSON.stringify({ enabled: true, simulator: newerSimulator }))
     fireEvent.click(screen.getByRole('button', { name: 'Move 30 sec' }))
-    expect(JSON.parse(localStorage.getItem('pin-end-dev-simulator') ?? '{}').simulator.speedKnots).toBe(13)
+    const movedSimulator = JSON.parse(localStorage.getItem('pin-end-dev-simulator') ?? '{}').simulator
+    const expectedPosition = destinationPoint(newerSimulator.coordinate, 13 * 30 / 3600, newerSimulator.heading)
+    expect(movedSimulator.speedKnots).toBe(13)
+    expect(movedSimulator.coordinate.latitude).toBeCloseTo(expectedPosition.latitude, 7)
+    expect(movedSimulator.coordinate.longitude).toBeCloseTo(expectedPosition.longitude, 7)
     storageSpy.mockRestore()
+  })
+
+  it('rejects malformed simulator state from shared browser storage', async () => {
+    localStorage.setItem('pin-end-dev-simulator', JSON.stringify({ enabled: true, simulator: { reading: {} } }))
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
+    expect(screen.getByRole('checkbox', { name: 'Use simulated sensors' })).not.toBeChecked()
+    expect(screen.getByText(/6\.2 kn/)).toBeInTheDocument()
   })
 
   it('persists local simulator controls for a separate window', async () => {

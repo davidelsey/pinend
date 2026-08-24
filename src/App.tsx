@@ -11,6 +11,7 @@ import { PrestartPage } from './pages/PrestartPage'
 import { RacePage } from './pages/RacePage'
 import { SetupPage } from './pages/SetupPage'
 import { DebugPage } from './pages/DebugPage'
+import { FinishedPage } from './pages/FinishedPage'
 
 type Tab = 'setup' | 'race' | 'boat' | 'marks' | 'debug'
 
@@ -35,20 +36,6 @@ function LoginPage({ onLocal }: { onLocal(): void }) {
       </div>
       <div className="login-water"><Waves size={96} strokeWidth={0.8} /></div>
     </main>
-  )
-}
-
-function FinishedPage({ onReset }: { onReset(): void }) {
-  const { race, session } = useApp()
-  return (
-    <div className="finished-page">
-      <div className="finished-flag"><Sailboat size={52} /></div>
-      <span className="eyebrow">Race complete</span>
-      <h1>Finished.</h1>
-      <p>{race.series} · {race.name}</p>
-      <div className="finish-stats"><span><strong>{race.course.length}</strong> marks</span><span><strong>{session.telemetry.length}</strong> positions</span><span><strong>{Object.keys(session.roundedAt).length}</strong> roundings</span></div>
-      <button className="button button--orange" onClick={onReset}>Prepare another race</button>
-    </div>
   )
 }
 
@@ -96,7 +83,7 @@ function PinEndApp() {
   const raceContent = session.phase === 'setup'
     ? <SetupPage onConfirmCourse={() => setTab('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
     : session.phase === 'prestart'
-      ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing', activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} wakeLockStatus={wakeLock.status} />
+      ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing', syncedStartTime: Date.now(), activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} wakeLockStatus={wakeLock.status} />
       : session.phase === 'racing'
         ? <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setTab('race')} />
         : <FinishedPage onReset={() => void updateSession({ id: crypto.randomUUID(), phase: 'setup', autoStartArmed: true, activeWaypointIndex: 0, selectedSailIds: [], crewAssignments: [], telemetry: [], roundedAt: {} })} />

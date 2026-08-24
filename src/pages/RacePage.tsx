@@ -78,7 +78,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   }, [simulatorEnabled, stepSimulator])
 
   useEffect(() => {
-    if (session.phase === 'racing') void recordLatestReading()
+    if (session.phase === 'racing') void recordLatestReading().catch(() => undefined)
   }, [latestReading, recordLatestReading, session.phase])
 
   const roundingSuggested = useMemo(

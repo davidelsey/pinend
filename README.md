@@ -1,6 +1,6 @@
 # Pin End
 
-Pin End is an offline-first race preparation and on-water sailing PWA. The current local build includes a seeded Cruising Yacht Club of Australia demo, setup/pre-start/race modes, boats and sail wardrobes, fixed/variable/constructed marks, camera-assisted sightings for line ends and movable marks, tactical line-crossing estimates, GPS speed and VMG-based mark ETAs, wake-lock handling, and a development sensor simulator.
+Pin End is an offline-first race preparation and on-water sailing PWA. The current local build includes a seeded Cruising Yacht Club of Australia demo, setup/pre-start/race modes, boats and sail wardrobes, fixed/variable/constructed marks, camera-assisted sightings for line ends and movable marks, tactical line-crossing estimates, GPS speed and VMG-based mark ETAs, wake-lock handling, a post-finish GPS summary with a 30-second race replay, and a development sensor simulator.
 
 ## Run locally
 
