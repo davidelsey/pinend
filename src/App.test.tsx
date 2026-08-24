@@ -346,6 +346,37 @@ describe('primary local race journey', () => {
     expect(within(sighting).getByRole('button', { name: 'Boat' })).toBeInTheDocument()
   })
 
+  it('shows distance to a nearby race mark in metres', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    await confirmCourseAndEnterPrestart()
+    fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
+    expect(await screen.findByText('RACING')).toBeInTheDocument()
+
+    const simulator = screen.getByTestId('sensor-simulator')
+    fireEvent.click(within(simulator).getByRole('button', { name: 'Debug mode: boat simulator' }))
+    fireEvent.click(within(simulator).getByRole('checkbox', { name: 'Use simulated sensors' }))
+    fireEvent.click(within(simulator).getByRole('button', { name: 'Near next mark' }))
+
+    await waitFor(() => expect(screen.getByText('M TO MARK').closest('.race-distance')).toHaveTextContent(/^\d+ M TO MARK$/))
+  })
+
+  it('uses distinct port and starboard rounding arrows in race mode', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    await confirmCourseAndEnterPrestart()
+    fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
+    expect(await screen.findByText('RACING')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Port rounding' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
+    expect(await screen.findByRole('heading', { name: 'Shark Island' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Starboard rounding' })).toBeInTheDocument()
+  })
+
   it('lets a developer mock boat position and velocity', async () => {
     render(<App />)
 

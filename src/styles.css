@@ -275,6 +275,8 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .race-focus { text-align: center; padding: 27px 0 20px; }
 .race-focus__topline { display: flex; justify-content: center; gap: 18px; color: #617c89; font-size: 9px; font-weight: 800; letter-spacing: .11em; }
 .rounding-instruction { display: inline-flex; align-items: center; gap: 5px; color: var(--orange); }
+.rounding-instruction--port { color: #c93c32; }
+.rounding-instruction--starboard { color: #168153; }
 .race-focus h1 { font-size: clamp(32px, 6vw, 58px); letter-spacing: -.055em; margin: 8px 0 5px; }
 .race-mark-selector { display: grid; grid-template-columns: 44px minmax(0, auto) 44px; align-items: center; justify-content: center; gap: 10px; }
 .race-mark-selector button { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; color: #bfd0d6; background: rgba(255,255,255,.05); }

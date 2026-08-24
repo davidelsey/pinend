@@ -7,6 +7,8 @@ import {
   ChevronRight,
   Clock3,
   Compass,
+  CornerUpLeft,
+  CornerUpRight,
   Flag,
   Gauge,
   Navigation,
@@ -48,6 +50,11 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const activeMark = marks.find((mark) => mark.id === activeWaypoint?.markId)
   const target = activeMark ? resolveMarkPosition(activeMark.position) : undefined
   const distance = navigationReading && target ? distanceNm(navigationReading, target) : null
+  const distanceDisplay = distance == null
+    ? { value: '—', unit: 'NM' }
+    : distance < 1
+      ? { value: String(Math.round(distance * 1852)), unit: 'M' }
+      : { value: distance.toFixed(1), unit: 'NM' }
   const bearing = navigationReading && target ? initialBearing(navigationReading, target) : null
   const vmg = navigationReading && bearing != null
     ? velocityMadeGood(navigationReading.speedKnots, navigationReading.heading, bearing)
@@ -138,7 +145,14 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
         <section className="race-focus">
           <div className="race-focus__topline">
             <span>LEG {session.activeWaypointIndex + 1} OF {race.course.length}</span>
-            <span className="rounding-instruction"><RotateCw size={14} /> Leave to {activeWaypoint?.rounding}</span>
+            <span className={`rounding-instruction rounding-instruction--${activeWaypoint?.rounding}`}>
+              {activeWaypoint?.rounding === 'port'
+                ? <CornerUpLeft size={14} role="img" aria-label="Port rounding" />
+                : activeWaypoint?.rounding === 'starboard'
+                  ? <CornerUpRight size={14} role="img" aria-label="Starboard rounding" />
+                  : <RotateCw size={14} role="img" aria-label="Either rounding" />}
+              Leave to {activeWaypoint?.rounding}
+            </span>
           </div>
           <div className="race-mark-selector">
             <button aria-label="Previous mark" onClick={() => void selectPrevious()}><ChevronLeft size={24} /></button>
@@ -146,7 +160,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
             <button aria-label="Next mark" disabled={session.activeWaypointIndex >= race.course.length - 1} onClick={() => void selectNext()}><ChevronRight size={24} /></button>
           </div>
           <div className="race-bearing"><Navigation size={28} /><strong>{bearing == null ? '—' : Math.round(bearing).toString().padStart(3, '0')}°</strong><span>T</span></div>
-          <div className="race-distance">{distance == null ? '—' : distance.toFixed(distance < 1 ? 2 : 1)} <span>NM TO MARK</span></div>
+          <div className="race-distance">{distanceDisplay.value} <span>{distanceDisplay.unit} TO MARK</span></div>
           <div className={`race-eta ${etaSeconds == null ? 'race-eta--unavailable' : ''}`}><Clock3 size={14} /> ETA {etaLabel} <span>AT CURRENT VMG</span></div>
         </section>
 
