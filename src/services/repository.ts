@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
-import { createSeedSession, seedBoat, seedMarks, seedRace, seedSails } from '../data/seed'
-import type { Boat, LineObservation, Mark, RaceDefinition, RaceSession, Sail } from '../domain/types'
+import { createSeedSession, finishLineMark, seedBoat, seedMarks, seedRace, seedSails, startLineMark } from '../data/seed'
+import type { Boat, Coordinate, CrewMember, LineObservation, Mark, RaceDefinition, RaceSession, Sail } from '../domain/types'
 
 export class PinEndDatabase extends Dexie {
   marks!: EntityTable<Mark, 'id'>
@@ -9,6 +9,7 @@ export class PinEndDatabase extends Dexie {
   races!: EntityTable<RaceDefinition, 'id'>
   sessions!: EntityTable<RaceSession, 'id'>
   observations!: EntityTable<LineObservation, 'id'>
+  crew!: EntityTable<CrewMember, 'id'>
 
   constructor(name = 'pin-end') {
     super(name)
@@ -23,6 +24,47 @@ export class PinEndDatabase extends Dexie {
     this.version(2).stores({
       observations: 'id, sessionId, endpoint, timestamp',
       sails: 'id, boatId, type, location',
+    })
+    this.version(3).stores({
+      crew: 'id, name',
+    })
+    this.version(4).stores({
+      marks: 'id, name, provenance',
+      races: 'id, clubId, series',
+    }).upgrade(async (transaction) => {
+      await transaction.table('marks').put(startLineMark)
+      await transaction.table('races').toCollection().modify((race: RaceDefinition) => {
+        race.course = [{ id: `start-${race.id}`, markId: startLineMark.id, rounding: 'either' }, ...race.course.filter((waypoint) => waypoint.markId !== startLineMark.id)]
+      })
+    })
+    this.version(5).stores({
+      marks: 'id, name, provenance',
+      races: 'id, clubId, series',
+    }).upgrade(async (transaction) => {
+      const markTable = transaction.table('marks')
+      const storedStart = await markTable.get(startLineMark.id) as Mark | undefined
+      if (!storedStart) await markTable.put(startLineMark)
+      else if ((storedStart.position as unknown as { kind: string }).kind === 'line') {
+        const legacy = storedStart.position as unknown as { pointA?: Coordinate; pointB?: Coordinate; labels?: [string, string] }
+        await markTable.put({ ...storedStart, position: { ...legacy, kind: 'gate', labels: legacy.labels ?? ['Pin', 'Boat'] } })
+      }
+      if (!await markTable.get(finishLineMark.id)) await markTable.put(finishLineMark)
+      await transaction.table('races').toCollection().modify((race: RaceDefinition) => {
+        const start = race.course.find((waypoint) => waypoint.markId === startLineMark.id) ?? { id: `start-${race.id}`, markId: startLineMark.id, rounding: 'either' as const }
+        const finish = race.course.find((waypoint) => waypoint.markId === finishLineMark.id) ?? { id: `finish-${race.id}`, markId: finishLineMark.id, rounding: 'either' as const }
+        race.course = [start, ...race.course.filter((waypoint) => waypoint.markId !== startLineMark.id && waypoint.markId !== finishLineMark.id), finish]
+      })
+    })
+    this.version(6).stores({
+      marks: 'id, name, provenance',
+    }).upgrade(async (transaction) => {
+      const markTable = transaction.table('marks')
+      const start = await markTable.get(startLineMark.id) as Mark | undefined
+      const finish = await markTable.get(finishLineMark.id) as Mark | undefined
+      if (start?.position.kind !== 'gate' || finish?.position.kind !== 'gate') return
+      if (!finish.position.pointA && !finish.position.pointB) {
+        await markTable.put({ ...finish, position: { ...finish.position, pointA: start.position.pointA, pointB: start.position.pointB, linkedToMarkId: start.id } })
+      }
     })
   }
 }
@@ -42,29 +84,44 @@ export async function seedDatabase(db = database): Promise<void> {
 
 export const createRaceRepository = (db = database) => ({
   async getActiveSession() {
-    return db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing']).last()
+    const sessions = await db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing', 'finished']).toArray()
+    return sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0]
+  },
+  async getSessionForRace(raceId: string) {
+    const sessions = await db.sessions.where('raceId').equals(raceId).toArray()
+    return sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0]
   },
   async saveSession(session: RaceSession) {
     await db.sessions.put(session)
   },
   async loadAll() {
-    const [marks, boats, sails, races, session] = await Promise.all([
+    const [marks, boats, sails, races, crew, sessions] = await Promise.all([
       db.marks.toArray(),
       db.boats.toArray(),
       db.sails.toArray(),
       db.races.toArray(),
-      db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing']).last(),
+      db.crew.toArray(),
+      db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing', 'finished']).toArray(),
     ])
-    return { marks, boats, sails, races, session }
+    const session = sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0]
+    return { marks, boats, sails, races, crew, session }
   },
   async saveMark(mark: Mark) {
     await db.marks.put(mark)
+  },
+  async saveMarks(marks: Mark[]) {
+    await db.transaction('rw', db.marks, async () => {
+      await db.marks.bulkPut(marks)
+    })
   },
   async saveBoat(boat: Boat) {
     await db.boats.put(boat)
   },
   async saveSail(sail: Sail) {
     await db.sails.put(sail)
+  },
+  async saveCrewMember(member: CrewMember) {
+    await db.crew.put(member)
   },
   async saveRace(race: RaceDefinition) {
     await db.races.put(race)

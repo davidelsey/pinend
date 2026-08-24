@@ -61,13 +61,18 @@ export function resolveMarkPosition(position: MarkPosition): Coordinate | undefi
   if (position.manualCoordinate) return position.manualCoordinate
   if (position.kind === 'fixed') return position.coordinate
   if (position.kind === 'variable') return position.coordinate
+  if (position.kind === 'gate') {
+    if (position.pointA && position.pointB) return { latitude: (position.pointA.latitude + position.pointB.latitude) / 2, longitude: (position.pointA.longitude + position.pointB.longitude) / 2 }
+    return position.pointA ?? position.pointB
+  }
   return destinationPoint(position.origin, position.distanceNm, bearingToTrue(position.bearing))
 }
 
-export const withManualMarkCoordinate = (position: MarkPosition, coordinate: Coordinate): MarkPosition => ({
-  ...position,
-  manualCoordinate: coordinate,
-})
+export const withManualMarkCoordinate = (position: MarkPosition, coordinate: Coordinate): MarkPosition => {
+  const adjusted = { ...position, manualCoordinate: coordinate }
+  delete adjusted.sightingCoordinate
+  return adjusted
+}
 
 export const withSightingMarkCoordinate = (position: MarkPosition, coordinate: Coordinate): MarkPosition => ({
   ...position,

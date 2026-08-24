@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
-import { database, seedDatabase } from './services/repository'
+import { database } from './services/repository'
+
+const confirmCourseAndEnterPrestart = async () => {
+  fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
+  expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
+}
 
 describe('primary local race journey', () => {
   beforeEach(async () => {
@@ -11,20 +17,168 @@ describe('primary local race journey', () => {
     localStorage.setItem('pin-end-local-auth', 'true')
   })
 
+  it('confirms the course through the second-tab race marks workspace', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Course' })).not.toBeInTheDocument()
+    const navigation = screen.getByRole('navigation', { name: 'Primary navigation' })
+    expect(within(navigation).getAllByRole('button').map((button) => button.textContent)).toEqual(['Setup', 'Marks', 'Race', 'Boat'])
+
+    fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
+    expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Course' })).toHaveAttribute('aria-selected', 'true')
+    const course = screen.getByRole('region', { name: 'Course mark list' })
+    expect(within(course).getAllByRole('article')[0]).toHaveTextContent('Start line')
+    expect(within(course).getAllByRole('article').at(-1)).toHaveTextContent('Finish line')
+    expect(within(course).queryByRole('button', { name: 'Remove Start line' })).not.toBeInTheDocument()
+    expect(within(course).queryByRole('button', { name: 'Drag Start line to reorder' })).not.toBeInTheDocument()
+    expect(within(course).queryByRole('button', { name: 'Remove Finish line' })).not.toBeInTheDocument()
+    expect(within(course).queryByRole('button', { name: 'Drag Finish line to reorder' })).not.toBeInTheDocument()
+    expect(within(course).getByRole('radio', { name: 'Same as start' })).toBeChecked()
+    expect(within(course).getByRole('button', { name: 'Position Finish line' })).toBeDisabled()
+    fireEvent.click(within(course).getByRole('radio', { name: 'Separate' }))
+    await waitFor(() => expect(within(course).getByRole('button', { name: 'Position Finish line' })).toBeEnabled())
+    expect(within(course).getByText('Clark Island')).toBeInTheDocument()
+    expect(within(course).getAllByText('Round to port')).toHaveLength(2)
+    const builder = screen.getByRole('region', { name: 'Course builder' })
+    expect(within(builder).getByRole('button', { name: 'Add mark' })).toBeInTheDocument()
+    expect(within(builder).getByRole('radio', { name: 'Round Clark Island to port' })).toBeChecked()
+    const starboard = within(builder).getByRole('radio', { name: 'Round Clark Island to starboard' })
+    fireEvent.click(starboard)
+    await waitFor(() => expect(starboard).toBeChecked())
+    expect(within(builder).getByRole('button', { name: 'Remove Clark Island' })).toBeInTheDocument()
+    const dragHandle = within(builder).getByRole('button', { name: 'Drag Clark Island to reorder' })
+    const windwardEntry = within(course).getAllByRole('article')[2].closest('.course-mark-entry')!
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => windwardEntry })
+    fireEvent.pointerDown(dragHandle, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerUp(dragHandle, { pointerId: 1, clientX: 10, clientY: 50 })
+    await waitFor(() => expect(within(course).getAllByRole('article')[1]).toHaveTextContent('Windward mark'))
+    const duplicateHandle = within(builder).getByRole('button', { name: 'Drag to duplicate Clark Island' })
+    const sharkEntry = within(course).getAllByRole('article')[3].closest('.course-mark-entry')!
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => sharkEntry })
+    fireEvent.pointerDown(duplicateHandle, { pointerId: 2, clientX: 10, clientY: 50 })
+    fireEvent.pointerUp(duplicateHandle, { pointerId: 2, clientX: 10, clientY: 100 })
+    await waitFor(() => expect(within(course).getAllByText('Clark Island')).toHaveLength(2))
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Marks' }))
+    expect(screen.getByRole('region', { name: 'Race mark list' })).toBeInTheDocument()
+  })
+
+  it('maintains the crew list and assigns race positions during setup', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    const crew = screen.getByRole('region', { name: 'Crew' })
+    fireEvent.change(within(crew).getByRole('combobox', { name: 'Crew member' }), { target: { value: 'Alex Morgan' } })
+    fireEvent.click(within(crew).getByRole('button', { name: 'Add crew member' }))
+
+    expect(await within(crew).findByText('Alex Morgan')).toBeInTheDocument()
+    await waitFor(() => expect(within(crew).getByRole('checkbox', { name: 'Alex Morgan racing' })).toBeChecked())
+    const position = within(crew).getByRole('combobox', { name: 'Position for Alex Morgan' })
+    fireEvent.change(position, { target: { value: 'Tactician' } })
+    await waitFor(() => expect(position).toHaveValue('Tactician'))
+  })
+
+  it('lists saved races and creates a new offline race', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    const races = screen.getByRole('list', { name: 'Races' })
+    expect(within(races).getByText('Race 4')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New race' }))
+    const form = screen.getByRole('group', { name: 'New race details' })
+    fireEvent.change(within(form).getByLabelText('Series'), { target: { value: 'Winter Series' } })
+    fireEvent.change(within(form).getByLabelText('Race name'), { target: { value: 'Race 1' } })
+    fireEvent.change(within(form).getByLabelText('Fleet'), { target: { value: 'Division 2' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Create race' }))
+
+    expect(await within(races).findByText('Race 1')).toBeInTheDocument()
+    await waitFor(() => expect(within(races).getByText('Race 1').closest('button')).toHaveClass('is-selected'))
+    expect(screen.getByLabelText('Race')).toHaveValue('Race 1')
+    const savedRace = (await database.races.toArray()).find((item) => item.name === 'Race 1')!
+    expect(savedRace.course[0]).toMatchObject({ role: 'start' })
+    expect(savedRace.course.at(-1)).toMatchObject({ role: 'finish' })
+    expect(savedRace.course[0].markId).not.toBe('start-line')
+    const savedFinish = await database.marks.get(savedRace.course.at(-1)!.markId)
+    expect(savedFinish?.position).toMatchObject({ kind: 'gate', linkedToMarkId: savedRace.course[0].markId })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm course' }))
+    const newCourse = await screen.findByRole('region', { name: 'Course mark list' })
+    fireEvent.click(within(newCourse).getByRole('button', { name: 'Position Start line' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save position' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enter pre-start' }))
+    expect(await screen.findByText('Start line resolved')).toBeInTheDocument()
+  })
+
+  it('edits race marks on a full-page map and sights movable marks with a split preview', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
+    const course = await screen.findByRole('region', { name: 'Course mark list' })
+
+    expect(within(course).queryByRole('button', { name: 'Sight Clark Island' })).not.toBeInTheDocument()
+    expect(within(course).getByRole('button', { name: 'Sight Windward mark' })).toBeInTheDocument()
+
+    fireEvent.click(within(course).getByRole('button', { name: 'Position Clark Island' }))
+    const mapEditor = screen.getByRole('dialog', { name: 'Position Clark Island' })
+    expect(mapEditor).toHaveClass('mark-map-editor')
+    expect(within(mapEditor).getByRole('img', { name: 'Drag mark on Sydney Harbour map' })).toBeInTheDocument()
+    expect(within(mapEditor).getByRole('button', { name: 'Save position' })).toBeInTheDocument()
+    const undo = within(mapEditor).getByRole('button', { name: 'Undo position change' })
+    expect(undo).toBeDisabled()
+    const map = within(mapEditor).getByRole('img', { name: 'Drag mark on Sydney Harbour map' })
+    Object.defineProperty(map, 'getBoundingClientRect', { value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => ({}) }) })
+    const dispatchPointer = (type: string, clientX: number, clientY: number) => {
+      const event = new Event(type, { bubbles: true })
+      Object.defineProperties(event, { pointerId: { value: 1 }, pointerType: { value: 'mouse' }, clientX: { value: clientX }, clientY: { value: clientY } })
+      fireEvent(map, event)
+    }
+    dispatchPointer('pointerdown', 30, 20)
+    dispatchPointer('pointermove', 80, 70)
+    dispatchPointer('pointerup', 80, 70)
+    expect(undo).toBeEnabled()
+    fireEvent.click(undo)
+    expect(undo).toBeDisabled()
+    fireEvent.click(within(mapEditor).getByRole('button', { name: 'Cancel positioning' }))
+
+    fireEvent.click(within(course).getByRole('button', { name: 'Position Start line' }))
+    const gateEditor = screen.getByRole('dialog', { name: 'Position Start line' })
+    const gateMap = within(gateEditor).getByRole('img', { name: 'Drag gate pins on Sydney Harbour map' })
+    expect(gateMap.querySelectorAll('.gate-pin')).toHaveLength(2)
+    expect(gateMap.querySelector('.gate-line')).toBeInTheDocument()
+    expect(within(gateEditor).queryByRole('tab')).not.toBeInTheDocument()
+    fireEvent.click(within(gateEditor).getByRole('button', { name: 'Close position editor' }))
+
+    fireEvent.click(within(course).getByRole('button', { name: 'Sight Start line' }))
+    const startSighting = await screen.findByRole('dialog', { name: 'Sight the Pin' })
+    expect(within(startSighting).getByRole('button', { name: 'Pin' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(startSighting).getByRole('button', { name: 'Boat' }))
+    expect(await screen.findByRole('dialog', { name: 'Sight the Boat' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close camera' }))
+
+    fireEvent.click(within(course).getByRole('button', { name: 'Sight Windward mark' }))
+    const sighting = await screen.findByRole('dialog', { name: 'Sight the Windward mark' })
+    expect(within(sighting).getByRole('region', { name: 'Camera preview' })).toBeInTheDocument()
+    expect(within(sighting).getByRole('region', { name: 'Sighting map' })).toBeInTheDocument()
+    expect(within(sighting).queryByText('True bearing')).not.toBeInTheDocument()
+    expect(within(sighting).getByRole('button', { name: 'Capture Windward mark sighting' })).toBeEnabled()
+    fireEvent.click(within(sighting).getByRole('button', { name: 'Close camera' }))
+    expect(screen.queryByRole('dialog', { name: 'Sight the Windward mark' })).not.toBeInTheDocument()
+  })
+
   it('moves from setup through pre-start into race mode', async () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
+    await confirmCourseAndEnterPrestart()
 
     expect(await screen.findByText('PRE-START')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Start race mode/i }))
 
     await waitFor(() => expect(screen.getByText('RACING')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /Mark rounded/i })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Sight marks' }))
-    expect(screen.getByRole('dialog', { name: 'Sight marks' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Close sight marks' }))
     expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Boat' })).toBeInTheDocument()
 
@@ -47,7 +201,7 @@ describe('primary local race journey', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
+    await confirmCourseAndEnterPrestart()
     expect(await screen.findByText('PRE-START')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
@@ -59,7 +213,7 @@ describe('primary local race journey', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
+    await confirmCourseAndEnterPrestart()
     expect(await screen.findByText('PRE-START')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
     expect(await screen.findByText('RACING')).toBeInTheDocument()
@@ -71,90 +225,21 @@ describe('primary local race journey', () => {
     expect(screen.queryByText('RACING')).not.toBeInTheDocument()
   })
 
-  it('offers one sighting flow for the start line and every race mark', async () => {
-    await seedDatabase()
-    await database.observations.put({
-      id: 'clark-sighting',
-      sessionId: 'local-session',
-      endpoint: 'mark',
-      markId: 'clark-island',
-      observer: { latitude: -33.86, longitude: 151.24 },
-      bearingTrue: 42,
-      accuracy: 3,
-      timestamp: Date.now() - 30_000,
-    })
+  it('keeps start-line positioning and sighting on the deduplicated Marks view', async () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
-    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Marks' }))
+    const markList = screen.getByRole('region', { name: 'Race mark list' })
+    expect(within(markList).getByRole('button', { name: 'Position Start line' })).toBeInTheDocument()
+    expect(within(markList).getByRole('button', { name: 'Sight Start line' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sight marks' }))
-    const sightingDialog = screen.getByRole('dialog', { name: 'Sight marks' })
-    const targets = within(sightingDialog)
-    expect(targets.getByRole('button', { name: 'Pin end' })).toBeInTheDocument()
-    expect(targets.getByRole('button', { name: 'Committee boat' })).toBeInTheDocument()
-    expect(targets.getByRole('button', { name: 'Clark Island' })).toBeInTheDocument()
-    expect(targets.getByRole('button', { name: 'Windward mark' })).toBeInTheDocument()
-    expect(targets.getByRole('button', { name: 'Shark Island' })).toBeInTheDocument()
-
-    fireEvent.click(targets.getByRole('button', { name: 'Clark Island' }))
-    expect(targets.getByRole('button', { name: 'Open Clark Island viewfinder' })).toBeEnabled()
-    expect(targets.getByText(/30s ago/)).toBeInTheDocument()
-    expect(targets.getByText(/42.0° true/)).toBeInTheDocument()
-    fireEvent.click(targets.getByRole('button', { name: /Delete Clark Island sighting/ }))
-    expect(await targets.findByText('No sightings recorded yet.')).toBeInTheDocument()
-    await waitFor(async () => expect(await database.observations.get('clark-sighting')).toBeUndefined())
-  })
-
-  it('lists course marks with direct sighting and draggable map positioning', async () => {
-    render(<App />)
-
-    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
-    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
-    const marks = screen.getByRole('region', { name: 'Course marks' })
-    expect(within(marks).getByRole('button', { name: 'Sight Clark Island' })).toBeInTheDocument()
-    expect(within(marks).getByRole('button', { name: 'Position Clark Island' })).toBeInTheDocument()
-    expect(within(marks).getByRole('button', { name: 'Sight Windward mark' })).toBeInTheDocument()
-
-    fireEvent.click(within(marks).getByRole('button', { name: 'Sight Clark Island' }))
-    expect(await screen.findByRole('dialog', { name: 'Sight the Clark Island' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Close camera' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Close sight marks' }))
-
-    fireEvent.click(within(marks).getByRole('button', { name: 'Position Clark Island' }))
-    const positionDialog = screen.getByRole('dialog', { name: 'Position Clark Island' })
-    expect(positionDialog).toHaveClass('modal-backdrop--position')
-    expect(within(positionDialog).getByText('Windward mark')).toBeInTheDocument()
-    expect(within(positionDialog).getByText('Shark Island')).toBeInTheDocument()
-    expect(within(positionDialog).getByRole('button', { name: 'Zoom in' })).toBeInTheDocument()
-    expect(within(positionDialog).getByRole('button', { name: 'Zoom out' })).toBeInTheDocument()
-    const map = within(positionDialog).getByRole('img', { name: 'Drag mark on Sydney Harbour map' })
-    Object.defineProperty(map, 'getBoundingClientRect', { value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => ({}) }) })
-    const latitude = within(positionDialog).getAllByRole('spinbutton')[0]
-    const initialLatitude = (latitude as HTMLInputElement).value
-    const dispatchPointer = (type: string, clientX: number, clientY: number, pointerId = 1, pointerType = 'mouse') => {
-      const event = new Event(type, { bubbles: true })
-      Object.defineProperties(event, { pointerId: { value: pointerId }, pointerType: { value: pointerType }, clientX: { value: clientX }, clientY: { value: clientY } })
-      fireEvent(map, event)
-    }
-    dispatchPointer('pointerdown', 30, 20)
-    dispatchPointer('pointermove', 80, 70)
-    dispatchPointer('pointerup', 80, 70)
-    expect(latitude).not.toHaveValue(Number(initialLatitude))
-    expect(Number((latitude as HTMLInputElement).value)).toBeGreaterThanOrEqual(-90)
-    fireEvent.click(within(positionDialog).getByRole('button', { name: 'Zoom in' }))
-    fireEvent.click(within(positionDialog).getByRole('button', { name: 'Zoom out' }))
-    const latitudeBeforePinch = (latitude as HTMLInputElement).value
-    dispatchPointer('pointerdown', 40, 40, 1, 'touch')
-    dispatchPointer('pointerdown', 100, 40, 2, 'touch')
-    dispatchPointer('pointermove', 150, 40, 2, 'touch')
-    dispatchPointer('pointerup', 150, 40, 2, 'touch')
-    dispatchPointer('pointermove', 60, 60, 1, 'touch')
-    dispatchPointer('pointerup', 60, 60, 1, 'touch')
-    expect(latitude).toHaveValue(Number(latitudeBeforePinch))
-    await waitFor(async () => expect((await database.sessions.get('local-session'))?.phase).toBe('prestart'))
+    fireEvent.click(within(markList).getByRole('button', { name: 'Sight Start line' }))
+    const sighting = await screen.findByRole('dialog', { name: 'Sight the Pin' })
+    expect(within(sighting).getByRole('region', { name: 'Camera preview' })).toBeInTheDocument()
+    expect(within(sighting).getByRole('region', { name: 'Sighting map' })).toBeInTheDocument()
+    expect(within(sighting).getByRole('button', { name: 'Boat' })).toBeInTheDocument()
   })
 
   it('lets a developer mock boat position and velocity', async () => {
@@ -175,6 +260,7 @@ describe('primary local race journey', () => {
 
     expect(within(simulator).getByText('-33.90000, 151.20000')).toBeInTheDocument()
     expect(within(simulator).getByText('8.4 kn')).toBeInTheDocument()
-    expect(screen.getByText('Current location')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
+    expect(await screen.findByText('Current location')).toBeInTheDocument()
   })
 })

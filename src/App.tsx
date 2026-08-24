@@ -4,6 +4,7 @@ import { AppProvider, useApp } from './app/AppContext'
 import { useDeviceSensors } from './hooks/useDeviceSensors'
 import { useWakeLock } from './hooks/useWakeLock'
 import { isSupabaseConfigured, signInWithGoogle, supabase } from './services/auth'
+import { isStartWaypoint } from './domain/course'
 import { BoatPage } from './pages/BoatPage'
 import { MarksPage } from './pages/MarksPage'
 import { PrestartPage } from './pages/PrestartPage'
@@ -51,7 +52,7 @@ function FinishedPage({ onReset }: { onReset(): void }) {
 }
 
 function PinEndApp() {
-  const { loading, online, session, updateSession, acceptDeviceReading } = useApp()
+  const { loading, online, race, session, updateSession, acceptDeviceReading } = useApp()
   const [tab, setTab] = useState<Tab>('race')
   const [now, setNow] = useState(Date.now())
   const automaticStartInFlight = useRef(false)
@@ -79,10 +80,11 @@ function PinEndApp() {
     }
     if (automaticStartInFlight.current) return
     automaticStartInFlight.current = true
-    void updateSession({ phase: 'racing' }).catch(() => {
+    const firstRacingWaypointIndex = Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint)))
+    void updateSession({ phase: 'racing', activeWaypointIndex: firstRacingWaypointIndex }).catch(() => {
       automaticStartInFlight.current = false
     })
-  }, [now, session.autoStartArmed, session.phase, session.syncedStartTime, updateSession])
+  }, [now, race.course, session.autoStartArmed, session.phase, session.syncedStartTime, updateSession])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
@@ -91,16 +93,16 @@ function PinEndApp() {
   if (loading) return <div className="loading-screen"><span className="brand-mark"><Crosshair size={28} /></span><strong>Loading race pack…</strong></div>
 
   const raceContent = session.phase === 'setup'
-    ? <SetupPage onEnterPrestart={() => setTab('race')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
+    ? <SetupPage onConfirmCourse={() => setTab('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
     : session.phase === 'prestart'
-      ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing' })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
+      ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing', activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
       : session.phase === 'racing'
         ? <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setTab('race')} />
-        : <FinishedPage onReset={() => void updateSession({ id: crypto.randomUUID(), phase: 'setup', autoStartArmed: true, activeWaypointIndex: 0, telemetry: [], roundedAt: {} })} />
+        : <FinishedPage onReset={() => void updateSession({ id: crypto.randomUUID(), phase: 'setup', autoStartArmed: true, activeWaypointIndex: 0, selectedSailIds: [], crewAssignments: [], telemetry: [], roundedAt: {} })} />
 
   const content = tab === 'setup'
-    ? <SetupPage onEnterPrestart={() => setTab('race')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
-    : tab === 'race' ? raceContent : tab === 'boat' ? <BoatPage /> : <MarksPage />
+    ? <SetupPage onConfirmCourse={() => setTab('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
+    : tab === 'marks' ? <MarksPage onEnterPrestart={() => setTab('race')} /> : tab === 'race' ? raceContent : <BoatPage />
 
   const inRace = tab === 'race' && session.phase === 'racing'
   return (
@@ -117,9 +119,9 @@ function PinEndApp() {
       <div className="app-content">{content}</div>
       <nav className="bottom-nav" aria-label="Primary navigation">
         <button className={tab === 'setup' ? 'active' : ''} onClick={() => setTab('setup')}><Settings size={20} /><span>Setup</span></button>
+        <button className={tab === 'marks' ? 'active' : ''} onClick={() => setTab('marks')}><MapPinned size={20} /><span>Marks</span></button>
         <button className={tab === 'race' ? 'active' : ''} onClick={() => setTab('race')}><Anchor size={20} /><span>Race</span><i className={`phase-indicator phase-indicator--${session.phase}`} /></button>
         <button className={tab === 'boat' ? 'active' : ''} onClick={() => setTab('boat')}><Sailboat size={20} /><span>Boat</span></button>
-        <button className={tab === 'marks' ? 'active' : ''} onClick={() => setTab('marks')}><MapPinned size={20} /><span>Marks</span></button>
       </nav>
     </div>
   )

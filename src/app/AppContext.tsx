@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { cyca, createSeedSession, seedBoat, seedMarks, seedRace, seedSails } from '../data/seed'
 import type {
   Boat,
+  CrewMember,
   LineObservation,
   Mark,
   RaceDefinition,
@@ -10,6 +11,7 @@ import type {
   Sail,
   SensorReading,
 } from '../domain/types'
+import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 import { configureSimulator as configureSimulatorState, createSimulator, moveSimulator, setSimulatorPosition, type SimulatorState } from '../services/simulator'
 import { createRaceRepository, seedDatabase } from '../services/repository'
 
@@ -20,6 +22,8 @@ type AppContextValue = {
   boats: Boat[]
   boat: Boat
   sails: Sail[]
+  crew: CrewMember[]
+  races: RaceDefinition[]
   race: RaceDefinition
   session: RaceSession
   observations: LineObservation[]
@@ -31,7 +35,10 @@ type AppContextValue = {
   saveBoat(boat: Boat): Promise<void>
   selectBoat(boatId: string): void
   saveSail(sail: Sail): Promise<void>
+  saveCrewMember(member: CrewMember): Promise<void>
   saveRace(race: RaceDefinition): Promise<void>
+  mutateRace(mutator: (race: RaceDefinition) => RaceDefinition): Promise<void>
+  selectRace(raceId: string): Promise<void>
   saveObservation(observation: LineObservation): Promise<void>
   deleteObservation(id: string): Promise<void>
   setSimulatorEnabled(enabled: boolean): void
@@ -52,7 +59,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [boats, setBoats] = useState([seedBoat])
   const [boat, setBoat] = useState(seedBoat)
   const [allSails, setAllSails] = useState(seedSails)
+  const [crew, setCrew] = useState<CrewMember[]>([])
+  const [races, setRaces] = useState<RaceDefinition[]>([seedRace])
   const [race, setRace] = useState(seedRace)
+  const raceRef = useRef(seedRace)
+  const raceSelectionRef = useRef(0)
   const [session, setSession] = useState(createSeedSession)
   const [observations, setObservations] = useState<LineObservation[]>([])
   const [simulatorEnabled, setSimulatorEnabled] = useState(false)
@@ -70,7 +81,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const selectedBoatId = localStorage.getItem('pin-end-selected-boat')
       setBoat(data.boats.find((item) => item.id === selectedBoatId) ?? data.boats[0] ?? seedBoat)
       setAllSails(data.sails)
-      setRace(data.races[0] ?? seedRace)
+      setCrew(data.crew)
+      setRaces(data.races.length ? data.races : [seedRace])
+      const activeRace = data.races.find((item) => item.id === activeSession.raceId) ?? data.races[0] ?? seedRace
+      raceRef.current = activeRace
+      setRace(activeRace)
       setSession(activeSession)
       setObservations(storedObservations)
       setLoading(false)
@@ -99,8 +114,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const saveMark = async (mark: Mark) => {
-    setMarks((current) => [...current.filter((item) => item.id !== mark.id), mark])
-    await repository.saveMark(mark)
+    const linkedFinish = mark.position.kind === 'gate'
+      ? marks.find((item) => item.position.kind === 'gate' && item.position.linkedToMarkId === mark.id)
+      : undefined
+    const syncedFinish = linkedFinish?.position.kind === 'gate' && mark.position.kind === 'gate'
+      ? { ...linkedFinish, position: { ...linkedFinish.position, pointA: mark.position.pointA, pointB: mark.position.pointB } }
+      : undefined
+    setMarks((current) => [...current.filter((item) => item.id !== mark.id && item.id !== syncedFinish?.id), mark, ...(syncedFinish ? [syncedFinish] : [])])
+    if (syncedFinish) await repository.saveMarks([mark, syncedFinish])
+    else await repository.saveMark(mark)
   }
 
   const saveBoat = async (next: Boat) => {
@@ -123,9 +145,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await repository.saveSail(sail)
   }
 
+  const saveCrewMember = async (member: CrewMember) => {
+    setCrew((current) => [...current.filter((item) => item.id !== member.id), member])
+    await repository.saveCrewMember(member)
+  }
+
   const saveRace = async (next: RaceDefinition) => {
-    setRace(next)
-    await repository.saveRace(next)
+    if (next.id !== raceRef.current.id) raceSelectionRef.current += 1
+    const startLine = next.course.find(isStartWaypoint) ?? { id: `start-${next.id}`, markId: 'start-line', rounding: 'either' as const, role: 'start' as const }
+    const finishLine = next.course.find(isFinishWaypoint) ?? { id: `finish-${next.id}`, markId: 'finish-line', rounding: 'either' as const, role: 'finish' as const }
+    const normalized = { ...next, course: [{ ...startLine, role: 'start' as const }, ...next.course.filter((waypoint) => !isStartWaypoint(waypoint) && !isFinishWaypoint(waypoint)), { ...finishLine, role: 'finish' as const }] }
+    raceRef.current = normalized
+    setRace(normalized)
+    setRaces((current) => [...current.filter((item) => item.id !== normalized.id), normalized])
+    await repository.saveRace(normalized)
+  }
+
+  const mutateRace = async (mutator: (race: RaceDefinition) => RaceDefinition) => saveRace(mutator(raceRef.current))
+
+  const selectRace = async (raceId: string) => {
+    const requestId = ++raceSelectionRef.current
+    const selected = races.find((item) => item.id === raceId)
+    if (!selected || selected.id === race.id) return
+    const stored = await repository.getSessionForRace(selected.id)
+    const next = stored ? { ...stored, updatedAt: Date.now() } : { ...createSeedSession(), id: crypto.randomUUID(), raceId: selected.id, phase: 'setup' as const, syncedStartTime: Date.parse(selected.scheduledStart), activeWaypointIndex: 0, telemetry: [], roundedAt: {}, updatedAt: Date.now() }
+    const selectedObservations = await repository.getObservations(next.id)
+    if (requestId !== raceSelectionRef.current) return
+    raceRef.current = selected
+    setRace(selected)
+    setSession(next)
+    setObservations(selectedObservations)
+    await repository.saveSession(next)
   }
 
   const saveObservation = async (observation: LineObservation) => {
@@ -164,6 +214,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     boats,
     boat,
     sails,
+    crew,
+    races,
     race,
     session,
     observations,
@@ -175,7 +227,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveBoat,
     selectBoat,
     saveSail,
+    saveCrewMember,
     saveRace,
+    mutateRace,
+    selectRace,
     saveObservation,
     deleteObservation,
     setSimulatorEnabled,

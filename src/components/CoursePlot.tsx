@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Crosshair, Flag, LocateFixed, Maximize2, Navigation } from 'lucide-react'
 import { resolveMarkPosition } from '../domain/geo'
 import type { Coordinate, Mark, RaceDefinition } from '../domain/types'
+import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 
 type Props = {
   marks: Mark[]
@@ -14,19 +15,27 @@ type Props = {
 
 export function CoursePlot({ marks, race, current, activeMarkId, line, compact }: Props) {
   const [view, setView] = useState<'all' | 'course' | 'current'>('all')
-  const courseMarks = race.course.flatMap((waypoint) => {
+  const courseMarks = race.course.flatMap((waypoint, waypointIndex) => {
     const mark = marks.find((item) => item.id === waypoint.markId)
+    if (mark?.position.kind === 'gate') return []
     const coordinate = mark ? resolveMarkPosition(mark.position) : undefined
-    return mark && coordinate ? [{ ...mark, coordinate }] : []
+    return mark && coordinate ? [{ ...mark, coordinate, waypointIndex }] : []
+  })
+  const gates = race.course.flatMap((waypoint, waypointIndex) => {
+    const mark = marks.find((item) => item.id === waypoint.markId)
+    if (mark?.position.kind !== 'gate') return []
+    const pointA = isStartWaypoint(waypoint) && line ? line.pin : mark.position.pointA
+    const pointB = isStartWaypoint(waypoint) && line ? line.committee : mark.position.pointB
+    return pointA && pointB ? [{ ...mark, pointA, pointB, waypointIndex }] : []
   })
   const allPoints = [
     ...courseMarks.map((mark) => mark.coordinate),
     ...(current ? [current] : []),
-    ...(line ? [line.pin, line.committee] : []),
+    ...gates.flatMap((gate) => [gate.pointA, gate.pointB]),
   ]
   const coursePoints = [
     ...courseMarks.map((mark) => mark.coordinate),
-    ...(line ? [line.pin, line.committee] : []),
+    ...gates.flatMap((gate) => [gate.pointA, gate.pointB]),
   ]
   const points = view === 'current' && current
     ? [current]
@@ -45,7 +54,13 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
     x: 32 + ((coordinate.longitude - minLongitude) / (maxLongitude - minLongitude || 1)) * 336,
     y: 28 + ((maxLatitude - coordinate.latitude) / (maxLatitude - minLatitude || 1)) * 254,
   })
-  const path = courseMarks.map((mark) => project(mark.coordinate)).map((point) => `${point.x},${point.y}`).join(' ')
+  const routeCoordinates = race.course.flatMap((_waypoint, waypointIndex) => {
+    const gate = gates.find((item) => item.waypointIndex === waypointIndex)
+    if (gate) return [{ latitude: (gate.pointA.latitude + gate.pointB.latitude) / 2, longitude: (gate.pointA.longitude + gate.pointB.longitude) / 2 }]
+    const mark = courseMarks.find((item) => item.waypointIndex === waypointIndex)
+    return mark ? [mark.coordinate] : []
+  })
+  const path = routeCoordinates.map((coordinate) => project(coordinate)).map((point) => `${point.x},${point.y}`).join(' ')
 
   return (
     <div className={`course-plot ${compact ? 'course-plot--compact' : ''}`} aria-label="Offline course plot">
@@ -63,11 +78,12 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
         <rect width="400" height="310" fill="url(#grid)" />
         <path d="M0 245 C70 217 112 252 175 222 C238 193 284 235 400 174 L400 310 L0 310Z" fill="#173c3c" opacity=".55" />
         {path && <polyline points={path} fill="none" stroke="#f5f1e8" strokeWidth="2.5" strokeDasharray="6 7" opacity=".72" />}
-        {line && (() => {
-          const pin = project(line.pin)
-          const committee = project(line.committee)
-          return <line x1={pin.x} y1={pin.y} x2={committee.x} y2={committee.y} stroke="#ff6b35" strokeWidth="5" />
-        })()}
+        {gates.map((gate) => {
+          const pin = project(gate.pointA)
+          const boat = project(gate.pointB)
+          const midpoint = { x: (pin.x + boat.x) / 2, y: (pin.y + boat.y) / 2 }
+          return <g key={`${gate.id}-${gate.waypointIndex}`}><line x1={pin.x} y1={pin.y} x2={boat.x} y2={boat.y} stroke={isFinishWaypoint(race.course[gate.waypointIndex]) ? '#53d3c2' : '#ff6b35'} strokeWidth="5" /><text x={midpoint.x + 8} y={midpoint.y - 7} fill="#f5f1e8" fontSize="10" fontWeight="700">{gate.waypointIndex + 1} · {gate.shortName}</text></g>
+        })}
         {courseMarks.map((mark, index) => {
           const point = project(mark.coordinate)
           const active = mark.id === activeMarkId
@@ -75,7 +91,7 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
             <g key={`${mark.id}-${index}`} transform={`translate(${point.x} ${point.y})`}>
               {active && <circle r="17" fill="none" stroke="#ff6b35" strokeWidth="2" className="pulse-ring" />}
               <circle r="9" fill={active ? '#ff6b35' : '#f5f1e8'} stroke="#071b2f" strokeWidth="3" />
-              <text x="13" y="4" fill="#f5f1e8" fontSize="10" fontWeight="700">{index + 1} · {mark.shortName}</text>
+              <text x="13" y="4" fill="#f5f1e8" fontSize="10" fontWeight="700">{mark.waypointIndex + 1} · {mark.shortName}</text>
             </g>
           )
         })}

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Anchor, Camera, Check, Clock3, Crosshair, MapPinned, Radio, Sailboat, TimerReset } from 'lucide-react'
+import { Anchor, Check, Clock3, Radio, Sailboat, TimerReset } from 'lucide-react'
 import { useApp } from '../app/AppContext'
+import { isStartWaypoint } from '../domain/course'
 import { CoursePlot } from '../components/CoursePlot'
 import { DevSimulator } from '../components/DevSimulator'
-import { SightMarksDialog, type SightTargetRef } from '../components/SightMarksDialog'
 import { formatCountdown, syncStartFromSignal } from '../domain/countdown'
-import { intersectSightings, resolveMarkPosition, timeToLineSeconds } from '../domain/geo'
+import { intersectSightings, timeToLineSeconds } from '../domain/geo'
 import type { LineObservation } from '../domain/types'
 
 type Props = { now: number; onStartRace(): void; sensorStatus: string; onEnableSensors(): void }
@@ -21,16 +21,15 @@ const resolveEndpoint = (observations: LineObservation[], endpoint: LineObservat
 export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }: Props) {
   const { marks, race, session, observations, latestReading, updateSession } = useApp()
   const [message, setMessage] = useState<string | null>(null)
-  const [showSightMarks, setShowSightMarks] = useState(false)
-  const [directMarkAction, setDirectMarkAction] = useState<{ key: number; target: SightTargetRef; action: 'sight' | 'position' } | null>(null)
   const remaining = session.syncedStartTime - now
-  const pin = useMemo(() => resolveEndpoint(observations, 'pin'), [observations])
-  const committee = useMemo(() => resolveEndpoint(observations, 'committee'), [observations])
+  const startWaypoint = race.course.find(isStartWaypoint)
+  const startMark = marks.find((mark) => mark.id === startWaypoint?.markId)
+  const legacyPin = useMemo(() => resolveEndpoint(observations, 'pin'), [observations])
+  const legacyCommittee = useMemo(() => resolveEndpoint(observations, 'committee'), [observations])
+  const pin = startMark?.position.kind === 'gate' ? startMark.position.pointA ?? legacyPin : legacyPin
+  const committee = startMark?.position.kind === 'gate' ? startMark.position.pointB ?? legacyCommittee : legacyCommittee
   const line = pin && committee ? { pin, committee } : null
-  const raceMarks = race.course.reduce<typeof marks>((unique, waypoint) => {
-    const mark = marks.find((item) => item.id === waypoint.markId)
-    return mark && !unique.some((item) => item.id === mark.id) ? [...unique, mark] : unique
-  }, [])
+  const firstRaceWaypoint = race.course.find((waypoint) => !isStartWaypoint(waypoint))
   const crossingSeconds = line && latestReading
     ? timeToLineSeconds(latestReading, latestReading.heading, latestReading.speedKnots, line.pin, line.committee)
     : null
@@ -106,23 +105,6 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
               <span className={`chip ${line ? 'chip--verified' : ''}`}>{line ? 'Start line resolved' : 'Start line awaiting sightings'}</span>
             </div>
             <CoursePlot marks={marks} race={race} current={latestReading} line={line} compact />
-            <div className="sight-marks-summary">
-              <div><Crosshair size={20} /><span><strong>Sight or place race marks</strong><small>Pin end, committee boat, and {raceMarks.length} course marks</small></span></div>
-              <button className="button button--primary" onClick={() => setShowSightMarks(true)}><Crosshair size={17} /> Sight marks</button>
-            </div>
-            <section className="prestart-course-marks" aria-label="Course marks">
-              <div className="prestart-course-marks__heading"><div><MapPinned size={18} /><h3>Course marks</h3></div><span>{raceMarks.length} in use</span></div>
-              {raceMarks.map((mark) => {
-                const positioned = Boolean(resolveMarkPosition(mark.position))
-                return <div className="prestart-course-mark" key={mark.id}>
-                  <span><strong>{mark.name}</strong><small>{positioned ? 'Position available' : 'Position needed'}</small></span>
-                  <div>
-                    <button className="button button--secondary" aria-label={`Sight ${mark.name}`} onClick={() => setDirectMarkAction({ key: Date.now(), target: { endpoint: 'mark', markId: mark.id }, action: 'sight' })}><Camera size={16} /> Sight</button>
-                    <button className="button button--secondary" aria-label={`Position ${mark.name}`} onClick={() => setDirectMarkAction({ key: Date.now(), target: { endpoint: 'mark', markId: mark.id }, action: 'position' })}><MapPinned size={16} /> Position</button>
-                  </div>
-                </div>
-              })}
-            </section>
             <div className="sensor-strip">
               <Radio size={16} /><span>Sensor: <strong>{latestReading?.source ?? sensorStatus}</strong></span>
               <span>GPS: <strong>{latestReading ? `±${Math.round(latestReading.accuracy)} m` : '—'}</strong></span>
@@ -133,8 +115,8 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
         <aside className="sidebar-stack">
           <section className="panel next-panel">
             <span className="eyebrow">Next mark</span>
-            <h2>{marks.find((mark) => mark.id === race.course[0]?.markId)?.name}</h2>
-            <p>Leave to {race.course[0]?.rounding}. Automatic rounding will ask for confirmation.</p>
+            <h2>{marks.find((mark) => mark.id === firstRaceWaypoint?.markId)?.name}</h2>
+            <p>Leave to {firstRaceWaypoint?.rounding}. Automatic rounding will ask for confirmation.</p>
           </section>
           <DevSimulator target={pin ?? undefined} />
           <section className="notice"><strong>Keep a proper lookout.</strong><p>Pin End is an aid only. Race documents and safe navigation take precedence.</p></section>
@@ -145,8 +127,6 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors }
         <div><strong>{line ? 'Start line ready' : 'You can refine the line while approaching'}</strong><span>Screen wake lock is active during pre-start and racing when supported</span></div>
         <button className="button button--orange" onClick={onStartRace}><Sailboat size={18} /> Start race mode</button>
       </div>
-      <SightMarksDialog now={now} open={showSightMarks} onClose={() => setShowSightMarks(false)} />
-      {directMarkAction && <SightMarksDialog key={directMarkAction.key} now={now} open initialTarget={directMarkAction.target} initialAction={directMarkAction.action} onClose={() => setDirectMarkAction(null)} />}
     </div>
   )
 }

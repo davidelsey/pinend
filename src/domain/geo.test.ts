@@ -13,6 +13,9 @@ import {
 } from './geo'
 
 describe('navigation calculations', () => {
+  it('resolves a two-point gate mark to its midpoint', () => {
+    expect(resolveMarkPosition({ kind: 'gate', pointA: { latitude: -33.86, longitude: 151.23 }, pointB: { latitude: -33.84, longitude: 151.25 } })).toEqual({ latitude: -33.85, longitude: 151.24 })
+  })
   it('preserves a constructed definition while applying and removing coordinate overrides', () => {
     const constructed = {
       kind: 'constructed' as const,

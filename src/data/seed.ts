@@ -10,7 +10,27 @@ export const cyca: Club = {
   website: 'https://cyca.com.au/',
 }
 
+export const startLineMark: Mark = {
+  id: 'start-line',
+  name: 'Start line',
+  shortName: 'START',
+  position: { kind: 'gate', labels: ['Pin', 'Boat'] },
+  notes: 'Two-point line resolved from Pin end and Committee boat sightings.',
+  provenance: 'personal',
+}
+
+export const finishLineMark: Mark = {
+  id: 'finish-line',
+  name: 'Finish line',
+  shortName: 'FINISH',
+  position: { kind: 'gate', labels: ['Pin', 'Boat'], linkedToMarkId: startLineMark.id },
+  notes: 'Two-point finish gate.',
+  provenance: 'personal',
+}
+
 export const seedMarks: Mark[] = [
+  startLineMark,
+  finishLineMark,
   {
     id: 'shark-island',
     name: 'Shark Island',
@@ -82,9 +102,11 @@ export const seedRace: RaceDefinition = {
   fleet: 'PHS Division 1',
   scheduledStart: todayAt(13, 5),
   course: [
-    { id: 'leg-1', markId: 'clark-island', rounding: 'port' },
-    { id: 'leg-2', markId: 'windward', rounding: 'port' },
-    { id: 'leg-3', markId: 'shark-island', rounding: 'starboard' },
+    { id: 'leg-start', markId: startLineMark.id, rounding: 'either', role: 'start' },
+    { id: 'leg-1', markId: 'clark-island', rounding: 'port', role: 'mark' },
+    { id: 'leg-2', markId: 'windward', rounding: 'port', role: 'mark' },
+    { id: 'leg-3', markId: 'shark-island', rounding: 'starboard', role: 'mark' },
+    { id: 'leg-finish', markId: finishLineMark.id, rounding: 'either', role: 'finish' },
   ],
 }
 

@@ -16,6 +16,7 @@ type MarkPositionOverrides = {
 export type MarkPosition = (
   | { kind: 'fixed'; coordinate: Coordinate }
   | { kind: 'variable'; coordinate?: Coordinate }
+  | { kind: 'gate'; pointA?: Coordinate; pointB?: Coordinate; labels?: [string, string]; linkedToMarkId?: string }
   | {
       kind: 'constructed'
       origin: Coordinate
@@ -37,6 +38,7 @@ export type CourseWaypoint = {
   id: string
   markId: string
   rounding: 'port' | 'starboard' | 'either'
+  role?: 'start' | 'mark' | 'finish'
 }
 
 export type Boat = {
@@ -56,6 +58,19 @@ export type Sail = {
   condition: 'excellent' | 'good' | 'serviceable' | 'repair'
   location: 'rigged' | 'wardrobe' | 'locker'
   notes?: string
+}
+
+export type CrewMember = {
+  id: string
+  name: string
+}
+
+export const CREW_POSITIONS = ['Skipper', 'Helm', 'Tactician', 'Navigator', 'Main', 'Trim', 'Pit', 'Mast', 'Bow', 'Crew'] as const
+export type CrewPosition = (typeof CREW_POSITIONS)[number]
+
+export type CrewAssignment = {
+  crewId: string
+  position: CrewPosition
 }
 
 export type Club = {
@@ -100,6 +115,7 @@ export type RaceSession = {
   autoStartArmed?: boolean
   activeWaypointIndex: number
   selectedSailIds: string[]
+  crewAssignments?: CrewAssignment[]
   telemetry: SensorReading[]
   roundedAt: Record<string, number>
   updatedAt: number
@@ -110,6 +126,7 @@ export type LineObservation = {
   sessionId: string
   endpoint: 'pin' | 'committee' | 'mark'
   markId?: string
+  markPoint?: 'a' | 'b'
   observer: Coordinate
   bearingTrue: number
   accuracy: number

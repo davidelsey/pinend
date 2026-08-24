@@ -125,6 +125,15 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .sail-check strong { font-size: 12px; }
 .sail-check small { font-size: 10px; color: var(--muted); text-transform: capitalize; }
 .sail-check select { min-height: 36px; font-size: 11px; padding: 6px; }
+.crew-planner { display: grid; gap: 12px; }
+.crew-list { display: grid; gap: 8px; }
+.crew-row { display: grid; grid-template-columns: minmax(0, 1fr) 140px; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; opacity: .65; }
+.crew-row--selected { border-color: #b7d6ca; background: #f5faf7; opacity: 1; }
+.crew-row__person { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.crew-row__person input { width: 20px; height: 20px; accent-color: #28745d; }
+.crew-row select { min-height: 36px; padding: 6px; font-size: 11px; }
+.crew-planner .add-row { align-items: end; }
+.crew-planner .add-row .field { flex: 1; }
 
 .weather-panel { background: var(--navy); color: var(--cream); }
 .weather-panel .panel__heading .chip { background: rgba(83,211,194,.13); color: var(--sea); }
@@ -207,7 +216,8 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .notice p { margin: 5px 0 0; line-height: 1.45; }
 .toast { position: fixed; z-index: 100; left: 50%; top: 76px; transform: translateX(-50%); color: white; background: #24745d; border-radius: 999px; padding: 10px 16px; display: flex; align-items: center; gap: 7px; box-shadow: var(--shadow); font-size: 11px; font-weight: 700; }
 
-.viewfinder { position: fixed; z-index: 200; inset: 0; overflow: hidden; color: white; background: #020b12; display: grid; grid-template-rows: auto 1fr auto; }
+.viewfinder { position: fixed; z-index: 200; inset: 0; overflow: hidden; color: white; background: #020b12; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.viewfinder__camera-pane { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .viewfinder__video, .viewfinder__simulated, .viewfinder__shade { position: absolute; inset: 0; width: 100%; height: 100%; }
 .viewfinder__video { object-fit: cover; }
 .viewfinder__simulated { background: linear-gradient(160deg, #527984 0%, #193b4d 36%, #0a2335 64%, #06141f 100%); }
@@ -242,6 +252,16 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .capture-button > span { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; color: var(--navy); background: var(--orange); }
 .capture-button:disabled { opacity: .35; }
 .viewfinder__footer > p { color: #8ca0a8; font-size: 8px; margin: 4px 0 0; }
+.viewfinder--split { grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); background: #071b2f; }
+.viewfinder--split .viewfinder__crosshair { top: 55%; width: min(72%, 320px); height: min(65%, 260px); }
+.viewfinder__map-pane { position: relative; min-width: 0; min-height: 0; background: #071b2f; border-top: 1px solid rgba(255,255,255,.16); }
+.viewfinder__map-pane .point-picker { min-width: 0; height: 100%; margin: 0; border-radius: 0; }
+.viewfinder__map-pane .point-picker > svg { height: 100%; }
+.viewfinder__capture-overlay { position: absolute; z-index: 3; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); }
+.viewfinder__capture-overlay .capture-button { margin: 0; filter: drop-shadow(0 3px 9px rgba(0,0,0,.65)); }
+.viewfinder__target-choices { position: absolute; left: 50%; bottom: 1rem; z-index: 5; display: flex; gap: .5rem; transform: translateX(-50%); padding: .3rem; border-radius: 999px; background: rgba(4, 19, 31, .78); }
+.viewfinder__target-choices button { min-width: 5rem; padding: .65rem 1rem; border: 0; border-radius: 999px; color: #f5f1e8; background: transparent; font: inherit; font-weight: 800; }
+.viewfinder__target-choices button.is-selected { color: #071b2f; background: #f5f1e8; }
 
 .race-view { min-height: 100vh; color: var(--cream); background: var(--navy); padding-bottom: 80px; }
 .race-header { height: 62px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 25px; border-bottom: 1px solid rgba(255,255,255,.08); position: sticky; top: 0; z-index: 20; background: rgba(7,27,47,.95); backdrop-filter: blur(14px); }
@@ -497,6 +517,80 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .prestart-course-mark small { color: var(--muted); }
 .prestart-course-mark > div { display: flex; gap: 8px; }
 .prestart-course-mark .button { min-height: 38px; padding: 8px 11px; }
+.race-marks-tabs { width: min(420px, 100%); margin: 0 auto 16px; }
+.race-mark-list { display: grid; gap: 9px; margin-top: 16px; }
+.course-builder { display: grid; gap: 12px; }
+.course-mark-entry { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 9px; align-items: stretch; transition: opacity .15s, transform .15s; }
+.course-mark-entry--dragging { opacity: .45; transform: scale(.99); }
+.course-mark-entry--drop-target .race-mark-row { outline: 2px solid var(--orange); outline-offset: 2px; }
+.course-mark-entry__handle { min-height: 100%; padding: 6px 4px; display: grid; grid-template-rows: 1fr auto; place-items: stretch center; gap: 5px; border-radius: 12px; color: white; background: var(--navy); user-select: none; }
+.course-mark-entry__handle--locked { grid-template-rows: auto 1fr; place-items: center; opacity: .82; }
+.course-mark-entry__drag { width: 100%; min-height: 64px; display: grid; grid-template-rows: auto 1fr; place-items: center; color: white; background: transparent; cursor: grab; touch-action: none; }
+.course-mark-entry__drag:active { cursor: grabbing; }
+.course-mark-entry__handle strong { align-self: center; font: 800 13px 'Manrope'; }
+.course-mark-entry__handle button { width: 28px; height: 25px; display: grid; place-items: center; border-radius: 7px; color: #c9d7dd; background: rgba(255, 255, 255, .08); }
+.course-mark-entry__handle .course-mark-entry__drag { width: 100%; height: auto; min-height: 64px; background: transparent; }
+.course-mark-entry__duplicate { cursor: copy; touch-action: none; }
+.course-mark-entry__handle button:disabled { opacity: .25; }
+.course-mark-entry__handle button:not(:disabled):hover { color: white; background: rgba(255, 255, 255, .18); }
+.race-mark-row { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.race-mark-row--course { grid-template-columns: auto minmax(0, 1fr) auto; }
+.race-mark-row--course .race-mark-row__actions { grid-column: 1 / -1; }
+.course-mark-controls { display: flex; align-self: start; gap: 5px; }
+.rounding-arrow, .course-mark-remove { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: #f3f6f4; }
+.rounding-arrow { position: relative; opacity: .42; cursor: pointer; }
+.rounding-arrow input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.rounding-arrow--port { color: #c93c32; }
+.rounding-arrow--starboard { color: #168153; }
+.rounding-arrow.is-selected { opacity: 1; background: white; box-shadow: 0 2px 8px rgba(7, 27, 47, .12); }
+.rounding-arrow--port.is-selected { border-color: #e8a39d; background: #fff3f1; }
+.rounding-arrow--starboard.is-selected { border-color: #8ec9ad; background: #effaf4; }
+.course-mark-remove { color: #71838b; }
+.course-mark-remove:hover { border-color: #d69088; color: #a72e25; background: #fff3f1; }
+.race-mark-row__main { min-width: 0; display: grid; gap: 2px; }
+.race-mark-row__main span { color: var(--orange-dark); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.race-mark-row__main small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.race-mark-row__actions { display: flex; gap: 7px; }
+.race-mark-row__actions .button { min-height: 38px; padding: 8px 10px; }
+.start-line-targets { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.start-line-targets > div { display: flex; align-items: center; gap: 9px; }
+.start-line-targets > div span { display: grid; }
+.start-line-targets small { color: var(--muted); }
+.mark-map-editor { position: fixed; z-index: 100; inset: 0; width: 100vw; height: 100dvh; padding-bottom: calc(66px + env(safe-area-inset-bottom)); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; color: var(--ink); background: var(--paper); }
+.mark-map-editor__header { min-height: 70px; padding: max(14px, env(safe-area-inset-top)) 18px 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.mark-map-editor__header span { color: var(--orange-dark); font-size: 8px; font-weight: 800; letter-spacing: .14em; }
+.mark-map-editor__header h2 { margin: 2px 0 0; font-size: 20px; }
+.mark-map-editor__map { position: relative; min-height: 0; }
+.mark-map-editor__map .point-picker { height: 100%; margin: 0; border-radius: 0; }
+.mark-map-editor__map .point-picker > svg { height: 100%; }
+.mark-map-editor__actions { padding: 10px 14px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); background: var(--paper); }
+.mark-map-editor__sightings { position: absolute; z-index: 3; right: 12px; bottom: 12px; width: min(330px, calc(100% - 24px)); max-height: 150px; padding: 10px; overflow-y: auto; border: 1px solid rgba(255,255,255,.25); border-radius: 12px; color: white; background: rgba(5, 28, 42, .9); box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+.mark-map-editor__sightings > strong { display: block; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; }
+.mark-map-editor__sightings > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.12); }
+.mark-map-editor__sightings span, .mark-map-editor__sightings small { display: block; }
+.mark-map-editor__sightings b { font-size: 10px; }
+.mark-map-editor__sightings small { margin-top: 2px; color: #aac0c9; font-size: 8px; }
+.mark-map-editor__sightings button { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: #ffb4aa; background: rgba(255,255,255,.08); }
+.gate-line { stroke: #f5f1e8; stroke-width: 1.2; stroke-dasharray: 2.2 2.2; opacity: .9; }
+.gate-pin { cursor: grab; }
+.gate-pin text { fill: #f5f1e8; font-size: 4px; font-weight: 900; paint-order: stroke; stroke: #08273c; stroke-width: 1.5px; }
+.point-picker__context-gate line { stroke: #f5f1e8; stroke-width: .8; stroke-dasharray: 2 2; opacity: .7; }
+.point-picker__context-gate circle { fill: #f5f1e8; stroke: #08273c; stroke-width: .5; }
+.point-picker__context-gate text { fill: #f5f1e8; font-size: 3px; font-weight: 800; paint-order: stroke; stroke: #08273c; stroke-width: 1px; }
+.gate-link-mode { grid-column: 2 / -1; display: flex; gap: .4rem; }
+.gate-link-mode label { position: relative; cursor: pointer; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: .68rem; font-weight: 800; }
+.gate-link-mode label.is-selected { border-color: var(--teal); color: var(--navy); background: var(--teal-pale); }
+.gate-link-mode input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.button--compact { min-height: 34px; padding: .45rem .7rem; font-size: .72rem; }
+.race-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .55rem; margin-bottom: 1rem; }
+.race-picker > div { min-width: 0; }
+.race-picker > div > button { width: 100%; display: grid; gap: .18rem; min-width: 0; padding: .75rem; border: 1px solid var(--line); border-radius: 12px; text-align: left; color: var(--navy); background: var(--paper); }
+.race-picker > div > button.is-selected { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(43, 133, 120, .13); background: var(--teal-pale); }
+.race-picker strong, .race-picker span, .race-picker small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.race-picker span { color: var(--muted); font-size: .67rem; }
+.race-picker small { color: var(--teal-dark); font-size: .62rem; font-weight: 800; }
+.new-race-form { margin-bottom: 1rem; padding: .85rem; border: 1px solid var(--line); border-radius: 13px; background: var(--fog); }
+.new-race-form__actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .7rem; }
 .point-picker__zoom { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; gap: 5px; }
 .point-picker__zoom button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid rgba(255,255,255,.45); border-radius: 8px; background: rgba(5, 28, 42, .9); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 .point-picker > svg { touch-action: none; }
@@ -507,4 +601,18 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .prestart-course-mark { align-items: flex-start; flex-direction: column; }
   .prestart-course-mark > div { width: 100%; }
   .prestart-course-mark .button { flex: 1; justify-content: center; }
+  .race-mark-row { grid-template-columns: auto minmax(0, 1fr); }
+  .race-mark-row--course { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .course-mark-entry { grid-template-columns: 38px minmax(0, 1fr); }
+  .crew-row { grid-template-columns: 1fr 120px; }
+  .crew-planner .add-row { align-items: stretch; flex-direction: column; }
+  .race-mark-row__actions { grid-column: 1 / -1; }
+  .race-mark-row__actions .button { flex: 1; justify-content: center; }
+  .start-line-targets { grid-template-columns: 1fr 1fr; }
+  .start-line-targets > div { grid-column: 1 / -1; }
+}
+
+@media (orientation: landscape) {
+  .viewfinder--split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .viewfinder__map-pane { border-top: 0; border-left: 1px solid rgba(255,255,255,.16); }
 }
