@@ -318,15 +318,15 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .button--race-next { min-width: 260px; color: var(--navy); background: var(--orange); }
 .race-warning { position: fixed; bottom: calc(76px + env(safe-area-inset-bottom)); left: 50%; width: max-content; max-width: calc(100% - 24px); transform: translateX(-50%); background: #7f331c; padding: 8px 12px; border-radius: 9px; font-size: 10px; display: flex; gap: 6px; align-items: center; z-index: 120; }
 .prestart-race-focus { padding-bottom: 24px; }
-.prestart-line-state { display: inline-flex; align-items: center; gap: 5px; color: #ff9a73; }
-.prestart-line-state.is-ready { color: var(--sea); }
+.prestart-mark-selector > div > span { color: #617c89; font-size: 9px; font-weight: 800; letter-spacing: .11em; }
+.prestart-mark-selector h1 { margin: 3px 0 0; font-size: clamp(24px, 4vw, 38px); }
 .prestart-race-countdown { margin: 11px 0 2px; color: var(--cream); font: 800 clamp(58px, 10vw, 96px)/.95 'Manrope'; letter-spacing: -.07em; font-variant-numeric: tabular-nums; }
 .prestart-race-countdown.is-urgent { color: var(--orange); }
-.prestart-crossing { width: fit-content; min-width: 220px; margin: 13px auto 0; padding: 8px 13px; border: 1px solid rgba(255,255,255,.1); border-radius: 999px; background: rgba(255,255,255,.05); }
-.prestart-crossing span { margin-right: 7px; color: #78919d; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.prestart-crossing strong { font-size: 13px; }
+.prestart-crossing { width: fit-content; min-width: min(420px, 100%); margin: 17px auto 0; padding: 12px 18px; }
+.prestart-crossing span { display: block; color: #78919d; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.prestart-crossing strong { display: block; margin-top: 3px; font: 800 clamp(34px, 6vw, 58px)/1 'Manrope'; letter-spacing: -.04em; }
 .prestart-race-signals { margin-top: 17px; }
-.prestart-race-view .metric__value { overflow-wrap: anywhere; font-size: clamp(16px, 2.4vw, 25px); }
+.prestart-race-view .race-metrics { grid-template-columns: repeat(2, 1fr); }
 .prestart-enable-sensors { width: 100%; justify-content: center; padding: 10px 0; color: var(--sea); }
 .prestart-safety svg { color: #f6ca71; }
 

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Check, Clock3, Compass, Flag, Gauge, MapPinned, Navigation, Radio, Sailboat, Shield, TimerReset } from 'lucide-react'
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock3, Compass, Flag, Gauge, Navigation, Sailboat, Shield, TimerReset } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { DevSimulator } from '../components/DevSimulator'
 import { Metric } from '../components/Metric'
 import { isStartWaypoint } from '../domain/course'
 import { formatCountdown, syncStartFromSignal } from '../domain/countdown'
-import { intersectSightings, timeToLineSeconds } from '../domain/geo'
+import { intersectSightings, resolveMarkPosition, timeToLineSeconds } from '../domain/geo'
 import type { LineObservation } from '../domain/types'
 
 type Props = { now: number; onStartRace(): void; sensorStatus: string; onEnableSensors(): void; wakeLockStatus: string }
@@ -21,16 +21,19 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
   const { marks, race, session, observations, latestReading, simulatorEnabled, stepSimulator, updateSession } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const remaining = session.syncedStartTime - now
-  const startWaypoint = race.course.find(isStartWaypoint)
+  const startWaypointIndex = Math.max(0, race.course.findIndex(isStartWaypoint))
+  const [previewWaypointIndex, setPreviewWaypointIndex] = useState(startWaypointIndex)
+  const safePreviewIndex = Math.min(Math.max(0, previewWaypointIndex), Math.max(0, race.course.length - 1))
+  const startWaypoint = race.course[startWaypointIndex]
   const startMark = marks.find((mark) => mark.id === startWaypoint?.markId)
   const legacyPin = useMemo(() => resolveEndpoint(observations, 'pin'), [observations])
   const legacyCommittee = useMemo(() => resolveEndpoint(observations, 'committee'), [observations])
   const pin = startMark?.position.kind === 'gate' ? startMark.position.pointA ?? legacyPin : legacyPin
   const committee = startMark?.position.kind === 'gate' ? startMark.position.pointB ?? legacyCommittee : legacyCommittee
   const line = pin && committee ? { pin, committee } : null
-  const firstRaceWaypointIndex = race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))
-  const firstRaceWaypoint = race.course[firstRaceWaypointIndex]
-  const firstRaceMark = marks.find((mark) => mark.id === firstRaceWaypoint?.markId)
+  const selectedWaypoint = race.course[safePreviewIndex]
+  const selectedMark = marks.find((mark) => mark.id === selectedWaypoint?.markId)
+  const selectedTarget = selectedMark ? resolveMarkPosition(selectedMark.position) : undefined
   const crossingSeconds = line && latestReading
     ? timeToLineSeconds(latestReading, latestReading.heading, latestReading.speedKnots, line.pin, line.committee)
     : null
@@ -67,6 +70,11 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
     setMessage(minutes === 0 ? 'Start gun synchronized' : `${minutes}-minute signal synchronized`)
   }
 
+  const selectWaypoint = (index: number) => {
+    if (index < 0 || index >= race.course.length) return
+    setPreviewWaypointIndex(index)
+  }
+
   return (
     <div className="race-view prestart-race-view">
       {message && <div className="toast"><Check size={16} /> {message}</div>}
@@ -78,9 +86,10 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
 
       <main className="race-main" aria-label="Pre-start instruments">
         <section className="race-focus prestart-race-focus">
-          <div className="race-focus__topline">
-            <span>START SEQUENCE</span>
-            <span className={`prestart-line-state ${line ? 'is-ready' : ''}`}><MapPinned size={14} /> {line ? 'Start line resolved' : 'Line position required'}</span>
+          <div className="race-mark-selector prestart-mark-selector">
+            <button aria-label="Previous mark" disabled={safePreviewIndex <= 0} onClick={() => selectWaypoint(safePreviewIndex - 1)}><ChevronLeft size={24} /></button>
+            <div aria-live="polite" aria-atomic="true"><span>WAYPOINT {safePreviewIndex + 1} OF {race.course.length}</span><h1>{selectedMark?.name ?? 'Course waypoint'}</h1></div>
+            <button aria-label="Next mark" disabled={safePreviewIndex >= race.course.length - 1} onClick={() => selectWaypoint(safePreviewIndex + 1)}><ChevronRight size={24} /></button>
           </div>
           <div className={`prestart-race-countdown ${remaining <= 60_000 ? 'is-urgent' : ''}`}>{formatCountdown(remaining)}</div>
           <div className="countdown-hero__time"><Clock3 size={16} /> Start {new Date(session.syncedStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
@@ -110,36 +119,32 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
 
         <div className="race-metrics">
           <Metric label="GPS boat speed" value={latestReading?.speedKnots.toFixed(1) ?? '—'} unit="kn" icon={<Gauge size={15} />} />
-          <Metric label="Estimated line crossing" value={lineTiming.label} icon={<Clock3 size={15} />} />
           <Metric label="Course" value={latestReading ? Math.round(latestReading.heading).toString().padStart(3, '0') : '—'} unit="°T" icon={<Compass size={15} />} />
-          <Metric label="Accuracy" value={latestReading ? Math.round(latestReading.accuracy).toString() : '—'} unit="m" icon={<Radio size={15} />} />
         </div>
 
         <div className="race-layout">
           <section className="race-map-panel">
-            <CoursePlot marks={marks} race={race} current={latestReading} activeMarkId={startMark?.id} line={line} />
+            <CoursePlot marks={marks} race={race} current={latestReading} activeMarkId={selectedMark?.id} line={line} />
             <div className="map-progress">
-              {race.course.map((waypoint, index) => <span key={waypoint.id} className={index === 0 ? 'active' : ''} />)}
+              {race.course.map((waypoint, index) => <span key={waypoint.id} className={index === safePreviewIndex ? 'active' : ''} />)}
             </div>
           </section>
 
           <aside className="race-sidebar">
             <section className="race-info-card">
-              <div><MapPinned size={18} /><span>Start line</span><strong>{line ? 'Resolved' : 'Awaiting position'}</strong></div>
-              <div><Flag size={18} /><span>First mark</span><strong>{firstRaceMark?.name ?? 'Not set'} · {firstRaceWaypoint?.rounding ?? '—'}</strong></div>
+              <div><Flag size={18} /><span>Selected waypoint</span><strong>{selectedMark?.name ?? 'Not set'} · {selectedWaypoint?.rounding ?? '—'}</strong></div>
               <small>Automatic rounding will ask for confirmation after the start.</small>
             </section>
             <section className="race-info-card system-status">
               <div><Shield size={18} /><span>Screen awake</span><strong>{wakeLockStatus}</strong></div>
               <div><Navigation size={18} /><span>Sensor source</span><strong>{latestReading?.source ?? sensorStatus}</strong></div>
-              <div><Radio size={18} /><span>GPS accuracy</span><strong>{latestReading ? `±${Math.round(latestReading.accuracy)} m` : 'Waiting'}</strong></div>
               <button className="text-button prestart-enable-sensors" onClick={onEnableSensors}>Enable sensors</button>
             </section>
             <section className="race-info-card prestart-safety">
               <div><AlertTriangle size={18} /><span>Navigation aid only</span><strong>Keep a proper lookout</strong></div>
               <small>Race documents and safe navigation always take precedence.</small>
             </section>
-            <DevSimulator target={pin ?? undefined} />
+            <DevSimulator target={selectedTarget ?? pin ?? undefined} />
           </aside>
         </div>
 
