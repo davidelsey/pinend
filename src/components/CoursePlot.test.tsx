@@ -13,6 +13,19 @@ describe('CoursePlot', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fit all course waypoints' }))
   })
 
+  it('lets the user align the map to the device heading', () => {
+    const { container } = render(<CoursePlot marks={seedMarks} race={seedRace} current={{ latitude: -33.87, longitude: 151.24, deviceHeading: 92, courseOverGround: 135 }} />)
+
+    expect(screen.getByRole('button', { name: 'North up' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('You, travelling 135 degrees')).toBeInTheDocument()
+    expect(container.querySelector('.course-plot__you-direction')).toHaveAttribute('transform', 'rotate(135)')
+    fireEvent.click(screen.getByRole('button', { name: 'Device aligned' }))
+
+    expect(screen.getByRole('button', { name: 'Device aligned' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('img', { name: 'Offline course plot, device aligned at 092 degrees' })).toBeInTheDocument()
+    expect(screen.getByText(/2 · CLARK/)).toHaveAttribute('transform', 'rotate(92)')
+  })
+
   it('collapses colocated start and finish gate labels', () => {
     const pointA = { latitude: -33.86, longitude: 151.24 }
     const pointB = { latitude: -33.861, longitude: 151.241 }

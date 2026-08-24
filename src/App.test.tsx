@@ -236,7 +236,7 @@ describe('primary local race journey', () => {
     expect(within(prestartInstruments).queryByText('Accuracy')).not.toBeInTheDocument()
     expect(within(prestartInstruments).queryByText('START SEQUENCE')).not.toBeInTheDocument()
     expect(within(prestartInstruments).queryByText('Start line resolved')).not.toBeInTheDocument()
-    expect(within(prestartInstruments).getByRole('img', { name: 'Offline course plot' })).toBeInTheDocument()
+    expect(within(prestartInstruments).getByRole('img', { name: /Offline course plot/ })).toBeInTheDocument()
     expect(within(prestartInstruments).getByRole('button', { name: /5:00 Warning/i })).toBeInTheDocument()
     expect(within(prestartInstruments).getByRole('button', { name: /4:00 Preparatory/i })).toBeInTheDocument()
     expect(within(prestartInstruments).getByRole('button', { name: /1:00 One minute/i })).toBeInTheDocument()

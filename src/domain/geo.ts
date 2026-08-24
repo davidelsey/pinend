@@ -5,6 +5,8 @@ const METRES_PER_NAUTICAL_MILE = 1852
 const radians = (degrees: number) => (degrees * Math.PI) / 180
 const degrees = (radiansValue: number) => (radiansValue * 180) / Math.PI
 
+export const nauticalMilesToMetres = (nauticalMiles: number) => nauticalMiles * METRES_PER_NAUTICAL_MILE
+
 export const normalizeBearing = (bearing: number) => ((bearing % 360) + 360) % 360
 
 export function bearingToTrue(bearing: Bearing): number {
@@ -39,7 +41,7 @@ export function initialBearing(from: Coordinate, to: Coordinate): number {
 }
 
 export function destinationPoint(origin: Coordinate, distanceInNm: number, bearingTrue: number): Coordinate {
-  const angularDistance = (distanceInNm * METRES_PER_NAUTICAL_MILE) / EARTH_RADIUS_METRES
+  const angularDistance = nauticalMilesToMetres(distanceInNm) / EARTH_RADIUS_METRES
   const bearing = radians(bearingTrue)
   const originLatitude = radians(origin.latitude)
   const originLongitude = radians(origin.longitude)

@@ -102,6 +102,8 @@ export type SensorReading = Coordinate & {
   source: 'device' | 'simulator'
   headingSource?: 'compass' | 'course-over-ground' | 'simulator'
   headingReliable?: boolean
+  deviceHeading?: number
+  courseOverGround?: number
   rawHeading?: number
   rawHeadingReference?: BearingReference
   declination?: number

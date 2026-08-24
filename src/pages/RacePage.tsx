@@ -23,7 +23,7 @@ import { CoursePlot } from '../components/CoursePlot'
 import { DevSimulator } from '../components/DevSimulator'
 import { Metric } from '../components/Metric'
 import { formatCountdown } from '../domain/countdown'
-import { distanceNm, initialBearing, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
+import { distanceNm, initialBearing, nauticalMilesToMetres, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
 import { shouldSuggestRounding } from '../domain/rounding'
 import { cyca } from '../data/seed'
 import { fetchForecast, fetchMarineForecast, type ForecastSnapshot, type MarineSnapshot } from '../services/weather'
@@ -53,7 +53,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const distanceDisplay = distance == null
     ? { value: '—', unit: 'NM' }
     : distance < 1
-      ? { value: String(Math.round(distance * 1852)), unit: 'M' }
+      ? { value: String(Math.round(nauticalMilesToMetres(distance))), unit: 'M' }
       : { value: distance.toFixed(1), unit: 'NM' }
   const bearing = navigationReading && target ? initialBearing(navigationReading, target) : null
   const vmg = navigationReading && bearing != null

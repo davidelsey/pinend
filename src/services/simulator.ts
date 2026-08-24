@@ -24,6 +24,8 @@ export function createSimulator(coordinate: Coordinate): SimulatorState {
       source: 'simulator',
       headingSource: 'simulator',
       headingReliable: true,
+      deviceHeading: 22,
+      courseOverGround: 22,
     },
   }
 }
@@ -43,6 +45,8 @@ export function moveSimulator(state: SimulatorState, elapsedSeconds: number, tim
       source: 'simulator',
       headingSource: 'simulator',
       headingReliable: true,
+      deviceHeading: state.heading,
+      courseOverGround: state.heading,
     },
   }
 }
@@ -64,6 +68,8 @@ export function configureSimulator(
       source: 'simulator',
       headingSource: 'simulator',
       headingReliable: true,
+      deviceHeading: next.heading,
+      courseOverGround: next.heading,
     },
   }
 }
@@ -87,6 +93,8 @@ export function setSimulatorPosition(
       source: 'simulator',
       headingSource: 'simulator',
       headingReliable: true,
+      deviceHeading: heading,
+      courseOverGround: heading,
     },
   }
 }

@@ -45,10 +45,9 @@ export function useDeviceSensors(enabled: boolean, declinationDegrees = 12.8) {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const compassHeading = magneticHeading.current
-        const courseOverGround = position.coords.heading
-        const heading = compassHeading != null
-          ? normalizeBearing(compassHeading + declinationDegrees)
-          : courseOverGround ?? 0
+        const deviceHeading = compassHeading == null ? undefined : normalizeBearing(compassHeading + declinationDegrees)
+        const courseOverGround = position.coords.heading == null ? undefined : normalizeBearing(position.coords.heading)
+        const heading = deviceHeading ?? courseOverGround ?? 0
         setReading({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -59,6 +58,8 @@ export function useDeviceSensors(enabled: boolean, declinationDegrees = 12.8) {
           source: 'device',
           headingSource: compassHeading != null ? 'compass' : 'course-over-ground',
           headingReliable: compassHeading != null,
+          deviceHeading,
+          courseOverGround,
           rawHeading: compassHeading ?? courseOverGround ?? undefined,
           rawHeadingReference: compassHeading != null ? 'magnetic' : 'true',
           declination: compassHeading != null ? declinationDegrees : undefined,

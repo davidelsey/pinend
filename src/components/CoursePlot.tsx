@@ -1,13 +1,18 @@
 import { useState } from 'react'
-import { Crosshair, Flag, LocateFixed, Maximize2, Navigation } from 'lucide-react'
-import { resolveMarkPosition } from '../domain/geo'
-import type { Coordinate, Mark, RaceDefinition } from '../domain/types'
+import { Compass, Crosshair, Flag, LocateFixed, Maximize2, Navigation } from 'lucide-react'
+import { normalizeBearing, resolveMarkPosition } from '../domain/geo'
+import type { Coordinate, Mark, RaceDefinition, SensorReading } from '../domain/types'
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
+
+const PLOT_CENTER = { x: 200, y: 155 }
+const DEVICE_ALIGNED_SCALE = 0.82
+
+type CurrentPosition = Coordinate & Partial<Pick<SensorReading, 'heading' | 'headingSource' | 'deviceHeading' | 'courseOverGround'>>
 
 type Props = {
   marks: Mark[]
   race: RaceDefinition
-  current?: Coordinate | null
+  current?: CurrentPosition | null
   activeMarkId?: string
   line?: { pin: Coordinate; committee: Coordinate } | null
   compact?: boolean
@@ -15,6 +20,7 @@ type Props = {
 
 export function CoursePlot({ marks, race, current, activeMarkId, line, compact }: Props) {
   const [view, setView] = useState<'all' | 'course' | 'current'>('all')
+  const [orientation, setOrientation] = useState<'north' | 'device'>('north')
   const courseMarks = race.course.flatMap((waypoint, waypointIndex) => {
     const mark = marks.find((item) => item.id === waypoint.markId)
     if (mark?.position.kind === 'gate') return []
@@ -68,10 +74,29 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
     return mark ? [mark.coordinate] : []
   })
   const path = routeCoordinates.map((coordinate) => project(coordinate)).map((point) => `${point.x},${point.y}`).join(' ')
+  const legacyDeviceHeading = current?.headingSource === 'compass' || current?.headingSource === 'simulator' ? current.heading : undefined
+  const legacyCourseOverGround = current?.headingSource === 'course-over-ground' || current?.headingSource === 'simulator' ? current.heading : undefined
+  const deviceHeading = current?.deviceHeading ?? legacyDeviceHeading
+  const courseOverGround = current?.courseOverGround ?? legacyCourseOverGround
+  const deviceHeadingAvailable = deviceHeading != null && Number.isFinite(deviceHeading)
+  const travelHeadingAvailable = courseOverGround != null && Number.isFinite(courseOverGround)
+  const normalizedDeviceHeading = deviceHeadingAvailable ? normalizeBearing(deviceHeading) : 0
+  const normalizedTravelHeading = travelHeadingAvailable ? normalizeBearing(courseOverGround) : 0
+  const deviceAligned = orientation === 'device' && deviceHeadingAvailable
+  const mapRotation = deviceAligned ? -normalizedDeviceHeading : 0
+  const mapTransform = deviceAligned
+    ? `translate(${PLOT_CENTER.x} ${PLOT_CENTER.y}) rotate(${mapRotation}) scale(${DEVICE_ALIGNED_SCALE}) translate(${-PLOT_CENTER.x} ${-PLOT_CENTER.y})`
+    : `rotate(0 ${PLOT_CENTER.x} ${PLOT_CENTER.y})`
+  const deviceHeadingLabel = Math.round(normalizedDeviceHeading).toString().padStart(3, '0')
+  const travelHeadingLabel = Math.round(normalizedTravelHeading).toString().padStart(3, '0')
+  const plotLabel = deviceAligned
+    ? `Offline course plot, device aligned at ${deviceHeadingLabel} degrees`
+    : 'Offline course plot, north up'
+  const currentLabel = travelHeadingAvailable ? `You, travelling ${travelHeadingLabel} degrees` : 'You, direction unavailable'
 
   return (
     <div className={`course-plot ${compact ? 'course-plot--compact' : ''}`} aria-label="Offline course plot">
-      <svg viewBox="0 0 400 310" role="img" aria-label="Offline course plot">
+      <svg viewBox="0 0 400 310" role="img" aria-label={plotLabel}>
         <defs>
           <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
             <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(160,205,218,.09)" strokeWidth="1" />
@@ -82,45 +107,49 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
           </linearGradient>
         </defs>
         <rect width="400" height="310" fill="url(#sea)" />
-        <rect width="400" height="310" fill="url(#grid)" />
-        <path d="M0 245 C70 217 112 252 175 222 C238 193 284 235 400 174 L400 310 L0 310Z" fill="#173c3c" opacity=".55" />
-        {path && <polyline points={path} fill="none" stroke="#f5f1e8" strokeWidth="2.5" strokeDasharray="6 7" opacity=".72" />}
-        {gates.map((gate) => {
-          const waypoint = race.course[gate.waypointIndex]
-          if (sharedStartFinish && isFinishWaypoint(waypoint)) return null
-          const pin = project(gate.pointA)
-          const boat = project(gate.pointB)
-          const midpoint = { x: (pin.x + boat.x) / 2, y: (pin.y + boat.y) / 2 }
-          const label = sharedStartFinish && isStartWaypoint(waypoint) ? 'START / FINISH' : `${gate.waypointIndex + 1} · ${gate.shortName}`
-          return <g key={`${gate.id}-${gate.waypointIndex}`}><line x1={pin.x} y1={pin.y} x2={boat.x} y2={boat.y} stroke={isFinishWaypoint(waypoint) ? '#53d3c2' : '#ff6b35'} strokeWidth="5" /><text x={midpoint.x + 8} y={midpoint.y - 7} fill="#f5f1e8" fontSize="10" fontWeight="700">{label}</text></g>
-        })}
-        {courseMarks.map((mark, index) => {
-          const point = project(mark.coordinate)
-          const active = mark.id === activeMarkId
-          return (
-            <g key={`${mark.id}-${index}`} transform={`translate(${point.x} ${point.y})`}>
-              {active && <circle r="17" fill="none" stroke="#ff6b35" strokeWidth="2" className="pulse-ring" />}
-              <circle r="9" fill={active ? '#ff6b35' : '#f5f1e8'} stroke="#071b2f" strokeWidth="3" />
-              <text x="13" y="4" fill="#f5f1e8" fontSize="10" fontWeight="700">{mark.waypointIndex + 1} · {mark.shortName}</text>
-            </g>
-          )
-        })}
-        {current && (() => {
-          const point = project(current)
-          return (
-            <g transform={`translate(${point.x} ${point.y})`}>
-              <circle r="12" fill="#53d3c2" opacity=".2" />
-              <path d="M0 -10 L7 8 L0 5 L-7 8Z" fill="#53d3c2" stroke="#071b2f" strokeWidth="2" />
-              <text x="12" y="4" fill="#53d3c2" fontSize="9" fontWeight="800">YOU</text>
-            </g>
-          )
-        })()}
+        <g className="course-plot__orientation-layer" transform={mapTransform}>
+          <rect width="400" height="310" fill="url(#grid)" />
+          <path d="M0 245 C70 217 112 252 175 222 C238 193 284 235 400 174 L400 310 L0 310Z" fill="#173c3c" opacity=".55" />
+          {path && <polyline points={path} fill="none" stroke="#f5f1e8" strokeWidth="2.5" strokeDasharray="6 7" opacity=".72" />}
+          {gates.map((gate) => {
+            const waypoint = race.course[gate.waypointIndex]
+            if (sharedStartFinish && isFinishWaypoint(waypoint)) return null
+            const pin = project(gate.pointA)
+            const boat = project(gate.pointB)
+            const midpoint = { x: (pin.x + boat.x) / 2, y: (pin.y + boat.y) / 2 }
+            const label = sharedStartFinish && isStartWaypoint(waypoint) ? 'START / FINISH' : `${gate.waypointIndex + 1} · ${gate.shortName}`
+            return <g key={`${gate.id}-${gate.waypointIndex}`}><line x1={pin.x} y1={pin.y} x2={boat.x} y2={boat.y} stroke={isFinishWaypoint(waypoint) ? '#53d3c2' : '#ff6b35'} strokeWidth="5" /><text x={midpoint.x + 8} y={midpoint.y - 7} transform={deviceAligned ? `rotate(${normalizedDeviceHeading} ${midpoint.x} ${midpoint.y})` : undefined} fill="#f5f1e8" fontSize="10" fontWeight="700">{label}</text></g>
+          })}
+          {courseMarks.map((mark, index) => {
+            const point = project(mark.coordinate)
+            const active = mark.id === activeMarkId
+            return (
+              <g key={`${mark.id}-${index}`} transform={`translate(${point.x} ${point.y})`}>
+                {active && <circle r="17" fill="none" stroke="#ff6b35" strokeWidth="2" className="pulse-ring" />}
+                <circle r="9" fill={active ? '#ff6b35' : '#f5f1e8'} stroke="#071b2f" strokeWidth="3" />
+                <text x="13" y="4" transform={deviceAligned ? `rotate(${normalizedDeviceHeading})` : undefined} fill="#f5f1e8" fontSize="10" fontWeight="700">{mark.waypointIndex + 1} · {mark.shortName}</text>
+              </g>
+            )
+          })}
+          {current && (() => {
+            const point = project(current)
+            return (
+              <g transform={`translate(${point.x} ${point.y})`} aria-label={currentLabel}>
+                <circle r="12" fill="#53d3c2" opacity=".2" />
+                <g className="course-plot__you-direction" transform={`rotate(${normalizedTravelHeading})`}><path d="M0 -10 L7 8 L0 5 L-7 8Z" fill="#53d3c2" stroke="#071b2f" strokeWidth="2" /></g>
+                <text x="12" y="4" transform={deviceAligned ? `rotate(${normalizedDeviceHeading})` : undefined} fill="#53d3c2" fontSize="9" fontWeight="800">YOU</text>
+              </g>
+            )
+          })()}
+        </g>
       </svg>
       <div className="map-label map-label--left"><Crosshair size={13} /> Offline plot</div>
-      <div className="map-label map-label--right"><Navigation size={13} /> True north</div>
+      <div className="map-label map-label--right"><Navigation size={13} /> {deviceAligned ? `Device ${deviceHeadingLabel}°` : 'North up'}</div>
       <div className="map-controls">
         <button aria-label="Recenter on current location" disabled={!current} onClick={() => setView('current')}><LocateFixed size={15} /> <span>Recenter</span></button>
         <button aria-label="Fit all course waypoints" disabled={coursePoints.length === 0} onClick={() => setView('course')}><Maximize2 size={15} /> <span>Fit course</span></button>
+        <button aria-label="North up" aria-pressed={!deviceAligned} onClick={() => setOrientation('north')}><Compass size={15} /> <span>North</span></button>
+        <button aria-label="Device aligned" aria-pressed={deviceAligned} disabled={!deviceHeadingAvailable} onClick={() => setOrientation('device')}><Navigation size={15} /> <span>Device</span></button>
       </div>
       {current && <div className="map-current-label"><span /> Current location</div>}
       <div className="map-watermark"><Flag size={12} /> PIN END</div>
