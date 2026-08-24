@@ -40,6 +40,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     updateSession,
   } = useApp()
   const [showRounding, setShowRounding] = useState(false)
+  const [showPrestartWarning, setShowPrestartWarning] = useState(false)
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
   const [marine, setMarine] = useState<MarineSnapshot | null>(null)
   const navigationReading = latestReading ?? session.telemetry.at(-1) ?? null
@@ -101,10 +102,22 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const selectPrevious = async () => {
     setShowRounding(false)
     if (session.activeWaypointIndex === 0) {
-      await updateSession({ phase: 'prestart', autoStartArmed: false })
+      setShowPrestartWarning(true)
       return
     }
     await updateSession({ activeWaypointIndex: session.activeWaypointIndex - 1 })
+  }
+
+  const returnToPrestart = async () => {
+    await updateSession({
+      phase: 'prestart',
+      syncedStartTime: Date.parse(race.scheduledStart),
+      autoStartArmed: false,
+      activeWaypointIndex: 0,
+      telemetry: [],
+      roundedAt: {},
+    })
+    setShowPrestartWarning(false)
   }
 
   const selectNext = async () => {
@@ -189,6 +202,19 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
             </div>
             <button className="button button--orange button--wide" onClick={() => void advance()}><Check size={18} /> Confirm & advance</button>
             <button className="button button--ghost button--wide" onClick={() => setShowRounding(false)}>Keep current mark</button>
+          </div>
+        </div>
+      )}
+
+      {showPrestartWarning && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Return to pre-start?">
+          <div className="rounding-modal">
+            <div className="rounding-modal__icon"><AlertTriangle size={26} /></div>
+            <span className="eyebrow">Reset race timing</span>
+            <h2>Return to pre-start?</h2>
+            <p>This will clear all timing data for this race.</p>
+            <button className="button button--orange button--wide" onClick={() => void returnToPrestart()}>Clear timing &amp; enter pre-start</button>
+            <button className="button button--ghost button--wide" onClick={() => setShowPrestartWarning(false)}>Stay in race</button>
           </div>
         </div>
       )}
