@@ -520,6 +520,12 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .race-marks-tabs { width: min(420px, 100%); margin: 0 auto 16px; }
 .race-mark-list { display: grid; gap: 9px; margin-top: 16px; }
 .course-builder { display: grid; gap: 12px; }
+.course-builder .race-mark-list { gap: 0; }
+.course-mark-slot { display: grid; }
+.course-insert-mark { width: 100%; height: 42px; display: grid; grid-template-columns: 1fr 34px 1fr; align-items: center; color: var(--teal); background: transparent; }
+.course-insert-mark span { height: 1px; border-top: 1px dashed #9fb4b3; }
+.course-insert-mark svg { width: 30px; height: 30px; justify-self: center; padding: 6px; border: 1px solid #9bc2bd; border-radius: 50%; background: var(--paper); box-shadow: 0 2px 6px rgba(7, 27, 47, .08); }
+.course-insert-mark:hover svg, .course-insert-mark:focus-visible svg { border-color: var(--teal); color: white; background: var(--teal); }
 .course-mark-entry { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 9px; align-items: stretch; transition: opacity .15s, transform .15s; }
 .course-mark-entry--dragging { opacity: .45; transform: scale(.99); }
 .course-mark-entry--drop-target .race-mark-row { outline: 2px solid var(--orange); outline-offset: 2px; }
@@ -545,6 +551,11 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .rounding-arrow.is-selected { opacity: 1; background: white; box-shadow: 0 2px 8px rgba(7, 27, 47, .12); }
 .rounding-arrow--port.is-selected { border-color: #e8a39d; background: #fff3f1; }
 .rounding-arrow--starboard.is-selected { border-color: #8ec9ad; background: #effaf4; }
+.mark-rounding-picker { margin: 14px 0; padding: 0; border: 0; }
+.mark-rounding-picker legend { margin-bottom: 7px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.mark-rounding-picker > div { display: flex; gap: 8px; }
+.selected-mark-summary { margin: 12px 0; padding: 11px 12px; display: flex; align-items: center; gap: 8px; border-radius: 10px; color: var(--teal-dark); background: var(--teal-pale); font-size: 12px; font-weight: 700; text-transform: capitalize; }
+.field-error { margin: 10px 0; color: #a73527; font-size: 10px; font-weight: 800; }
 .course-mark-remove { color: #71838b; }
 .course-mark-remove:hover { border-color: #d69088; color: #a72e25; background: #fff3f1; }
 .race-mark-row__main { min-width: 0; display: grid; gap: 2px; }
@@ -563,6 +574,11 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .mark-map-editor__map { position: relative; min-height: 0; }
 .mark-map-editor__map .point-picker { height: 100%; margin: 0; border-radius: 0; }
 .mark-map-editor__map .point-picker > svg { height: 100%; }
+.position-here-actions { position: absolute; z-index: 4; left: 12px; top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.position-here-actions .button { min-height: 36px; padding: 7px 10px; border-color: rgba(255,255,255,.35); color: white; background: rgba(5,28,42,.88); box-shadow: 0 4px 16px rgba(0,0,0,.22); }
+.position-here-actions .button:disabled { opacity: .45; }
+.position-here-status { flex-basis: 100%; width: min(290px, calc(100vw - 24px)); padding: 6px 8px; border-radius: 7px; color: white; background: rgba(5,28,42,.88); font-size: 9px; font-weight: 700; }
+.gate-position-error { margin-right: auto; color: #a73527; font-size: 10px; font-weight: 800; }
 .mark-map-editor__actions { padding: 10px 14px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); background: var(--paper); }
 .mark-map-editor__sightings { position: absolute; z-index: 3; right: 12px; bottom: 12px; width: min(330px, calc(100% - 24px)); max-height: 150px; padding: 10px; overflow-y: auto; border: 1px solid rgba(255,255,255,.25); border-radius: 12px; color: white; background: rgba(5, 28, 42, .9); box-shadow: 0 8px 28px rgba(0,0,0,.25); }
 .mark-map-editor__sightings > strong { display: block; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; }
@@ -589,7 +605,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .race-picker strong, .race-picker span, .race-picker small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .race-picker span { color: var(--muted); font-size: .67rem; }
 .race-picker small { color: var(--teal-dark); font-size: .62rem; font-weight: 800; }
-.new-race-form { margin-bottom: 1rem; padding: .85rem; border: 1px solid var(--line); border-radius: 13px; background: var(--fog); }
+.new-race-panel { border-color: rgba(255,107,53,.38); background: #fffaf5; box-shadow: 0 10px 30px rgba(83,48,25,.08); }
 .new-race-form__actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .7rem; }
 .point-picker__zoom { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; gap: 5px; }
 .point-picker__zoom button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid rgba(255,255,255,.45); border-radius: 8px; background: rgba(5, 28, 42, .9); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.25); }

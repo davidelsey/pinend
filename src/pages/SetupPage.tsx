@@ -32,8 +32,10 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
   const [crewEntry, setCrewEntry] = useState('')
   const [showNewRace, setShowNewRace] = useState(false)
-  const [newRace, setNewRace] = useState({ series: '', name: '', fleet: race.fleet, scheduledStart: toLocalInput(new Date(Date.now() + 86_400_000).toISOString()) })
+  const [newRace, setNewRace] = useState({ series: '', name: '', fleet: race.fleet, scheduledStart: toLocalInput(new Date(Date.now() + 3_600_000).toISOString()) })
   const courseReady = race.course.length > 0 && race.course.every((waypoint) => marks.some((item) => item.id === waypoint.markId))
+  const seriesOptions = [...new Set(races.map((item) => item.series).filter(Boolean))].sort()
+  const fleetOptions = [...new Set(races.map((item) => item.fleet).filter(Boolean))].sort()
 
   useEffect(() => {
     void fetchForecast(cyca.coordinate).then(setForecast)
@@ -66,7 +68,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
     await saveRace(created)
     await updateSession({ id: crypto.randomUUID(), raceId: created.id, phase: 'setup', autoStartArmed: true, syncedStartTime: Date.parse(created.scheduledStart), activeWaypointIndex: 0, telemetry: [], roundedAt: {} })
     setShowNewRace(false)
-    setNewRace({ series: '', name: '', fleet: created.fleet, scheduledStart: toLocalInput(new Date(Date.now() + 86_400_000).toISOString()) })
+    setNewRace({ series: '', name: '', fleet: created.fleet, scheduledStart: toLocalInput(new Date(Date.now() + 3_600_000).toISOString()) })
   }
 
   const chooseRace = (raceId: string) => {
@@ -120,24 +122,33 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
         <div className="content-stack">
           <section className="panel">
             <div className="panel__heading">
-              <div><span className="step-number">01</span><h2>Race details</h2></div>
+              <div><span className="step-number">01</span><h2>Choose race</h2></div>
               <button className="button button--secondary button--compact" onClick={() => setShowNewRace((visible) => !visible)}><Plus size={14} /> New race</button>
             </div>
             <div className="race-picker" role="list" aria-label="Races">
-              {races.map((item) => <div role="listitem" key={item.id}><button className={item.id === race.id ? 'is-selected' : ''} onClick={() => chooseRace(item.id)}><strong>{item.name}</strong><span>{item.series} · {item.fleet}</span><small>{new Date(item.scheduledStart).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</small></button></div>)}
+              {races.map((item) => <div role="listitem" key={item.id}><button className={item.id === race.id ? 'is-selected' : ''} aria-current={item.id === race.id ? 'true' : undefined} onClick={() => chooseRace(item.id)}><strong>{item.name}</strong><span>{item.series} · {item.fleet}</span><small>{new Date(item.scheduledStart).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</small></button></div>)}
             </div>
-            {showNewRace && <div className="new-race-form" role="group" aria-label="New race details">
-              <div className="form-grid"><label className="field"><span>Series</span><input value={newRace.series} onChange={(event) => setNewRace({ ...newRace, series: event.target.value })} /></label><label className="field"><span>Race name</span><input autoFocus value={newRace.name} onChange={(event) => setNewRace({ ...newRace, name: event.target.value })} /></label><label className="field"><span>Fleet</span><input value={newRace.fleet} onChange={(event) => setNewRace({ ...newRace, fleet: event.target.value })} /></label><label className="field"><span>Scheduled start</span><input type="datetime-local" value={newRace.scheduledStart} onChange={(event) => setNewRace({ ...newRace, scheduledStart: event.target.value })} /></label></div>
-              <div className="new-race-form__actions"><button className="button button--secondary" onClick={() => setShowNewRace(false)}>Cancel</button><button className="button button--primary" disabled={!newRace.name.trim() || !newRace.scheduledStart} onClick={() => void createRace()}><Plus size={15} /> Create race</button></div>
-            </div>}
+            <datalist id="setup-series-options">{seriesOptions.map((value) => <option key={value} value={value} />)}</datalist>
+            <datalist id="setup-fleet-options">{fleetOptions.map((value) => <option key={value} value={value} />)}</datalist>
+          </section>
+
+          {showNewRace && <section className="panel new-race-panel" role="group" aria-label="New race details">
+            <div className="panel__heading"><div><Plus size={18} /><h2>Create new race</h2></div></div>
+            <label className="field"><span>Club</span><div className="select-like"><strong>{cyca.shortName}</strong><span>{cyca.name}</span></div></label>
+            <div className="form-grid"><label className="field"><span>Series</span><input role="combobox" list="setup-series-options" value={newRace.series} onChange={(event) => setNewRace({ ...newRace, series: event.target.value })} /></label><label className="field"><span>Race name</span><input autoFocus value={newRace.name} onChange={(event) => setNewRace({ ...newRace, name: event.target.value })} /></label><label className="field"><span>Fleet</span><input role="combobox" list="setup-fleet-options" value={newRace.fleet} onChange={(event) => setNewRace({ ...newRace, fleet: event.target.value })} /></label><label className="field"><span>Scheduled start</span><input type="datetime-local" value={newRace.scheduledStart} onChange={(event) => setNewRace({ ...newRace, scheduledStart: event.target.value })} /></label></div>
+            <div className="new-race-form__actions"><button className="button button--secondary" onClick={() => setShowNewRace(false)}>Cancel</button><button className="button button--primary" disabled={!newRace.name.trim() || !newRace.scheduledStart} onClick={() => void createRace()}><Plus size={15} /> Create race</button></div>
+          </section>}
+
+          {!showNewRace && <><section className="panel">
+            <div className="panel__heading"><div><span className="step-number">02</span><h2>Current race</h2></div></div>
             <label className="field">
               <span>Club</span>
               <div className="select-like"><strong>{cyca.shortName}</strong><span>{cyca.name}</span><ChevronRight size={16} /></div>
             </label>
             <div className="form-grid">
-              <label className="field"><span>Series</span><input value={race.series} onChange={(e) => updateRaceField('series', e.target.value)} /></label>
+              <label className="field"><span>Series</span><input role="combobox" list="setup-series-options" value={race.series} onChange={(e) => updateRaceField('series', e.target.value)} /></label>
               <label className="field"><span>Race</span><input value={race.name} onChange={(e) => updateRaceField('name', e.target.value)} /></label>
-              <label className="field"><span>Fleet</span><input value={race.fleet} onChange={(e) => updateRaceField('fleet', e.target.value)} /></label>
+              <label className="field"><span>Fleet</span><input role="combobox" list="setup-fleet-options" value={race.fleet} onChange={(e) => updateRaceField('fleet', e.target.value)} /></label>
               <label className="field">
                 <span>Scheduled start</span>
                 <input
@@ -151,7 +162,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
 
           <section className="panel">
             <div className="panel__heading">
-              <div><span className="step-number">02</span><h2>Crew</h2></div>
+              <div><span className="step-number">03</span><h2>Crew</h2></div>
               <span className="chip"><UserRound size={13} /> {crewAssignments.length} racing</span>
             </div>
             <section className="crew-planner" aria-label="Crew">
@@ -181,7 +192,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
 
           <section className="panel">
             <div className="panel__heading">
-              <div><span className="step-number">03</span><h2>Sails aboard</h2></div>
+              <div><span className="step-number">04</span><h2>Sails aboard</h2></div>
               <span className="chip"><Sailboat size={13} /> {boat.name}</span>
             </div>
             <div className="sail-checklist">
@@ -200,10 +211,10 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
                 )
               })}
             </div>
-          </section>
+          </section></>}
         </div>
 
-        <aside className="sidebar-stack">
+        {!showNewRace && <aside className="sidebar-stack">
           <section className="panel weather-panel">
             <div className="panel__heading"><div><CloudSun size={18} /><h2>Forecast</h2></div><span className="chip">{forecast?.stale ? 'Cached' : 'Latest'}</span></div>
             {forecast?.hours.slice(0, 3).map((hour, index) => (
@@ -227,13 +238,13 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
             <button className="button button--secondary button--wide" onClick={onEnableSensors}>Prepare device sensors</button>
           </section>
           <DevSimulator />
-        </aside>
+        </aside>}
       </div>
 
-      <div className="sticky-action">
+      {!showNewRace && <div className="sticky-action">
         <div><strong>{courseReady ? 'Race pack ready' : 'Add at least one course mark'}</strong><span>{race.course.length} marks · {session.selectedSailIds.length} sails · saved on device</span></div>
         <button className="button button--primary" disabled={!courseReady} onClick={onConfirmCourse}>Confirm course <ChevronRight size={18} /></button>
-      </div>
+      </div>}
     </div>
   )
 }

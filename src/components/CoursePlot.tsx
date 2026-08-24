@@ -28,6 +28,13 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
     const pointB = isStartWaypoint(waypoint) && line ? line.committee : mark.position.pointB
     return pointA && pointB ? [{ ...mark, pointA, pointB, waypointIndex }] : []
   })
+  const startGate = gates.find((gate) => isStartWaypoint(race.course[gate.waypointIndex]))
+  const finishGate = gates.find((gate) => isFinishWaypoint(race.course[gate.waypointIndex]))
+  const sameCoordinate = (first: Coordinate, second: Coordinate) => Math.abs(first.latitude - second.latitude) < 1e-7 && Math.abs(first.longitude - second.longitude) < 1e-7
+  const sharedStartFinish = Boolean(startGate && finishGate && (
+    (sameCoordinate(startGate.pointA, finishGate.pointA) && sameCoordinate(startGate.pointB, finishGate.pointB))
+    || (sameCoordinate(startGate.pointA, finishGate.pointB) && sameCoordinate(startGate.pointB, finishGate.pointA))
+  ))
   const allPoints = [
     ...courseMarks.map((mark) => mark.coordinate),
     ...(current ? [current] : []),
@@ -79,10 +86,13 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact }
         <path d="M0 245 C70 217 112 252 175 222 C238 193 284 235 400 174 L400 310 L0 310Z" fill="#173c3c" opacity=".55" />
         {path && <polyline points={path} fill="none" stroke="#f5f1e8" strokeWidth="2.5" strokeDasharray="6 7" opacity=".72" />}
         {gates.map((gate) => {
+          const waypoint = race.course[gate.waypointIndex]
+          if (sharedStartFinish && isFinishWaypoint(waypoint)) return null
           const pin = project(gate.pointA)
           const boat = project(gate.pointB)
           const midpoint = { x: (pin.x + boat.x) / 2, y: (pin.y + boat.y) / 2 }
-          return <g key={`${gate.id}-${gate.waypointIndex}`}><line x1={pin.x} y1={pin.y} x2={boat.x} y2={boat.y} stroke={isFinishWaypoint(race.course[gate.waypointIndex]) ? '#53d3c2' : '#ff6b35'} strokeWidth="5" /><text x={midpoint.x + 8} y={midpoint.y - 7} fill="#f5f1e8" fontSize="10" fontWeight="700">{gate.waypointIndex + 1} · {gate.shortName}</text></g>
+          const label = sharedStartFinish && isStartWaypoint(waypoint) ? 'START / FINISH' : `${gate.waypointIndex + 1} · ${gate.shortName}`
+          return <g key={`${gate.id}-${gate.waypointIndex}`}><line x1={pin.x} y1={pin.y} x2={boat.x} y2={boat.y} stroke={isFinishWaypoint(waypoint) ? '#53d3c2' : '#ff6b35'} strokeWidth="5" /><text x={midpoint.x + 8} y={midpoint.y - 7} fill="#f5f1e8" fontSize="10" fontWeight="700">{label}</text></g>
         })}
         {courseMarks.map((mark, index) => {
           const point = project(mark.coordinate)
