@@ -22,7 +22,7 @@ function MarkRow({ mark, waypoint, isFinish = false, finishLinked = false, onFin
       <div className="race-mark-row__main">
         <strong>{mark.name}</strong>
         <span>{mark.position.kind === 'gate' ? 'Two-point gate' : waypoint ? `Round to ${waypoint.rounding}` : `${mark.position.kind} mark`}</span>
-        <small>{isFinish && finishLinked ? 'Locked to the start gate' : coordinate ? `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}` : mark.position.kind === 'gate' ? 'Position or sight both Pin and Boat ends' : 'Position required for this race'}</small>
+        <small>{isFinish && finishLinked ? 'Locked to the start gate' : coordinate ? mark.position.kind === 'gate' ? 'Two-point line' : mark.position.kind === 'fixed' ? 'Fixed position' : 'Movable mark positioned' : mark.position.kind === 'gate' ? 'Position or sight both Pin and Boat ends' : 'Position required for this race'}</small>
       </div>
       {waypoint && mark.position.kind !== 'gate' && <div className="course-mark-controls" role="radiogroup" aria-label={`Rounding for ${mark.name}`}>
         <label className={`rounding-arrow rounding-arrow--port ${waypoint.rounding === 'port' ? 'is-selected' : ''}`}><input type="radio" name={`rounding-${waypoint.id}`} aria-label={`Round ${mark.name} to port`} checked={waypoint.rounding === 'port'} onChange={() => onRounding?.('port')} /><CornerUpLeft size={20} /></label>
@@ -227,7 +227,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
         <button role="tab" aria-selected={view === 'marks'} className={view === 'marks' ? 'active' : ''} onClick={() => setView('marks')}>Marks</button>
       </div>
 
-      <CoursePlot marks={marks} race={race} current={latestReading} />
+      <CoursePlot marks={marks} race={race} current={latestReading} zoomControls />
 
       {view === 'course' ? (
         <section className="course-builder" aria-label="Course builder">
