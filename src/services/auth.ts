@@ -14,3 +14,9 @@ export async function signInWithGoogle(): Promise<void> {
   })
   if (error) throw error
 }
+
+export async function signOut(): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}

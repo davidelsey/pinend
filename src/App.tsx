@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Anchor, Bug, CloudOff, Crosshair, LogIn, MapPinned, Radio, Sailboat, Settings, Waves, Wifi } from 'lucide-react'
+import { Anchor, Bug, CloudOff, Crosshair, LogIn, LogOut, MapPinned, Radio, Sailboat, Settings, Waves, Wifi } from 'lucide-react'
 import { AppProvider, useApp } from './app/AppContext'
 import { useDeviceSensors } from './hooks/useDeviceSensors'
 import { useWakeLock } from './hooks/useWakeLock'
-import { isSupabaseConfigured, signInWithGoogle, supabase } from './services/auth'
+import { isSupabaseConfigured, signInWithGoogle, signOut, supabase } from './services/auth'
 import { isStartWaypoint } from './domain/course'
 import { BoatPage } from './pages/BoatPage'
 import { MarksPage } from './pages/MarksPage'
@@ -107,6 +107,7 @@ function PinEndApp() {
           <div className="app-header__status">
             <span className={`connection ${online ? '' : 'connection--offline'}`}>{online ? <Wifi size={14} /> : <CloudOff size={14} />}{online ? 'Online' : 'Offline ready'}</span>
             <span className="sensor-mini"><Radio size={14} /> {sensors.status}</span>
+            {supabase && <button className="icon-button" aria-label="Sign out" title="Sign out" onClick={() => void signOut()}><LogOut size={16} /></button>}
           </div>
         </header>
       )}

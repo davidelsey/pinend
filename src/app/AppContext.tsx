@@ -13,7 +13,9 @@ import type {
 } from '../domain/types'
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 import { configureSimulator as configureSimulatorState, createSimulator, moveSimulator, setSimulatorPosition, type SimulatorState } from '../services/simulator'
-import { createRaceRepository, seedDatabase } from '../services/repository'
+import { createRaceRepository, database, seedDatabase } from '../services/repository'
+import { hydrateCloudState, scheduleCloudSync } from '../services/cloudSync'
+import { supabase } from '../services/auth'
 
 type AppContextValue = {
   loading: boolean
@@ -88,6 +90,7 @@ function readSimulatorSnapshot(fallback: SimulatorState): SimulatorSnapshot {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const cloudUserRef = useRef<Awaited<ReturnType<NonNullable<typeof supabase>['auth']['getUser']>>['data']['user']>(null)
   const repository = useMemo(() => createRaceRepository(), [])
   const [loading, setLoading] = useState(true)
   const [online, setOnline] = useState(navigator.onLine)
@@ -110,6 +113,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void (async () => {
       await seedDatabase()
+      if (supabase) {
+        const { data } = await supabase.auth.getUser()
+        cloudUserRef.current = data.user
+        if (data.user) {
+          try {
+            await hydrateCloudState(data.user)
+          } catch (error) {
+            console.error('Pin End cloud hydration failed; continuing offline', error)
+          }
+        }
+      }
       const data = await repository.loadAll()
       const activeSession = data.session ?? createSeedSession()
       const storedObservations = await repository.getObservations(activeSession.id)
@@ -129,8 +143,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })()
   }, [repository])
 
+  const syncCloud = useCallback(() => {
+    if (cloudUserRef.current) scheduleCloudSync(cloudUserRef.current, database)
+  }, [])
+
   useEffect(() => {
-    const goOnline = () => setOnline(true)
+    const goOnline = () => {
+      setOnline(true)
+      syncCloud()
+    }
     const goOffline = () => setOnline(false)
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
@@ -138,7 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', goOnline)
       window.removeEventListener('offline', goOffline)
     }
-  }, [])
+  }, [syncCloud])
 
   useEffect(() => {
     if (!import.meta.env.DEV) return
@@ -180,12 +201,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSession(next)
       if (patch.telemetry?.length === 0) await repository.resetSession(next)
       else await repository.saveSession(next)
+      syncCloud()
       if (patch.phase === 'finished') {
         const completed = await repository.getSessionForRace(next.raceId)
         if (completed?.id === next.id) setSession(completed)
       }
     },
-    [repository, session],
+    [repository, session, syncCloud],
   )
 
   const saveMark = async (mark: Mark) => {
@@ -198,6 +220,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMarks((current) => [...current.filter((item) => item.id !== mark.id && item.id !== syncedFinish?.id), mark, ...(syncedFinish ? [syncedFinish] : [])])
     if (syncedFinish) await repository.saveMarks([mark, syncedFinish])
     else await repository.saveMark(mark)
+    syncCloud()
   }
 
   const saveBoat = async (next: Boat) => {
@@ -205,6 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBoat(next)
     localStorage.setItem('pin-end-selected-boat', next.id)
     await repository.saveBoat(next)
+    syncCloud()
   }
 
   const selectBoat = (boatId: string) => {
@@ -218,11 +242,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveSail = async (sail: Sail) => {
     setAllSails((current) => [...current.filter((item) => item.id !== sail.id), sail])
     await repository.saveSail(sail)
+    syncCloud()
   }
 
   const saveCrewMember = async (member: CrewMember) => {
     setCrew((current) => [...current.filter((item) => item.id !== member.id), member])
     await repository.saveCrewMember(member)
+    syncCloud()
   }
 
   const saveRace = async (next: RaceDefinition) => {
@@ -234,6 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRace(normalized)
     setRaces((current) => [...current.filter((item) => item.id !== normalized.id), normalized])
     await repository.saveRace(normalized)
+    syncCloud()
   }
 
   const mutateRace = async (mutator: (race: RaceDefinition) => RaceDefinition) => saveRace(mutator(raceRef.current))
@@ -251,16 +278,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSession(next)
     setObservations(selectedObservations)
     await repository.saveSession(next)
+    syncCloud()
   }
 
   const saveObservation = async (observation: LineObservation) => {
     setObservations((current) => [...current, observation])
     await repository.saveObservation(observation)
+    syncCloud()
   }
 
   const deleteObservation = async (id: string) => {
     setObservations((current) => current.filter((observation) => observation.id !== id))
     await repository.deleteObservation(id)
+    syncCloud()
   }
 
   const configureSimulator = (patch: Partial<Pick<SimulatorState, 'heading' | 'speedKnots' | 'accuracy'>>) =>

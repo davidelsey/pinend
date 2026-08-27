@@ -4,6 +4,18 @@ import type { Boat, Coordinate, CrewMember, LineObservation, Mark, RaceDefinitio
 
 type StoredTelemetry = SensorReading & { id: string; sessionId: string }
 
+export type RepositorySnapshot = {
+  version: 1
+  marks: Mark[]
+  boats: Boat[]
+  sails: Sail[]
+  races: RaceDefinition[]
+  sessions: RaceSession[]
+  observations: LineObservation[]
+  crew: CrewMember[]
+  telemetry: StoredTelemetry[]
+}
+
 export class PinEndDatabase extends Dexie {
   marks!: EntityTable<Mark, 'id'>
   boats!: EntityTable<Boat, 'id'>
@@ -93,6 +105,61 @@ export async function seedDatabase(db = database): Promise<void> {
     await db.sails.bulkPut(seedSails)
     await db.races.put(seedRace)
     await db.sessions.put(createSeedSession())
+  })
+}
+
+export async function exportRepositorySnapshot(db = database): Promise<RepositorySnapshot> {
+  const [marks, boats, sails, races, sessions, observations, crew, telemetry] = await Promise.all([
+    db.marks.toArray(),
+    db.boats.toArray(),
+    db.sails.toArray(),
+    db.races.toArray(),
+    db.sessions.toArray(),
+    db.observations.toArray(),
+    db.crew.toArray(),
+    db.telemetry.toArray(),
+  ])
+  return { version: 1, marks, boats, sails, races, sessions, observations, crew, telemetry }
+}
+
+export async function importRepositorySnapshot(snapshot: RepositorySnapshot, db = database): Promise<void> {
+  if (snapshot.version !== 1) throw new Error(`Unsupported cloud data version: ${snapshot.version}`)
+  await db.transaction('rw', [db.marks, db.boats, db.sails, db.races, db.sessions, db.observations, db.crew, db.telemetry], async () => {
+    await Promise.all([
+      db.marks.clear(),
+      db.boats.clear(),
+      db.sails.clear(),
+      db.races.clear(),
+      db.sessions.clear(),
+      db.observations.clear(),
+      db.crew.clear(),
+      db.telemetry.clear(),
+    ])
+    await Promise.all([
+      snapshot.marks.length ? db.marks.bulkPut(snapshot.marks) : Promise.resolve(),
+      snapshot.boats.length ? db.boats.bulkPut(snapshot.boats) : Promise.resolve(),
+      snapshot.sails.length ? db.sails.bulkPut(snapshot.sails) : Promise.resolve(),
+      snapshot.races.length ? db.races.bulkPut(snapshot.races) : Promise.resolve(),
+      snapshot.sessions.length ? db.sessions.bulkPut(snapshot.sessions) : Promise.resolve(),
+      snapshot.observations.length ? db.observations.bulkPut(snapshot.observations) : Promise.resolve(),
+      snapshot.crew.length ? db.crew.bulkPut(snapshot.crew) : Promise.resolve(),
+      snapshot.telemetry.length ? db.telemetry.bulkPut(snapshot.telemetry) : Promise.resolve(),
+    ])
+  })
+}
+
+export async function clearRepository(db = database): Promise<void> {
+  await db.transaction('rw', [db.marks, db.boats, db.sails, db.races, db.sessions, db.observations, db.crew, db.telemetry], async () => {
+    await Promise.all([
+      db.marks.clear(),
+      db.boats.clear(),
+      db.sails.clear(),
+      db.races.clear(),
+      db.sessions.clear(),
+      db.observations.clear(),
+      db.crew.clear(),
+      db.telemetry.clear(),
+    ])
   })
 }
 

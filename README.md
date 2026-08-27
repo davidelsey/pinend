@@ -35,7 +35,7 @@ For triangulation, enable the simulator, open an endpoint or movable-mark viewfi
 - Browser geolocation is only reliable while the PWA is visible. Pin End intentionally assumes the race display remains open.
 - The built-in SVG course plot is always available offline. `VITE_BASEMAP_STYLE_URL` is reserved for a future offline-licensed MapLibre/PMTiles basemap.
 
-## Add Supabase later
+## Deploy to Vercel with Supabase
 
 Copy `.env.example` to `.env.local` and provide:
 
@@ -45,7 +45,12 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 VITE_BASEMAP_STYLE_URL=
 ```
 
-Apply `supabase/migrations/20260823000000_initial_schema.sql` with the Supabase CLI. It enables PostGIS, creates the community and personal data model, and installs row-level security policies.
+Apply the migrations with the Supabase CLI. They enable PostGIS, create the community model, and add a row-level-secured per-user app snapshot used for cloud synchronization.
+
+```sh
+supabase link --project-ref YOUR_PROJECT_REF
+supabase db push
+```
 
 Create a Google OAuth Web client and configure its client ID and secret directly in the Supabase dashboard. Add this redirect URI in Google:
 
@@ -53,9 +58,11 @@ Create a Google OAuth Web client and configure its client ID and secret directly
 https://YOUR_PROJECT.supabase.co/auth/v1/callback
 ```
 
-Add the local and production URLs to Supabase Auth redirect URLs. Never place the Google client secret or a Supabase secret/service-role key in this repository or the browser environment.
+Set the Supabase Auth Site URL to the production Vercel URL. Add `http://localhost:5173/**`, the exact production URL, and (if used) `https://*-YOUR_TEAM_SLUG.vercel.app/**` to the redirect allow list. Never place the Google client secret or a Supabase secret/service-role key in this repository or the browser environment.
 
-The local repository is currently authoritative; the schema is ready for the cloud synchronization adapter when the Supabase project exists. This avoids coupling the offline race path to network availability.
+Import this repository into Vercel, keep the detected Vite settings, and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` to the Production and Preview environments. `vercel.json` supplies the SPA fallback and safe service-worker caching headers.
+
+The browser database remains authoritative while sailing. When signed in and online, changes are batched into the user's Supabase snapshot; on a new device, that snapshot hydrates the local database at startup. If Supabase is unreachable, startup and race recording continue offline and synchronization retries when connectivity returns or another edit is made.
 
 ## Data and safety notes
 

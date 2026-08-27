@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { PinEndDatabase, createRaceRepository } from './repository'
+import { PinEndDatabase, createRaceRepository, exportRepositorySnapshot, importRepositorySnapshot } from './repository'
 import type { LineObservation, RaceSession } from '../domain/types'
 
 describe('offline race repository', () => {
@@ -54,5 +54,24 @@ describe('offline race repository', () => {
     await repository.deleteObservation(observation.id)
 
     await expect(repository.getObservations('session-1')).resolves.toEqual([])
+  })
+
+  it('round-trips all local data through a cloud snapshot', async () => {
+    database = new PinEndDatabase(`pin-end-test-${crypto.randomUUID()}`)
+    const repository = createRaceRepository(database)
+    const session: RaceSession = {
+      id: 'session-cloud', raceId: 'race-cloud', phase: 'racing', syncedStartTime: 100,
+      activeWaypointIndex: 1, selectedSailIds: [], telemetry: [], roundedAt: {}, updatedAt: 200,
+    }
+    const reading = { latitude: -33.86, longitude: 151.24, timestamp: 150, accuracy: 3, heading: 90, speedKnots: 6, source: 'device' as const }
+    await repository.saveSession(session)
+    await repository.saveTelemetry(session.id, reading)
+    const snapshot = await exportRepositorySnapshot(database)
+    await database.sessions.clear()
+    await database.telemetry.clear()
+
+    await importRepositorySnapshot(snapshot, database)
+
+    await expect(repository.getActiveSession()).resolves.toEqual({ ...session, telemetry: [reading] })
   })
 })
