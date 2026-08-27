@@ -4,6 +4,13 @@ import App from './App'
 import { destinationPoint } from './domain/geo'
 import { database } from './services/repository'
 
+vi.mock('./services/auth', () => ({
+  isSupabaseConfigured: false,
+  supabase: null,
+  signInWithGoogle: vi.fn(),
+  signOut: vi.fn(),
+}))
+
 const confirmCourseAndEnterPrestart = async () => {
   fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
   expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()

@@ -13,23 +13,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@protomaps/basemaps": "^5.7.2",
+    "@googlemaps/js-api-loader": "^2.1.1",
     "@supabase/supabase-js": "^2.57.4",
     "dexie": "^4.2.0",
     "lucide-react": "^0.468.0",
-    "maplibre-gl": "^5.6.2",
-    "pmtiles": "^4.5.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "workbox-core": "^7.4.1",
-    "workbox-precaching": "^7.4.1",
-    "workbox-range-requests": "^7.4.1",
-    "workbox-routing": "^7.4.1"
+    "workbox-precaching": "^7.4.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
+    "@types/google.maps": "^3.66.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",

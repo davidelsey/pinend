@@ -1,17 +1,25 @@
-import maplibregl, { type Map as MapLibreMap } from 'maplibre-gl'
 import type { Coordinate } from '../domain/types'
 
-export function coordinatePair(coordinate: Coordinate): [number, number] {
-  return [coordinate.longitude, coordinate.latitude]
+export function googleCoordinate(coordinate: Coordinate): google.maps.LatLngLiteral {
+  return { lat: coordinate.latitude, lng: coordinate.longitude }
 }
 
-export function fitMapToCoordinates(map: MapLibreMap, points: Coordinate[], padding: number) {
+export function fitMapToCoordinates(map: google.maps.Map, points: Coordinate[], padding: number) {
   if (points.length === 0) return
   if (points.length === 1) {
-    map.easeTo({ center: coordinatePair(points[0]), zoom: 15 })
+    map.setCenter(googleCoordinate(points[0]))
+    map.setZoom(15)
     return
   }
-  const bounds = new maplibregl.LngLatBounds(coordinatePair(points[0]), coordinatePair(points[0]))
-  points.slice(1).forEach((point) => bounds.extend(coordinatePair(point)))
-  map.fitBounds(bounds, { padding, maxZoom: 16, duration: 0 })
+  const latitudes = points.map((point) => point.latitude)
+  const longitudes = points.map((point) => point.longitude)
+  map.fitBounds({
+    north: Math.max(...latitudes),
+    south: Math.min(...latitudes),
+    east: Math.max(...longitudes),
+    west: Math.min(...longitudes),
+  }, padding)
+  google.maps.event.addListenerOnce(map, 'idle', () => {
+    if ((map.getZoom() ?? 0) > 16) map.setZoom(16)
+  })
 }

@@ -232,7 +232,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
           <section className="panel readiness-panel">
             <div className="panel__heading"><div><Download size={18} /><h2>Offline readiness</h2></div></div>
             <div className="readiness-item readiness-item--good"><Check size={16} /><span>App & race data</span><strong>Ready</strong></div>
-            <div className="readiness-item readiness-item--good"><Check size={16} /><span>Course plot</span><strong>Ready</strong></div>
+            <div className="readiness-item"><CloudSun size={16} /><span>Google basemap</span><strong>{online ? 'Live' : 'Unavailable'}</strong></div>
             <div className="readiness-item"><Radio size={16} /><span>Device sensors</span><strong>{sensorStatus}</strong></div>
             <div className="readiness-item"><BatteryCharging size={16} /><span>Screen awake</span><strong>On in race</strong></div>
             <div className="readiness-item"><CloudSun size={16} /><span>Forecast</span><strong>{online ? 'Updated' : 'Cached'}</strong></div>

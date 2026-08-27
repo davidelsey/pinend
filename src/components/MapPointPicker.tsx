@@ -1,11 +1,9 @@
 import { Crosshair, MapPin, Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type Marker } from 'maplibre-gl'
-import type { FeatureCollection, LineString } from 'geojson'
 import { destinationPoint } from '../domain/geo'
 import type { Coordinate, LineObservation } from '../domain/types'
-import { createOfflineMap } from '../services/offlineMap'
-import { coordinatePair, fitMapToCoordinates } from '../services/mapCoordinates'
+import { googleMapOptions, loadGoogleMaps } from '../services/googleMaps'
+import { fitMapToCoordinates, googleCoordinate } from '../services/mapCoordinates'
 
 type Props = {
   value: Coordinate | null
@@ -19,7 +17,12 @@ type Props = {
   otherGates?: Array<{ id: string; label: string; pointA: Coordinate; pointB: Coordinate }>
 }
 
-const fromLngLat = ({ lat, lng }: { lat: number; lng: number }): Coordinate => ({ latitude: lat, longitude: lng })
+const fromPosition = (position: google.maps.LatLng | google.maps.LatLngLiteral | null | undefined): Coordinate | null => {
+  if (!position) return null
+  const latitude = typeof position.lat === 'function' ? position.lat() : position.lat
+  const longitude = typeof position.lng === 'function' ? position.lng() : position.lng
+  return { latitude, longitude }
+}
 
 function pinElement(label: string, variant: 'first' | 'second' | 'context') {
   const element = document.createElement('div')
@@ -33,10 +36,13 @@ function pinElement(label: string, variant: 'first' | 'second' | 'context') {
 
 export function MapPointPicker({ value, onChange, secondValue, onSecondChange, endpointLabels = ['Pin', 'Boat'], observations = [], readOnly = false, otherMarks = [], otherGates = [] }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<MapLibreMap | null>(null)
-  const markersRef = useRef<Marker[]>([])
+  const mapRef = useRef<google.maps.Map | null>(null)
+  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
+  const linesRef = useRef<google.maps.Polyline[]>([])
+  const markerClassRef = useRef<typeof google.maps.marker.AdvancedMarkerElement | null>(null)
   const fittedRef = useRef(false)
   const [loaded, setLoaded] = useState(false)
+  const [mapError, setMapError] = useState<string | null>(null)
   const plottedCoordinates = useMemo(() => [
     ...(value ? [value] : []),
     ...(secondValue ? [secondValue] : []),
@@ -47,54 +53,63 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
 
   useEffect(() => {
     if (!containerRef.current) return
-    const map = createOfflineMap(containerRef.current)
-    map.on('load', () => setLoaded(true))
-    mapRef.current = map
+    let cancelled = false
+    void loadGoogleMaps()
+      .then(({ maps, marker }) => {
+        if (cancelled || !containerRef.current) return
+        mapRef.current = new maps.Map(containerRef.current, googleMapOptions({ lat: -33.86, lng: 151.235 }))
+        markerClassRef.current = marker.AdvancedMarkerElement
+        setLoaded(true)
+      })
+      .catch((error: Error) => setMapError(error.message))
     return () => {
-      markersRef.current.forEach((marker) => marker.remove())
+      cancelled = true
+      markersRef.current.forEach((marker) => { marker.map = null })
+      linesRef.current.forEach((line) => line.setMap(null))
       markersRef.current = []
-      map.remove()
+      linesRef.current = []
       mapRef.current = null
+      markerClassRef.current = null
       fittedRef.current = false
     }
   }, [])
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !loaded) return
-    const sightFeatures = observations.map((observation) => ({
-      type: 'Feature' as const,
-      properties: {},
-      geometry: { type: 'LineString' as const, coordinates: [coordinatePair(observation.observer), coordinatePair(destinationPoint(observation.observer, 10, observation.bearingTrue))] },
+    const AdvancedMarkerElement = markerClassRef.current
+    if (!map || !AdvancedMarkerElement || !loaded) return
+    linesRef.current.forEach((line) => line.setMap(null))
+    const sightLines = observations.map((observation) => new google.maps.Polyline({
+      map,
+      path: [googleCoordinate(observation.observer), googleCoordinate(destinationPoint(observation.observer, 10, observation.bearingTrue))],
+      strokeColor: '#f7dd72', strokeWeight: 3, strokeOpacity: 0.9,
     }))
-    const gateFeatures = [
-      ...(value && secondValue ? [{ type: 'Feature' as const, properties: { target: true }, geometry: { type: 'LineString' as const, coordinates: [coordinatePair(value), coordinatePair(secondValue)] } }] : []),
-      ...otherGates.map((gate) => ({ type: 'Feature' as const, properties: { target: false }, geometry: { type: 'LineString' as const, coordinates: [coordinatePair(gate.pointA), coordinatePair(gate.pointB)] } })),
-    ]
-    const updateSource = (id: string, data: FeatureCollection<LineString>) => {
-      const source = map.getSource(id) as GeoJSONSource | undefined
-      if (source) source.setData(data)
-      else map.addSource(id, { type: 'geojson', data })
-    }
-    updateSource('picker-sight-rays', { type: 'FeatureCollection', features: sightFeatures })
-    updateSource('picker-gates', { type: 'FeatureCollection', features: gateFeatures })
-    if (!map.getLayer('picker-sight-rays-line')) map.addLayer({ id: 'picker-sight-rays-line', type: 'line', source: 'picker-sight-rays', paint: { 'line-color': '#f7dd72', 'line-width': 3, 'line-dasharray': [1, 2], 'line-opacity': 0.9 } })
-    if (!map.getLayer('picker-gates-line')) map.addLayer({ id: 'picker-gates-line', type: 'line', source: 'picker-gates', paint: { 'line-color': ['case', ['get', 'target'], '#f5f1e8', '#9eb6bb'], 'line-width': ['case', ['get', 'target'], 4, 2], 'line-dasharray': [2, 2] } })
+    const gateLines = [
+      ...(value && secondValue ? [{ pointA: value, pointB: secondValue, target: true }] : []),
+      ...otherGates.map((gate) => ({ ...gate, target: false })),
+    ].map((gate) => new google.maps.Polyline({
+      map,
+      path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)],
+      strokeColor: gate.target ? '#f5f1e8' : '#6d858a', strokeWeight: gate.target ? 4 : 2, strokeOpacity: 0.9,
+    }))
+    linesRef.current = [...sightLines, ...gateLines]
 
-    markersRef.current.forEach((marker) => marker.remove())
-    const markers: Marker[] = []
+    markersRef.current.forEach((marker) => { marker.map = null })
+    const markers: google.maps.marker.AdvancedMarkerElement[] = []
     const addTarget = (coordinate: Coordinate, label: string, variant: 'first' | 'second', change?: (coordinate: Coordinate) => void) => {
-      const element = pinElement(label, variant)
-      const marker = new maplibregl.Marker({ element, anchor: 'bottom', draggable: !readOnly && Boolean(change) }).setLngLat(coordinatePair(coordinate)).addTo(map)
-      if (!readOnly && change) marker.on('dragend', () => change(fromLngLat(marker.getLngLat())))
+      const marker = new AdvancedMarkerElement({ map, position: googleCoordinate(coordinate), content: pinElement(label, variant), gmpDraggable: !readOnly && Boolean(change) })
+      if (!readOnly && change) marker.addListener('dragend', () => {
+        const next = fromPosition(marker.position)
+        if (next) change(next)
+      })
       markers.push(marker)
     }
     if (value) addTarget(value, secondValue ? endpointLabels[0] : 'Mark', 'first', onChange)
     if (secondValue) addTarget(secondValue, endpointLabels[1], 'second', onSecondChange)
-    otherMarks.forEach((mark) => markers.push(new maplibregl.Marker({ element: pinElement(mark.label, 'context'), anchor: 'bottom' }).setLngLat(coordinatePair(mark.coordinate)).addTo(map)))
+    otherMarks.forEach((mark) => markers.push(new AdvancedMarkerElement({ map, position: googleCoordinate(mark.coordinate), content: pinElement(mark.label, 'context') })))
     otherGates.forEach((gate) => {
-      const midpoint: Coordinate = { latitude: (gate.pointA.latitude + gate.pointB.latitude) / 2, longitude: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
-      markers.push(new maplibregl.Marker({ element: pinElement(gate.label, 'context'), anchor: 'bottom' }).setLngLat(coordinatePair(midpoint)).addTo(map))
+      const midpoint = { lat: (gate.pointA.latitude + gate.pointB.latitude) / 2, lng: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
+      markers.push(new AdvancedMarkerElement({ map, position: midpoint, content: pinElement(gate.label, 'context') }))
     })
     markersRef.current = markers
     if (!fittedRef.current) {
@@ -107,12 +122,13 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
   return (
     <div className="point-picker">
       <div className="point-picker__zoom" aria-label="Map zoom controls">
-        <button type="button" aria-label="Zoom in" disabled={!loaded} onClick={() => mapRef.current?.zoomIn()}><Plus size={17} /></button>
-        <button type="button" aria-label="Zoom out" disabled={!loaded} onClick={() => mapRef.current?.zoomOut()}><Minus size={17} /></button>
+        <button type="button" aria-label="Zoom in" disabled={!loaded} onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 12) + 1)}><Plus size={17} /></button>
+        <button type="button" aria-label="Zoom out" disabled={!loaded} onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 12) - 1)}><Minus size={17} /></button>
       </div>
       <div ref={containerRef} className={`point-picker__map ${readOnly ? 'point-picker__readonly' : ''}`} role="img" aria-label={label} />
+      {mapError && <div className="map-provider-error" role="status">{mapError}</div>}
       <span><Crosshair size={13} /> {readOnly ? 'Sight rays' : secondValue ? 'Drag either pin · pinch to zoom' : 'Drag to position · pinch to zoom'}</span>
-      <i><MapPin size={13} /> Sydney Harbour map</i>
+      <i><MapPin size={13} /> Google Maps · live connection</i>
     </div>
   )
 }

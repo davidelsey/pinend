@@ -33,7 +33,7 @@ For triangulation, enable the simulator, open an endpoint or movable-mark viewfi
 - Race time is reconstructed from timestamps and survives reloads.
 - Race mode requests a screen wake lock and reacquires it after the app becomes visible. Operating systems can still revoke it, so the UI reports the state.
 - Browser geolocation is only reliable while the PWA is visible. Pin End intentionally assumes the race display remains open.
-- The built-in SVG course plot is always available offline. `VITE_BASEMAP_STYLE_URL` is reserved for a future offline-licensed MapLibre/PMTiles basemap.
+- Race data, the simulator, and post-race replay remain available offline. Interactive course and mark-positioning basemaps use Google Maps and require a live connection.
 
 ## Deploy to Vercel with Supabase
 
@@ -42,7 +42,8 @@ Copy `.env.example` to `.env.local` and provide:
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-VITE_BASEMAP_STYLE_URL=
+VITE_GOOGLE_MAPS_API_KEY=
+VITE_GOOGLE_MAPS_MAP_ID=
 ```
 
 Apply the migrations with the Supabase CLI. They enable PostGIS, create the community model, and add a row-level-secured per-user app snapshot used for cloud synchronization.
@@ -60,7 +61,7 @@ https://YOUR_PROJECT.supabase.co/auth/v1/callback
 
 Set the Supabase Auth Site URL to the production Vercel URL. Add `http://localhost:5173/**`, the exact production URL, and (if used) `https://*-YOUR_TEAM_SLUG.vercel.app/**` to the redirect allow list. Never place the Google client secret or a Supabase secret/service-role key in this repository or the browser environment.
 
-Import this repository into Vercel, keep the detected Vite settings, and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` to the Production and Preview environments. `vercel.json` supplies the SPA fallback and safe service-worker caching headers.
+Import this repository into Vercel, keep the detected Vite settings, and add all four values from `.env.example` to the Production and Preview environments. Local development can omit `VITE_GOOGLE_MAPS_MAP_ID` and use Google's demo map ID, but production requires a project map ID. Restrict the browser key to the Maps JavaScript API and to localhost plus your Vercel domains. `vercel.json` supplies the SPA fallback and safe service-worker caching headers.
 
 The browser database remains authoritative while sailing. When signed in and online, changes are batched into the user's Supabase snapshot; on a new device, that snapshot hydrates the local database at startup. If Supabase is unreachable, startup and race recording continue offline and synchronization retries when connectivity returns or another edit is made.
 
