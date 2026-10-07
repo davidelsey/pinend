@@ -40,7 +40,7 @@ function MarkRow({ mark, waypoint, isFinish = false, finishLinked = false, onFin
 }
 
 export function MarksPage({ onEnterPrestart }: Props) {
-  const { marks, race, session, observations, latestReading, updateSession, saveMark, mutateRace, deleteObservation } = useApp()
+  const { marks, race, session, observations, latestReading, saveMark, mutateRace, deleteObservation } = useApp()
   const [view, setView] = useState<View>('course')
   const [courseDrag, setCourseDrag] = useState<CourseDrag | null>(null)
   const [dragTargetId, setDragTargetId] = useState<string | null>(null)
@@ -88,7 +88,6 @@ export function MarksPage({ onEnterPrestart }: Props) {
   }
 
   const enterPrestart = async () => {
-    await updateSession({ phase: 'prestart', syncedStartTime: Date.parse(race.scheduledStart), autoStartArmed: true })
     onEnterPrestart()
   }
 
@@ -289,7 +288,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
         </section>
       )}
 
-      {session.phase === 'setup' && <div className="sticky-action"><div><strong><Check size={16} /> Course reviewed</strong><span>{race.course.length} roundings · {raceMarks.length} unique marks</span></div><button className="button button--primary" onClick={() => void enterPrestart()}>Enter pre-start <ChevronRight size={18} /></button></div>}
+      {session.phase !== 'finished' && <div className="sticky-action"><div><strong><Check size={16} /> Course reviewed</strong><span>{race.course.length} roundings · {raceMarks.length} unique marks</span></div><button className="button button--primary" onClick={() => void enterPrestart()}>Done editing course <ChevronRight size={18} /></button></div>}
       {positionMark?.position.kind === 'gate' && <FullScreenLineMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => positionMark.id === 'start-line' ? item.endpoint === 'pin' || item.endpoint === 'committee' : item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (pointA, pointB) => { if (positionMark.position.kind !== 'gate') return; await saveMark({ ...positionMark, position: { ...positionMark.position, pointA, pointB } }); setPositionMark(null) }} />}
       {positionMark && positionMark.position.kind !== 'gate' && <FullScreenMarkMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (coordinate) => { await saveMark({ ...positionMark, position: withManualMarkCoordinate(positionMark.position, coordinate) }); setPositionMark(null) }} />}
       {sightTarget && <SightMarksDialog key={sightTarget.endpoint === 'mark' ? sightTarget.markId : sightTarget.endpoint} now={Date.now()} open initialTarget={sightTarget} initialAction="sight" onClose={() => setSightTarget(null)} />}

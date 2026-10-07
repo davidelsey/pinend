@@ -92,6 +92,14 @@ export class PinEndDatabase extends Dexie {
     this.version(8).stores({
       telemetry: 'id, sessionId, timestamp, [sessionId+timestamp]',
     })
+    this.version(9).stores({ races: 'id, boatId, clubId, series' }).upgrade(async (transaction) => {
+      const boats = await transaction.table('boats').toArray() as Boat[]
+      if (boats[0]) {
+        await transaction.table('races').toCollection().modify((race: RaceDefinition) => { race.boatId ??= boats[0].id })
+        await transaction.table('marks').toCollection().modify((mark: Mark) => { mark.boatId ??= boats[0].id })
+        await transaction.table('crew').toCollection().modify((member: CrewMember) => { member.boatId ??= boats[0].id })
+      }
+    })
   }
 }
 
@@ -100,10 +108,10 @@ export const database = new PinEndDatabase()
 export async function seedDatabase(db = database): Promise<void> {
   if ((await db.races.count()) > 0) return
   await db.transaction('rw', [db.marks, db.boats, db.sails, db.races, db.sessions], async () => {
-    await db.marks.bulkPut(seedMarks)
+    await db.marks.bulkPut(seedMarks.map((mark) => ({ ...mark, boatId: seedBoat.id })))
     await db.boats.put(seedBoat)
     await db.sails.bulkPut(seedSails)
-    await db.races.put(seedRace)
+    await db.races.put({ ...seedRace, boatId: seedBoat.id })
     await db.sessions.put(createSeedSession())
   })
 }
@@ -178,6 +186,12 @@ const hydrateSession = async (db: PinEndDatabase, session: RaceSession | undefin
 }
 
 export const createRaceRepository = (db = database) => ({
+  async getCompleteTelemetry(sessionId: string) {
+    return db.telemetry.where('sessionId').equals(sessionId).sortBy('timestamp')
+  },
+  async getSession(id: string) {
+    return hydrateSession(db, await db.sessions.get(id))
+  },
   async getActiveSession() {
     const sessions = await db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing', 'finished']).toArray()
     return hydrateSession(db, sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0])
@@ -208,7 +222,7 @@ export const createRaceRepository = (db = database) => ({
       db.sessions.where('phase').anyOf(['setup', 'prestart', 'racing', 'finished']).toArray(),
     ])
     const session = await hydrateSession(db, sessions.sort((first, second) => second.updatedAt - first.updatedAt)[0])
-    return { marks, boats, sails, races, crew, session }
+    return { marks, boats, sails, races, crew, session, sessions }
   },
   async saveMark(mark: Mark) {
     await db.marks.put(mark)

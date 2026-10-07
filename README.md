@@ -1,6 +1,10 @@
 # Pin End
 
-Pin End is an offline-first race preparation and on-water sailing PWA. The current local build includes a seeded Cruising Yacht Club of Australia demo, setup/pre-start/race modes, boats and sail wardrobes, fixed/variable/constructed marks, camera-assisted sightings for line ends and movable marks, tactical line-crossing estimates, GPS speed and VMG-based mark ETAs, wake-lock handling, a post-finish GPS summary with a 30-second race replay, and a development sensor simulator.
+Pin End is an offline-first race preparation and on-water sailing PWA. The home screen shows the selected boat’s in-progress, upcoming, and previous races. Create a boat as its owner, or join with an invitation link, code, or QR scan. The header switches boats; each boat has its own owner/admin/crew memberships and an assigned navigator.
+
+Open a race to prepare its course or enter race mode. The navigator chooses the shared next waypoint; all crew screens follow. Selecting Start before the gun enters pre-start, while selecting it after the gun supports a late start. Entering a later leg keeps the original start time and leaves missing history unrecorded. Finished races open their recorded map, timings, and replay. Leaving a view or selecting another target never clears recorded timing.
+
+The app also includes sail wardrobes, fixed/variable/constructed marks, camera-assisted sightings, tactical line-crossing estimates, GPS speed and VMG-based ETAs, wake-lock handling, and a development sensor simulator.
 
 ## Run locally
 
@@ -9,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open the displayed local URL, choose **Open local demo**, and use the bottom navigation. The app stores its data in IndexedDB and does not require Supabase for local development.
+Open the displayed local URL and choose **Open local demo** for the seeded CYCA race, or **Create local workspace** for first-use onboarding. Local workspaces store data in IndexedDB. Cross-account invitations and shared navigation require the Supabase migration below; local mode does not simulate remote crew.
 
 Useful verification commands:
 
@@ -63,7 +67,15 @@ Set the Supabase Auth Site URL to the production Vercel URL. Add `http://localho
 
 Import this repository into Vercel, keep the detected Vite settings, and add all four values from `.env.example` to the Production and Preview environments. Local development can omit `VITE_GOOGLE_MAPS_MAP_ID` and use Google's demo map ID, but production requires a project map ID. Restrict the browser key to the Maps JavaScript API and to localhost plus your Vercel domains. `vercel.json` supplies the SPA fallback and safe service-worker caching headers.
 
-The browser database remains authoritative while sailing. When signed in and online, changes are batched into the user's Supabase snapshot; on a new device, that snapshot hydrates the local database at startup. If Supabase is unreachable, startup and race recording continue offline and synchronization retries when connectivity returns or another edit is made.
+Apply `supabase/migrations/20261007000000_shared_boat_workspaces.sql` before deploying this UI. It adds membership-protected boat catalogs, expiring invitations, and navigator-controlled race progress. Only the owner can grant admin access; owners/admins can assign a boat member as navigator. Creating a replacement invitation invalidates the previous code.
+
+While online, clients synchronize approximately every three seconds. GPS history is queued at least every ten seconds while recording and on navigation changes/finish. Previously synchronized fixes are retained across navigator handoffs. All historical fixes stay in IndexedDB; the live instrument window uses the most recent 3,600. Keep the navigator’s app open to record and synchronize GPS.
+
+Offline, the navigator can continue with durable queued changes, and crew see their last synchronized target with an offline indicator. Reconnecting fetches current shared state. Revision checks prevent stale offline changes from overwriting another device’s updates or a navigator handoff. Conflicting edits are preserved in a user-scoped local recovery entry and the UI explains that the authoritative state was loaded. Unsynced fixes on an offline former navigator’s device remain on that device; reconnect and sync before handing navigation over whenever possible.
+
+Existing personal snapshots are imported once into shared boats with namespaced IDs. The original snapshot is retained. Legacy races without boat associations are assigned to the first legacy boat, matching the previous app’s default boat. New signed-in users start without seeded demo boats.
+
+Database authorization tests are in `supabase/tests/shared_boats.sql`, intended for a disposable PostgreSQL test instance with `auth.uid()`/`auth.jwt()` test doubles and `auth.users(id)`.
 
 ## Data and safety notes
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock3, Compass, Flag, Gauge, Navigation, Sailboat, Shield, TimerReset } from 'lucide-react'
+import { AlertTriangle, Check, Clock3, Compass, Flag, Gauge, Navigation, Sailboat, Shield, TimerReset } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { Metric } from '../components/Metric'
@@ -17,12 +17,11 @@ const resolveEndpoint = (observations: LineObservation[], endpoint: LineObservat
 }
 
 export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, wakeLockStatus }: Props) {
-  const { marks, race, session, observations, latestReading, simulatorEnabled, stepSimulator, recordLatestReading, updateSession } = useApp()
+  const { isNavigator, marks, race, session, observations, latestReading, simulatorEnabled, stepSimulator, updateSession } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const remaining = session.syncedStartTime - now
   const startWaypointIndex = Math.max(0, race.course.findIndex(isStartWaypoint))
-  const [previewWaypointIndex, setPreviewWaypointIndex] = useState(startWaypointIndex)
-  const safePreviewIndex = Math.min(Math.max(0, previewWaypointIndex), Math.max(0, race.course.length - 1))
+  const safePreviewIndex = session.activeWaypointIndex
   const startWaypoint = race.course[startWaypointIndex]
   const startMark = marks.find((mark) => mark.id === startWaypoint?.markId)
   const legacyPin = useMemo(() => resolveEndpoint(observations, 'pin'), [observations])
@@ -63,18 +62,11 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
     return () => window.clearInterval(interval)
   }, [simulatorEnabled, stepSimulator])
 
-  useEffect(() => {
-    if (session.phase === 'prestart') void recordLatestReading().catch(() => undefined)
-  }, [latestReading, recordLatestReading, session.phase])
+
 
   const sync = (minutes: 5 | 4 | 1 | 0) => {
     void updateSession({ syncedStartTime: syncStartFromSignal(Date.now(), minutes), autoStartArmed: true })
     setMessage(minutes === 0 ? 'Start gun synchronized' : `${minutes}-minute signal synchronized`)
-  }
-
-  const selectWaypoint = (index: number) => {
-    if (index < 0 || index >= race.course.length) return
-    setPreviewWaypointIndex(index)
   }
 
   return (
@@ -89,16 +81,14 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
       <main className="race-main" aria-label="Pre-start instruments">
         <section className="race-focus prestart-race-focus">
           <div className="race-mark-selector prestart-mark-selector">
-            <button aria-label="Previous mark" disabled={safePreviewIndex <= 0} onClick={() => selectWaypoint(safePreviewIndex - 1)}><ChevronLeft size={24} /></button>
             <div aria-live="polite" aria-atomic="true"><span>WAYPOINT {safePreviewIndex + 1} OF {race.course.length}</span><h1>{selectedMark?.name ?? 'Course waypoint'}</h1></div>
-            <button aria-label="Next mark" disabled={safePreviewIndex >= race.course.length - 1} onClick={() => selectWaypoint(safePreviewIndex + 1)}><ChevronRight size={24} /></button>
           </div>
           <div className={`prestart-race-countdown ${remaining <= 60_000 ? 'is-urgent' : ''}`}>{formatCountdown(remaining)}</div>
           <div className="countdown-hero__time"><Clock3 size={16} /> Start {new Date(session.syncedStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
           <div className={`prestart-crossing prestart-timing--${lineTiming.tone}`}><span>Estimated line crossing</span><strong>{lineTiming.label}</strong></div>
           <div className="signal-buttons prestart-race-signals" aria-label="Start sequence synchronization">
             {[5, 4, 1, 0].map((minute) => (
-              <button key={minute} onClick={() => sync(minute as 5 | 4 | 1 | 0)}>
+              <button disabled={!isNavigator} key={minute} onClick={() => sync(minute as 5 | 4 | 1 | 0)}>
                 <span>{minute === 0 ? 'START' : `${minute}:00`}</span><small>{minute === 5 ? 'Warning' : minute === 4 ? 'Preparatory' : minute === 1 ? 'One minute' : 'Gun'}</small>
               </button>
             ))}
@@ -150,7 +140,7 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
         </div>
 
         <div className="race-actions">
-          <button className="button button--race-next" onClick={onStartRace}><Sailboat size={18} /> Start race mode</button>
+          <button disabled={!isNavigator} className="button button--race-next" onClick={onStartRace}><Sailboat size={18} /> Start now</button>
         </div>
       </main>
 

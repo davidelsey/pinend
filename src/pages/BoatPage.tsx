@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Check, Plus, Sailboat, Settings2, ShieldCheck, Trash2 } from 'lucide-react'
 import { useApp } from '../app/AppContext'
+import { BoatCrew } from '../components/BoatCrew'
 import type { Sail } from '../domain/types'
 
 export function BoatPage() {
-  const { boats, boat, sails, saveBoat, saveSail, selectBoat } = useApp()
+  const { boat, sails, saveBoat, saveSail, canManage } = useApp()
   const [draft, setDraft] = useState(boat)
   const [showAddSail, setShowAddSail] = useState(false)
   const [newSail, setNewSail] = useState<Pick<Sail, 'name' | 'type' | 'condition' | 'location'>>({
@@ -17,17 +18,13 @@ export function BoatPage() {
         <span className="eyebrow"><Sailboat size={14} /> Your boat</span>
         <h1>{boat.name}</h1>
         <p>Particulars and sail wardrobe stay available on this device.</p>
-        <div className="boat-picker">
-          <select value={boat.id} onChange={(event) => { selectBoat(event.target.value); setDraft(boats.find((item) => item.id === event.target.value) ?? boat) }}>
-            {boats.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.sailNumber}</option>)}
-          </select>
-          <button className="button button--secondary" onClick={() => setDraft({ id: crypto.randomUUID(), name: 'New boat', sailNumber: '', design: '', lengthMetres: 0, draftMetres: 0 })}><Plus size={16} /> New boat</button>
-        </div>
       </section>
       <div className="content-grid">
         <div className="content-stack">
+          <BoatCrew />
+          <fieldset className="permission-fields" disabled={!canManage}>
           <section className="panel">
-            <div className="panel__heading"><div><Settings2 size={18} /><h2>Boat particulars</h2></div><span className="chip chip--verified"><ShieldCheck size={13} /> Personal</span></div>
+            <div className="panel__heading"><div><Settings2 size={18} /><h2>Boat particulars</h2></div><span className="chip chip--verified"><ShieldCheck size={13} /> {canManage ? 'Manage boat' : 'View boat'}</span></div>
             <div className="form-grid">
               <label className="field"><span>Boat name</span><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
               <label className="field"><span>Sail number</span><input value={draft.sailNumber} onChange={(e) => setDraft({ ...draft, sailNumber: e.target.value })} /></label>
@@ -54,6 +51,7 @@ export function BoatPage() {
               ))}
             </div>
           </section>
+          </fieldset>
         </div>
         <aside className="sidebar-stack">
           <section className="panel boat-summary">

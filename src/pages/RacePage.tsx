@@ -32,16 +32,15 @@ type Props = { now: number; wakeLockStatus: string; onFinish(): void }
 export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const {
     marks,
+    isNavigator,
     race,
     session,
     latestReading,
     simulatorEnabled,
     stepSimulator,
-    recordLatestReading,
     updateSession,
   } = useApp()
   const [showRounding, setShowRounding] = useState(false)
-  const [showPrestartWarning, setShowPrestartWarning] = useState(false)
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
   const [marine, setMarine] = useState<MarineSnapshot | null>(null)
   const navigationReading = latestReading ?? session.telemetry.at(-1) ?? null
@@ -77,9 +76,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     return () => window.clearInterval(interval)
   }, [simulatorEnabled, stepSimulator])
 
-  useEffect(() => {
-    if (session.phase === 'racing') void recordLatestReading().catch(() => undefined)
-  }, [latestReading, recordLatestReading, session.phase])
+
 
   const roundingSuggested = useMemo(
     () => Boolean(target && shouldSuggestRounding(session.telemetry, target)),
@@ -87,11 +84,11 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   )
 
   useEffect(() => {
-    if (roundingSuggested) setShowRounding(true)
-  }, [roundingSuggested])
+    if (roundingSuggested && isNavigator) setShowRounding(true)
+  }, [isNavigator, roundingSuggested])
 
   const advance = async () => {
-    if (!activeWaypoint) return
+    if (!activeWaypoint || !isNavigator) return
     const nextIndex = session.activeWaypointIndex + 1
     if (nextIndex >= race.course.length) {
       await updateSession({ phase: 'finished', roundedAt: { ...session.roundedAt, [activeWaypoint.id]: Date.now() } })
@@ -106,24 +103,9 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   }
 
   const selectPrevious = async () => {
+    if (!isNavigator || session.activeWaypointIndex <= 0) return
     setShowRounding(false)
-    if (session.activeWaypointIndex === 0) {
-      setShowPrestartWarning(true)
-      return
-    }
     await updateSession({ activeWaypointIndex: session.activeWaypointIndex - 1 })
-  }
-
-  const returnToPrestart = async () => {
-    await updateSession({
-      phase: 'prestart',
-      syncedStartTime: Date.parse(race.scheduledStart),
-      autoStartArmed: false,
-      activeWaypointIndex: 0,
-      telemetry: [],
-      roundedAt: {},
-    })
-    setShowPrestartWarning(false)
   }
 
   const selectNext = async () => {
@@ -154,9 +136,9 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
             </span>
           </div>
           <div className="race-mark-selector">
-            <button aria-label="Previous mark" onClick={() => void selectPrevious()}><ChevronLeft size={24} /></button>
+            <button disabled={!isNavigator || session.activeWaypointIndex <= 0} aria-label="Previous mark" onClick={() => void selectPrevious()}><ChevronLeft size={24} /></button>
             <h1>{activeMark?.name ?? 'Course complete'}</h1>
-            <button aria-label="Next mark" disabled={session.activeWaypointIndex >= race.course.length - 1} onClick={() => void selectNext()}><ChevronRight size={24} /></button>
+            <button aria-label="Next mark" disabled={!isNavigator || session.activeWaypointIndex >= race.course.length - 1} onClick={() => void selectNext()}><ChevronRight size={24} /></button>
           </div>
           <div className="race-bearing"><Navigation size={28} /><strong>{bearing == null ? '—' : Math.round(bearing).toString().padStart(3, '0')}°</strong><span>T</span></div>
           <div className="race-distance">{distanceDisplay.value} <span>{distanceDisplay.unit} TO MARK</span></div>
@@ -195,9 +177,9 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
         </div>
 
         <div className="race-actions">
-          <button className="button button--race-next" onClick={() => setShowRounding(true)}>
-            <Flag size={18} /> Mark rounded <ChevronRight size={18} />
-          </button>
+          {isNavigator ? <button className="button button--race-next" onClick={() => setShowRounding(true)}>
+            <Flag size={18} /> {activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} <ChevronRight size={18} />
+          </button> : <p className="crew-following">Following the navigator’s target</p>}
         </div>
       </main>
 
@@ -206,7 +188,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           <div className="rounding-modal">
             <div className="rounding-modal__icon"><Flag size={26} /></div>
             <span className="eyebrow">Confirm progression</span>
-            <h2>{activeMark?.name} rounded?</h2>
+            <h2>{activeWaypoint?.role === 'finish' ? 'Confirm race finish?' : activeWaypoint?.role === 'start' ? 'Start line crossed?' : `${activeMark?.name} rounded?`}</h2>
             <p>{roundingSuggested ? 'Pin End detected a close approach followed by movement away.' : 'Advance manually if you have completed this rounding.'}</p>
             <div className="rounding-modal__stats">
               <span><strong>{distance?.toFixed(2) ?? '—'} NM</strong>current distance</span>
@@ -214,19 +196,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
             </div>
             <button className="button button--orange button--wide" onClick={() => void advance()}><Check size={18} /> Confirm & advance</button>
             <button className="button button--ghost button--wide" onClick={() => setShowRounding(false)}>Keep current mark</button>
-          </div>
-        </div>
-      )}
-
-      {showPrestartWarning && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Return to pre-start?">
-          <div className="rounding-modal">
-            <div className="rounding-modal__icon"><AlertTriangle size={26} /></div>
-            <span className="eyebrow">Reset race timing</span>
-            <h2>Return to pre-start?</h2>
-            <p>This will clear all timing data for this race.</p>
-            <button className="button button--orange button--wide" onClick={() => void returnToPrestart()}>Clear timing &amp; enter pre-start</button>
-            <button className="button button--ghost button--wide" onClick={() => setShowPrestartWarning(false)}>Stay in race</button>
           </div>
         </div>
       )}

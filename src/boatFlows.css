@@ -1,0 +1,95 @@
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.header-boat-picker { max-width: 44%; }
+.header-boat-picker select { width: 100%; min-height: 42px; border: 1px solid #d5dedb; border-radius: 10px; background: #fff; color: var(--navy); padding: 8px 12px; font-weight: 800; }
+.boat-first-nav { grid-template-columns: repeat(3, 1fr); justify-content: center; }
+.boat-first-nav button { flex: 1; }
+.app-alert { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: #fff0dd; color: #743514; }
+.app-alert span { flex: 1; }
+.app-alert button { background: transparent; border: 0; color: inherit; font-weight: 700; }
+.race-breadcrumb { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px max(18px, calc((100vw - 1240px) / 2)); background: #e3eae7; font-size: 12px; color: #52646f; }
+.race-breadcrumb button { border: 0; background: transparent; display: flex; align-items: center; gap: 4px; color: var(--navy); font-weight: 800; min-height: 32px; }
+.onboarding-page { max-width: 720px; padding-top: 50px; }
+.onboarding-heading { text-align: center; }
+.onboarding-heading .brand-mark { margin: 0 auto 24px; width: 60px; height: 60px; }
+.onboarding-heading .eyebrow { justify-content: center; }
+.onboarding-heading h1 { font-size: clamp(32px, 7vw, 52px); letter-spacing: -.045em; margin: 18px 0; }
+.onboarding-heading p, .onboarding-card p { color: #61737d; line-height: 1.6; }
+.onboarding-card { margin: 28px auto; max-width: 540px; padding: 30px; }
+.onboarding-card .button + .button { margin-top: 12px; }
+.onboarding-card .text-button { display: block; margin-top: 16px; }
+.onboarding-options { display: grid; gap: 14px; }
+.onboarding-options button { display: grid; grid-template-columns: 28px 1fr 20px; gap: 8px 14px; text-align: left; padding: 24px 18px; background: #f1f5f2; border: 1px solid #d9e3df; border-radius: 16px; color: var(--navy); }
+.onboarding-options button strong { font-size: 20px; }
+.onboarding-options button span { grid-column: 2; color: #61737d; }
+.onboarding-options button > svg:last-child { grid-column: 3; grid-row: 1 / 3; align-self: center; }
+.scanner { margin-top: 20px; }
+.scanner video { width: 100%; border-radius: 14px; background: var(--navy); }
+.races-hero { min-height: 230px; gap: 22px; }
+.races-hero h1 { font-size: clamp(36px, 5vw, 58px); }
+.races-hero > button { flex-shrink: 0; }
+.race-list-section { margin-top: 32px; }
+.race-section-heading { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.race-section-heading h2 { font-size: 22px; margin: 0; letter-spacing: -.04em; }
+.race-section-heading > span { color: #738780; font-size: 12px; font-weight: 700; }
+.race-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 18px; }
+.race-list-card { display: flex; flex-direction: column; text-align: left; gap: 12px; background: var(--paper); color: var(--navy); border: 1px solid #d6e0da; padding: 24px; border-radius: 18px; transition: box-shadow .15s, transform .15s; }
+.race-list-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px #071b2f12; }
+.race-list-card > strong { font-size: 25px; letter-spacing: -.035em; }
+.race-list-card > span:not(.race-card-footer) { font-size: 13px; color: #65757c; }
+.race-card-date { display: flex; align-items: center; gap: 8px; }
+.race-card-date small { margin-left: auto; }
+.race-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 18px; margin-top: 8px; border-top: 1px solid #dce3de; font-size: 13px; font-weight: 800; }
+.race-card-footer > span { display: flex; align-items: center; gap: 7px; }
+.race-list-card--live { border-color: #318878; box-shadow: inset 4px 0 #318878; }
+.race-list-card--live .race-card-footer { color: #1b7661; }
+.race-empty { background: #e5ece7; padding: 22px; border-radius: 14px; color: #64756c; font-size: 14px; }
+.race-detail-map { padding: 0; overflow: hidden; margin-bottom: 24px; }
+.race-detail-map svg { max-height: 380px; }
+.race-detail-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px; }
+.course-overview { list-style: none; margin: 0; padding: 0; }
+.course-overview li { display: grid; grid-template-columns: 30px 1fr; gap: 3px 12px; padding: 15px 0; border-bottom: 1px solid #e5eae6; }
+.course-overview li small { grid-column: 2; color: #64756c; }
+.target-dot { grid-row: 1 / 3; display: grid; place-items: center; align-self: center; width: 28px; height: 28px; border-radius: 50%; background: #eaf0ec; font-size: 11px; font-weight: 800; }
+.target-dot--active { background: var(--orange); }
+.race-entry-panel { align-self: start; }
+.race-entry-panel > svg { color: #288a77; margin-bottom: 16px; }
+.race-entry-panel h2 { font-size: 26px; letter-spacing: -.04em; }
+.race-entry-panel p { color: #637780; line-height: 1.6; }
+.race-entry-panel .button, .race-entry-panel .text-button { margin-top: 12px; }
+.shared-target { display: grid; gap: 5px; padding: 15px; background: #e9f1ed; border-radius: 12px; }
+.shared-target strong { text-transform: uppercase; font-size: 10px; letter-spacing: .1em; }
+.target-options { display: grid; gap: 8px; margin: 22px 0; }
+.target-options label { display: flex; align-items: center; gap: 12px; padding: 16px; background: #eef2ef; border: 1px solid #d9e2dd; border-radius: 10px; }
+.target-options input { accent-color: #e96936; }
+.permission-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 20px; }
+.boat-member { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 0; border-top: 1px solid #e0e7e2; }
+.boat-member > div { flex: 1; min-width: 150px; }
+.boat-member small { display: block; margin-top: 5px; text-transform: capitalize; color: #65767b; }
+.boat-invitation { margin-top: 20px; text-align: center; padding: 20px; background: #eef4ef; border-radius: 14px; }
+.boat-invitation img { display: block; max-width: 100%; height: auto; margin: 0 auto 15px; }
+.boat-invitation p { font-size: 13px; line-height: 1.6; }
+.invitation-code { display: block; font-size: 26px; letter-spacing: .12em; margin-bottom: 12px; }
+.crew-following { padding: 12px 22px; border: 1px solid #49636b; border-radius: 12px; color: #acccc0; }
+.waiting-navigator { max-width: 600px; margin: 60px auto; text-align: center; padding: 40px; }
+.waiting-navigator h1 { font-size: 32px; margin-top: 22px; }
+.timing-list > div { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #dee6df; padding: 14px 0; }
+.timing-list dd { margin: 0; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #f79855; outline-offset: 3px; }
+@media (max-width: 680px) {
+  .app-header { padding: 0 14px; gap: 8px; }
+  .app-brand { padding: 0; }
+  .app-brand strong { display: none; }
+  .header-boat-picker { max-width: 58%; }
+  .connection { padding: 6px; font-size: 10px; }
+  .races-hero { padding: 28px; display: block; min-height: auto; }
+  .races-hero .button { margin-top: 24px; }
+  .race-detail-grid { grid-template-columns: 1fr; }
+  .race-detail-grid .race-entry-panel { grid-row: 1; }
+  .race-breadcrumb { align-items: flex-start; }
+  .race-breadcrumb > span { max-width: 55%; text-align: right; line-height: 1.6; }
+  .onboarding-card { padding: 22px; }
+  .onboarding-page { padding-top: 28px; }
+  .app-alert { font-size: 12px; padding: 10px; }
+  .race-detail .panel__heading { flex-wrap: wrap; }
+}

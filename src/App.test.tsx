@@ -11,10 +11,23 @@ vi.mock('./services/auth', () => ({
   signOut: vi.fn(),
 }))
 
+const openSetup = async () => {
+  const rendered = render(<App />)
+  fireEvent.click(await screen.findByRole('button', { name: /Race 4.*Prepare race/ }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Race details & preparation' }))
+  return rendered
+}
+const enterFromCourse = async () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Done editing course' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Enter race mode' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Navigate to this target' }))
+  await screen.findByText('PRE-START')
+}
+
 const confirmCourseAndEnterPrestart = async () => {
   fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
   expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: /Enter pre-start/i }))
+  await enterFromCourse()
 }
 
 describe('primary local race journey', () => {
@@ -27,12 +40,12 @@ describe('primary local race journey', () => {
   })
 
   it('confirms the course through the second-tab race marks workspace', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Course' })).not.toBeInTheDocument()
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' })
-    expect(within(navigation).getAllByRole('button').map((button) => button.textContent)).toEqual(['Setup', 'Marks', 'Race', 'Boat', 'Debug'])
+    expect(within(navigation).getAllByRole('button').map((button) => button.textContent)).toEqual(['Races', 'Boat', 'Debug'])
 
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
     expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
@@ -75,7 +88,7 @@ describe('primary local race journey', () => {
   })
 
   it('inserts a selected or newly created mark between course waypoints with its rounding', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
@@ -116,7 +129,7 @@ describe('primary local race journey', () => {
   })
 
   it('maintains the crew list and assigns race positions during setup', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     const crew = screen.getByRole('region', { name: 'Crew' })
@@ -130,54 +143,25 @@ describe('primary local race journey', () => {
     await waitFor(() => expect(position).toHaveValue('Tactician'))
   })
 
-  it('lists saved races and creates a new offline race', async () => {
+  it('creates a boat-scoped race from the home screen', async () => {
     render(<App />)
-
-    expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
-    const races = screen.getByRole('list', { name: 'Races' })
-    expect(within(races).getByText('Race 4')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'New race' }))
-    const form = screen.getByRole('group', { name: 'New race details' })
-    expect(form.closest('.panel')).not.toContainElement(screen.getByRole('list', { name: 'Races' }))
-    expect(within(form).getByText('CYCA')).toBeInTheDocument()
-    expect(within(form).getByText('Cruising Yacht Club of Australia')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Current race' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Confirm course' })).not.toBeInTheDocument()
-    const defaultStart = new Date((within(form).getByLabelText('Scheduled start') as HTMLInputElement).value).getTime()
-    expect(defaultStart - Date.now()).toBeGreaterThan(55 * 60_000)
-    expect(defaultStart - Date.now()).toBeLessThan(65 * 60_000)
-    expect(within(form).getByRole('combobox', { name: 'Series' })).toHaveAttribute('list', 'setup-series-options')
-    expect(within(form).getByRole('combobox', { name: 'Fleet' })).toHaveAttribute('list', 'setup-fleet-options')
-    expect(document.querySelector('#setup-series-options option[value="Spring Series"]')).toBeInTheDocument()
-    expect(document.querySelector('#setup-fleet-options option[value="PHS Division 1"]')).toBeInTheDocument()
-    fireEvent.change(within(form).getByLabelText('Series'), { target: { value: 'Winter Series' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'New race' }))
+    const form = screen.getByRole('dialog', { name: 'New race' })
     fireEvent.change(within(form).getByLabelText('Race name'), { target: { value: 'Race 1' } })
-    fireEvent.change(within(form).getByLabelText('Fleet'), { target: { value: 'Division 2' } })
-    fireEvent.change(within(form).getByLabelText('Handicap / TCF'), { target: { value: '0.932' } })
+    fireEvent.change(within(form).getByLabelText('Scheduled start'), { target: { value: '2030-10-12T13:00' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Create race' }))
-
-    expect(await within(races).findByText('Race 1')).toBeInTheDocument()
-    await waitFor(() => expect(within(races).getByText('Race 1').closest('button')).toHaveClass('is-selected'))
-    expect(await screen.findByLabelText('Race')).toHaveValue('Race 1')
+    expect(await screen.findByRole('heading', { name: 'Race 1' })).toBeInTheDocument()
     const savedRace = (await database.races.toArray()).find((item) => item.name === 'Race 1')!
+    expect(savedRace.boatId).toBe('boat-1')
     expect(savedRace.course[0]).toMatchObject({ role: 'start' })
-    expect(savedRace.handicap).toBe(0.932)
     expect(savedRace.course.at(-1)).toMatchObject({ role: 'finish' })
     expect(savedRace.course[0].markId).not.toBe('start-line')
     const savedFinish = await database.marks.get(savedRace.course.at(-1)!.markId)
     expect(savedFinish?.position).toMatchObject({ kind: 'gate', linkedToMarkId: savedRace.course[0].markId })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm course' }))
-    const newCourse = await screen.findByRole('region', { name: 'Course mark list' })
-    fireEvent.click(within(newCourse).getByRole('button', { name: 'Position Start line' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save position' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Enter pre-start' }))
-    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
-    expect(screen.queryByText('Start line resolved')).not.toBeInTheDocument()
   })
 
   it('edits race marks on a full-page map and sights movable marks with a split preview', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
@@ -227,7 +211,7 @@ describe('primary local race journey', () => {
   })
 
   it('moves from setup through pre-start into race mode', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     await confirmCourseAndEnterPrestart()
@@ -246,16 +230,12 @@ describe('primary local race journey', () => {
     expect(within(prestartInstruments).getByRole('button', { name: /1:00 One minute/i })).toBeInTheDocument()
     expect(within(prestartInstruments).getByText('Keep a proper lookout')).toBeInTheDocument()
     expect(document.querySelector('.app-shell')).toHaveClass('app-shell--racing')
-    fireEvent.click(within(prestartInstruments).getByRole('button', { name: 'Next mark' }))
-    expect(await within(prestartInstruments).findByRole('heading', { name: 'Clark Island' })).toBeInTheDocument()
-    fireEvent.click(within(prestartInstruments).getByRole('button', { name: 'Previous mark' }))
-    expect(await within(prestartInstruments).findByRole('heading', { name: 'Start line' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Start race mode/i }))
+    expect(within(prestartInstruments).queryByRole('button', { name: 'Next mark' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Start now/i }))
 
     await waitFor(() => expect(screen.getByText('RACING')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /Mark rounded/i })).toBeInTheDocument()
-    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Boat' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
     expect(await screen.findByRole('heading', { name: 'Windward mark' })).toBeInTheDocument()
@@ -265,26 +245,16 @@ describe('primary local race journey', () => {
     expect(screen.getByText('RACING')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Start line' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
-    const warning = screen.getByRole('dialog', { name: 'Return to pre-start?' })
-    expect(within(warning).getByText('This will clear all timing data for this race.')).toBeInTheDocument()
-    fireEvent.click(within(warning).getByRole('button', { name: 'Stay in race' }))
-    expect(screen.getByText('RACING')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous mark' })).toBeDisabled()
     expect(screen.queryByRole('dialog', { name: 'Return to pre-start?' })).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Return to pre-start?' })).getByRole('button', { name: 'Clear timing & enter pre-start' }))
-    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Start race mode/i }))
-    expect(await screen.findByText('RACING')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Boat' }))
-    expect(await screen.findByRole('heading', { name: 'Second Wind' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Race' }))
+    fireEvent.click(screen.getByRole('button', { name: 'All races' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Race 4.*Resume race/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume race' }))
     expect(await screen.findByText('RACING')).toBeInTheDocument()
   })
 
   it('enters race mode automatically when the synchronized start arrives', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     await confirmCourseAndEnterPrestart()
@@ -295,8 +265,8 @@ describe('primary local race journey', () => {
     expect(await screen.findByText('RACING')).toBeInTheDocument()
   })
 
-  it('clears prior race timing when the sailor confirms a return to pre-start', async () => {
-    render(<App />)
+  it('preserves rounding history when changing targets and finishes into replay', async () => {
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     await confirmCourseAndEnterPrestart()
@@ -313,20 +283,15 @@ describe('primary local race journey', () => {
     expect(screen.getByText('RACING')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Start line' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Return to pre-start?' })).getByRole('button', { name: 'Clear timing & enter pre-start' }))
-    expect(await screen.findByText('PRE-START')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Start line' })).toBeInTheDocument()
-    await new Promise((resolve) => window.setTimeout(resolve, 400))
-    expect(screen.getByText('PRE-START')).toBeInTheDocument()
-    expect(screen.queryByText('RACING')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /Start race mode/i }))
-    expect(await screen.findByText('RACING')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
+    expect(screen.getByRole('button', { name: 'Previous mark' })).toBeDisabled()
+    const saved = (await database.sessions.toArray())[0]
+    expect(saved.roundedAt['leg-1']).toBeDefined()
+    for (let i = 0; i < 4; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
+      await waitFor(() => expect(document.querySelector('.race-focus__topline')).toHaveTextContent(`LEG ${i + 2} OF`))
+    }
     expect(await screen.findByRole('heading', { name: 'Finish line' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Mark rounded/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish race' }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Confirm mark rounding' })).getByRole('button', { name: /Confirm & advance/i }))
 
     expect(await screen.findByRole('heading', { name: 'Finished.' })).toBeInTheDocument()
@@ -340,7 +305,7 @@ describe('primary local race journey', () => {
   })
 
   it('keeps start-line positioning and sighting on the deduplicated Marks view', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
@@ -357,22 +322,25 @@ describe('primary local race journey', () => {
   })
 
   it('shows distance to a nearby race mark in metres', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     await confirmCourseAndEnterPrestart()
     fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
     expect(await screen.findByText('RACING')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'All races' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Use simulated sensors' }))
     fireEvent.click(screen.getByRole('button', { name: /^Near / }))
-    fireEvent.click(screen.getByRole('button', { name: 'Race' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Races' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Race 4.*Resume race/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume race' }))
 
     await waitFor(() => expect(screen.getByText('M TO MARK').closest('.race-distance')).toHaveTextContent(/^\d+ M TO MARK$/))
   })
 
   it('uses distinct port and starboard rounding arrows in race mode', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     await confirmCourseAndEnterPrestart()
@@ -387,7 +355,7 @@ describe('primary local race journey', () => {
   })
 
   it('lets a developer mock boat position and velocity', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
@@ -396,13 +364,15 @@ describe('primary local race journey', () => {
     expect(screen.getByRole('button', { name: 'Drag boat position' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Drag to set heading and speed' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Use simulated sensors' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Setup' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Races' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Race 4.*Prepare race/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Race details & preparation' }))
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
     expect(await screen.findByText('Current location')).toBeInTheDocument()
   })
 
   it('responds to simulator changes made in another window', async () => {
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
@@ -450,7 +420,7 @@ describe('primary local race journey', () => {
 
   it('rejects malformed simulator state from shared browser storage', async () => {
     localStorage.setItem('pin-end-dev-simulator', JSON.stringify({ enabled: true, simulator: { reading: {} } }))
-    render(<App />)
+    await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
@@ -459,7 +429,7 @@ describe('primary local race journey', () => {
   })
 
   it('persists local simulator controls for a separate window', async () => {
-    const firstWindow = render(<App />)
+    const firstWindow = await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
@@ -467,7 +437,7 @@ describe('primary local race journey', () => {
     expect(JSON.parse(localStorage.getItem('pin-end-dev-simulator') ?? '{}').simulator.accuracy).toBe(11)
 
     firstWindow.unmount()
-    render(<App />)
+    await openSetup()
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     expect(screen.getByText('±11 m')).toBeInTheDocument()

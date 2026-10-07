@@ -4,14 +4,15 @@ import { RaceReplayMap } from '../components/RaceReplayMap'
 import { formatRaceDuration, summarizeRace } from '../domain/raceSummary'
 
 export function FinishedPage({ onReset }: { onReset(): void }) {
-  const { race, session } = useApp()
+  const { race: currentRace, session } = useApp()
+  const race = session.courseSnapshot ?? currentRace
   const summary = summarizeRace(race, session)
   return (
     <div className="finished-page">
       <header className="finished-page__header">
         <div className="finished-flag"><Sailboat size={34} /></div>
         <div><span className="eyebrow">Race complete</span><h1>Finished.</h1><p>{race.series} · {race.name} · {race.fleet}</p></div>
-        <button className="button button--orange" onClick={onReset}>Prepare another race</button>
+        <button className="button button--orange" onClick={onReset}>Back to races</button>
       </header>
       <main className="finished-page__overview">
         <section className="finish-stats" aria-label="Race statistics">
@@ -22,6 +23,7 @@ export function FinishedPage({ onReset }: { onReset(): void }) {
         </section>
         <div className="finished-page__map-heading"><div><span className="eyebrow">GPS track</span><h2>Actual route sailed</h2></div><small>{summary.allTelemetry.length} recorded positions · 30-second replay</small></div>
         <RaceReplayMap telemetry={summary.allTelemetry} startTime={session.syncedStartTime} />
+        <section className="panel"><h2>Race timings</h2><dl className="timing-list"><div><dt>Race start</dt><dd>{new Date(session.syncedStartTime).toLocaleString()}</dd></div>{race.course.map((waypoint, index) => <div key={waypoint.id}><dt>{session.marksSnapshot?.find((mark) => mark.id === waypoint.markId)?.name ?? `Waypoint ${index + 1}`}</dt><dd>{session.roundedAt[waypoint.id] ? new Date(session.roundedAt[waypoint.id]).toLocaleTimeString() : 'Not recorded'}</dd></div>)}</dl></section>
       </main>
     </div>
   )

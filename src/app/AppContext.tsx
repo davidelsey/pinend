@@ -14,11 +14,23 @@ import type {
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 import { configureSimulator as configureSimulatorState, createSimulator, moveSimulator, setSimulatorPosition, type SimulatorState } from '../services/simulator'
 import { createRaceRepository, database, seedDatabase } from '../services/repository'
-import { hydrateCloudState, scheduleCloudSync } from '../services/cloudSync'
+import { createBoatSharing, createSharedBoat, type BoatCatalog, type SharedState } from '../services/boatSharing'
+import type { BoatAccess } from '../domain/types'
+import { enterAtWaypoint } from '../domain/raceEntry'
 import { supabase } from '../services/auth'
 
 type AppContextValue = {
   loading: boolean
+  error: string
+  syncStatus: string
+  userId: string
+  access: BoatAccess | undefined
+  canManage: boolean
+  isNavigator: boolean
+  sessions: RaceSession[]
+  refreshSharing(): Promise<void>
+  enterRace(index: number): Promise<void>
+  clearError(): void
   online: boolean
   marks: Mark[]
   boats: Boat[]
@@ -90,16 +102,23 @@ function readSimulatorSnapshot(fallback: SimulatorState): SimulatorSnapshot {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const cloudUserRef = useRef<Awaited<ReturnType<NonNullable<typeof supabase>['auth']['getUser']>>['data']['user']>(null)
+  const [userId, setUserId] = useState('local')
+  const [accessList, setAccessList] = useState<BoatAccess[]>([])
+  const [error, setError] = useState('')
+  const [syncStatus, setSyncStatus] = useState(supabase ? navigator.onLine ? 'Connecting…' : 'Offline · last synced target' : 'Local only')
+  const sharing = useRef<ReturnType<typeof createBoatSharing> | null>(null)
+  const [sessions, setSessions] = useState<RaceSession[]>([])
+  const booted = useRef(false)
+  const lastTrackSync = useRef(0)
   const repository = useMemo(() => createRaceRepository(), [])
   const [loading, setLoading] = useState(true)
   const [online, setOnline] = useState(navigator.onLine)
   const [marks, setMarks] = useState(seedMarks)
-  const [boats, setBoats] = useState([seedBoat])
-  const [boat, setBoat] = useState(seedBoat)
+  const [boats, setBoats] = useState<Boat[]>([])
+  const [boat, setBoat] = useState<Boat>({ ...seedBoat, id: '', name: '' })
   const [allSails, setAllSails] = useState(seedSails)
   const [crew, setCrew] = useState<CrewMember[]>([])
-  const [races, setRaces] = useState<RaceDefinition[]>([seedRace])
+  const [races, setRaces] = useState<RaceDefinition[]>([])
   const [race, setRace] = useState(seedRace)
   const raceRef = useRef(seedRace)
   const raceSelectionRef = useRef(0)
@@ -110,57 +129,143 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { enabled: simulatorEnabled, simulator } = simulatorSnapshot
   const [deviceReading, setDeviceReading] = useState<SensorReading | null>(null)
 
-  useEffect(() => {
-    void (async () => {
-      await seedDatabase()
-      if (supabase) {
-        const { data } = await supabase.auth.getUser()
-        cloudUserRef.current = data.user
-        if (data.user) {
-          try {
-            await hydrateCloudState(data.user)
-          } catch (error) {
-            console.error('Pin End cloud hydration failed; continuing offline', error)
-          }
-        }
+  const current = useRef({ boat, race, session, marks, boats, allSails, crew, races, userId, accessList })
+  current.current = { boat, race, session, marks, boats, allSails, crew, races, userId, accessList }
+  const setActiveSession = (next: RaceSession) => {
+    current.current.session = next
+    setSession(next)
+    setSessions((items) => [...items.filter((item) => item.raceId !== next.raceId), next])
+  }
+  const applyShared = useCallback(async (state: SharedState) => {
+    const access = state.workspaces.map((workspace) => ({
+      boatId: workspace.id, navigatorId: workspace.navigator_id,
+      role: state.members.find((member) => member.boat_id === workspace.id && member.user_id === current.current.userId)?.role ?? 'crew' as const,
+      members: state.members.filter((member) => member.boat_id === workspace.id).map((member) => ({ userId: member.user_id, name: member.display_name, role: member.role })),
+    }))
+    setAccessList(access)
+    const catalogs = state.workspaces.map((item) => item.catalog)
+    const nextBoats = catalogs.map((item) => item.boat)
+    const nextRaces = catalogs.flatMap((item) => item.races.map((race) => ({ ...race, boatId: item.boat.id })))
+    const nextMarks = catalogs.flatMap((item) => item.marks.map((mark) => ({ ...mark, boatId: item.boat.id })))
+    const nextSails = catalogs.flatMap((item) => item.sails)
+    const nextCrew = catalogs.flatMap((item) => item.crew.map((member) => ({ ...member, boatId: item.boat.id })))
+    await database.transaction('rw', [database.boats, database.races, database.marks, database.sails, database.crew, database.sessions, database.telemetry], async () => {
+      await database.boats.clear()
+      await database.races.clear()
+      if (nextBoats.length) await database.boats.bulkPut(nextBoats)
+      if (nextRaces.length) await database.races.bulkPut(nextRaces)
+      if (nextMarks.length) await database.marks.bulkPut(nextMarks)
+      if (nextSails.length) await database.sails.bulkPut(nextSails)
+      if (nextCrew.length) await database.crew.bulkPut(nextCrew)
+      for (const progress of state.progress) {
+        await repository.saveSession(progress.session)
+        for (const reading of progress.session.telemetry) await repository.saveTelemetry(progress.session.id, reading)
       }
-      const data = await repository.loadAll()
-      const activeSession = data.session ?? createSeedSession()
-      const storedObservations = await repository.getObservations(activeSession.id)
-      setMarks(data.marks)
-      setBoats(data.boats.length ? data.boats : [seedBoat])
-      const selectedBoatId = localStorage.getItem('pin-end-selected-boat')
-      setBoat(data.boats.find((item) => item.id === selectedBoatId) ?? data.boats[0] ?? seedBoat)
-      setAllSails(data.sails)
-      setCrew(data.crew)
-      setRaces(data.races.length ? data.races : [seedRace])
-      const activeRace = data.races.find((item) => item.id === activeSession.raceId) ?? data.races[0] ?? seedRace
-      raceRef.current = activeRace
-      setRace(activeRace)
-      setSession(activeSession)
-      setObservations(storedObservations)
-      setLoading(false)
-    })()
+    })
+    setBoats(nextBoats); setRaces(nextRaces); setMarks(nextMarks); setAllSails(nextSails); setCrew(nextCrew)
+    const selectedBoat = nextBoats.find((item) => item.id === localStorage.getItem('pin-end-selected-boat')) ?? nextBoats.find((item) => item.id === current.current.boat.id) ?? nextBoats[0]
+    setBoat(selectedBoat ?? { ...seedBoat, id: '', name: '' })
+    const selectedRace = nextRaces.find((item) => item.id === current.current.race.id && item.boatId === selectedBoat?.id)
+    const savedSessions = await database.sessions.toArray()
+    const sharedRaceIds = new Set(state.progress.map((item) => item.race_id))
+    setSessions([...savedSessions.filter((item) => !sharedRaceIds.has(item.raceId)), ...state.progress.map((item) => item.session)])
+    if (selectedRace) {
+      setRace(selectedRace); raceRef.current = selectedRace
+      const progress = state.progress.find((item) => item.race_id === selectedRace.id)
+      const nextSession = progress ? await repository.getSession(progress.session.id) : await repository.getSessionForRace(selectedRace.id)
+      if (nextSession) setSession(nextSession)
+    }
   }, [repository])
 
-  const syncCloud = useCallback(() => {
-    if (cloudUserRef.current) scheduleCloudSync(cloudUserRef.current, database)
-  }, [])
+  const refreshSharing = useCallback(async () => {
+    if (!sharing.current || !navigator.onLine) return
+    try {
+      const result = await sharing.current.refresh()
+      await applyShared(result.state)
+      setSyncStatus(sharing.current.hasPending() ? 'Syncing changes…' : 'Live · updated just now')
+      if (result.warning) setError(result.warning)
+    } catch (reason) {
+      setSyncStatus('Not synced · showing saved data')
+      setError(reason instanceof Error ? reason.message : 'Could not synchronize the boat.')
+    }
+  }, [applyShared])
 
   useEffect(() => {
-    const goOnline = () => {
-      setOnline(true)
-      syncCloud()
-    }
-    const goOffline = () => setOnline(false)
+    if (booted.current) return
+    booted.current = true
+    void (async () => {
+      try {
+        if (supabase) {
+          const { data } = await supabase.auth.getSession()
+          if (!data.session?.user) throw new Error('Sign in again to load your boats.')
+          const id = data.session.user.id
+          current.current.userId = id
+          setUserId(id)
+          sharing.current = createBoatSharing(id)
+          if (localStorage.getItem('pin-end-cloud-owner') === id && !localStorage.getItem(`pin-end-legacy-import:${id}`) && !localStorage.getItem(`pin-end-legacy-local:${id}`)) {
+            const { exportRepositorySnapshot } = await import('../services/repository')
+            const legacy = await exportRepositorySnapshot()
+            if (legacy.boats.length) localStorage.setItem(`pin-end-legacy-local:${id}`, JSON.stringify(legacy))
+          }
+          // Keep account caches isolated, including when offline.
+          if (localStorage.getItem('pin-end-data-owner') !== id) {
+            const { clearRepository } = await import('../services/repository')
+            await clearRepository()
+            localStorage.setItem('pin-end-data-owner', id)
+          }
+          await applyShared(sharing.current.cached())
+          if (navigator.onLine) {
+            const initial = await sharing.current.refresh()
+            const { importLegacyBoats } = await import('../services/legacyBoats')
+            const importedSessions = await importLegacyBoats(id, initial.state)
+            const refreshed = await sharing.current.refresh()
+            for (const imported of importedSessions) {
+              const workspace = refreshed.state.workspaces.find((item) => item.catalog.races.some((race) => race.id === imported.raceId))
+              if (workspace) sharing.current.queueProgress(workspace.id, imported)
+            }
+            await sharing.current.refresh()
+            localStorage.setItem(`pin-end-legacy-import:${id}`, 'done')
+          }
+          await refreshSharing()
+        } else if (localStorage.getItem('pin-end-empty') !== 'true') await seedDatabase()
+        const data = await repository.loadAll()
+        const scopedRaces = data.races.map((item) => ({ ...item, boatId: item.boatId ?? data.boats[0]?.id }))
+        for (const item of scopedRaces) await repository.saveRace(item)
+        setMarks(data.marks); setBoats(data.boats); setAllSails(data.sails); setCrew(data.crew); setRaces(scopedRaces); setSessions(data.sessions)
+        const selected = data.boats.find((item) => item.id === localStorage.getItem('pin-end-selected-boat')) ?? data.boats[0]
+        if (selected) setBoat(selected)
+        const selectedRace = scopedRaces.find((item) => item.boatId === selected?.id)
+        if (selectedRace) {
+          setRace(selectedRace); raceRef.current = selectedRace
+          const saved = await repository.getSessionForRace(selectedRace.id)
+          if (saved) setSession(saved)
+        }
+      } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load your boats.') }
+      finally { setLoading(false) }
+    })()
+  }, [applyShared, refreshSharing, repository])
+
+  useEffect(() => {
+    const goOnline = () => { setOnline(true); void refreshSharing() }
+    const goOffline = () => { setOnline(false); setSyncStatus('Offline · last synced target') }
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
-    return () => {
-      window.removeEventListener('online', goOnline)
-      window.removeEventListener('offline', goOffline)
-    }
-  }, [syncCloud])
+    const timer = window.setInterval(() => { if (!loading) void refreshSharing() }, 3000)
+    return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); window.clearInterval(timer) }
+  }, [loading, refreshSharing])
 
+  const catalogFor = (boatId: string): BoatCatalog => {
+    const state = current.current
+    return { boat: state.boats.find((item) => item.id === boatId) ?? state.boat, marks: state.marks.filter((item) => !item.boatId || item.boatId === boatId), races: state.races.filter((item) => item.boatId === boatId), sails: state.allSails.filter((item) => item.boatId === boatId), crew: state.crew.filter((item) => !item.boatId || item.boatId === boatId) }
+  }
+  const syncCatalog = () => { if (current.current.boat.id) sharing.current?.queueCatalog(catalogFor(current.current.boat.id)) }
+  const access = accessList.find((item) => item.boatId === boat.id)
+  const canManage = !supabase || access?.role === 'owner' || access?.role === 'admin'
+  const isNavigator = !supabase || access?.navigatorId === userId
+  const requireManager = () => {
+    const entry = current.current.accessList.find((item) => item.boatId === current.current.boat.id)
+    if (supabase && entry?.role !== 'owner' && entry?.role !== 'admin') throw new Error('Only an owner or admin can edit this boat.')
+  }
   useEffect(() => {
     if (!import.meta.env.DEV) return
     const syncSimulator = (event: StorageEvent) => {
@@ -194,73 +299,123 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateSimulatorSnapshot((current) => ({ ...current, enabled }))
   }, [updateSimulatorSnapshot])
 
-  const updateSession = useCallback(
-    async (patch: Partial<RaceSession>) => {
-      const next = { ...session, ...patch, updatedAt: Date.now() }
-      if (next.id !== session.id) setObservations([])
-      setSession(next)
-      if (patch.telemetry?.length === 0) await repository.resetSession(next)
-      else await repository.saveSession(next)
-      syncCloud()
-      if (patch.phase === 'finished') {
-        const completed = await repository.getSessionForRace(next.raceId)
-        if (completed?.id === next.id) setSession(completed)
-      }
-    },
-    [repository, session, syncCloud],
-  )
+  const updateSession = useCallback(async (patch: Partial<RaceSession>) => {
+    const state = current.current
+    const access = state.accessList.find((item) => item.boatId === state.boat.id)
+    if (supabase && access?.navigatorId !== state.userId) { setError('Only the assigned navigator can change race progress.'); return }
+    if (state.session.phase === 'finished') { setError('Finished race history is read-only.'); return }
+    const next = { ...state.session, ...patch, updatedAt: Date.now() }
+    if (patch.phase === 'finished') {
+      next.courseSnapshot = structuredClone(state.race)
+      next.marksSnapshot = structuredClone(state.marks.filter((mark) => state.race.course.some((waypoint) => waypoint.markId === mark.id)))
+    }
+    setActiveSession(next)
+    if (patch.telemetry?.length === 0 && next.id !== state.session.id) await repository.resetSession(next)
+    else await repository.saveSession(next)
+    if (patch.phase === 'finished') {
+      const completed = await repository.getSessionForRace(next.raceId)
+      if (completed) { setActiveSession(completed); sharing.current?.queueProgress(state.boat.id, completed) }
+    } else if (!patch.telemetry || Date.now() - lastTrackSync.current >= 10_000) {
+      sharing.current?.queueProgress(state.boat.id, next)
+      lastTrackSync.current = Date.now()
+    }
+  }, [repository])
+
+  const enterRace = async (index: number) => {
+    await updateSession(enterAtWaypoint(current.current.race, current.current.session, index))
+  }
 
   const saveMark = async (mark: Mark) => {
+    requireManager()
+    mark = { ...mark, boatId: boat.id }
     const linkedFinish = mark.position.kind === 'gate'
       ? marks.find((item) => item.position.kind === 'gate' && item.position.linkedToMarkId === mark.id)
       : undefined
     const syncedFinish = linkedFinish?.position.kind === 'gate' && mark.position.kind === 'gate'
       ? { ...linkedFinish, position: { ...linkedFinish.position, pointA: mark.position.pointA, pointB: mark.position.pointB } }
       : undefined
-    setMarks((current) => [...current.filter((item) => item.id !== mark.id && item.id !== syncedFinish?.id), mark, ...(syncedFinish ? [syncedFinish] : [])])
+    const nextMarks = [...current.current.marks.filter((item) => item.id !== mark.id && item.id !== syncedFinish?.id), mark, ...(syncedFinish ? [syncedFinish] : [])]
+    current.current.marks = nextMarks
+    setMarks(nextMarks)
     if (syncedFinish) await repository.saveMarks([mark, syncedFinish])
     else await repository.saveMark(mark)
-    syncCloud()
+    syncCatalog()
   }
 
   const saveBoat = async (next: Boat) => {
-    setBoats((current) => [...current.filter((item) => item.id !== next.id), next])
-    setBoat(next)
-    localStorage.setItem('pin-end-selected-boat', next.id)
-    await repository.saveBoat(next)
-    syncCloud()
+    const existing = current.current.boats.some((item) => item.id === next.id)
+    if (existing) requireManager()
+    if (!next.name.trim()) throw new Error('Enter a boat name.')
+    if (!existing && supabase) {
+      await createSharedBoat({ boat: next, marks: [], races: [], sails: [], crew: [] })
+      localStorage.setItem('pin-end-selected-boat', next.id)
+      await refreshSharing()
+    } else {
+      current.current.boats = [...current.current.boats.filter((item) => item.id !== next.id), next]
+      current.current.boat = next
+      setBoats(current.current.boats); setBoat(next)
+      localStorage.setItem('pin-end-selected-boat', next.id)
+      await repository.saveBoat(next)
+      if (existing) syncCatalog()
+    }
   }
 
   const selectBoat = (boatId: string) => {
     const selected = boats.find((item) => item.id === boatId)
     if (!selected) return
+    raceSelectionRef.current += 1
+    current.current.boat = selected
     setBoat(selected)
     localStorage.setItem('pin-end-selected-boat', boatId)
-    void updateSession({ selectedSailIds: allSails.filter((sail) => sail.boatId === boatId && sail.location !== 'locker').map((sail) => sail.id) })
   }
 
   const saveSail = async (sail: Sail) => {
-    setAllSails((current) => [...current.filter((item) => item.id !== sail.id), sail])
+    requireManager()
+    current.current.allSails = [...current.current.allSails.filter((item) => item.id !== sail.id), sail]
+    setAllSails(current.current.allSails)
     await repository.saveSail(sail)
-    syncCloud()
+    syncCatalog()
   }
 
   const saveCrewMember = async (member: CrewMember) => {
-    setCrew((current) => [...current.filter((item) => item.id !== member.id), member])
+    requireManager()
+    member = { ...member, boatId: boat.id }
+    current.current.crew = [...current.current.crew.filter((item) => item.id !== member.id), member]
+    setCrew(current.current.crew)
     await repository.saveCrewMember(member)
-    syncCloud()
+    syncCatalog()
   }
 
   const saveRace = async (next: RaceDefinition) => {
+    requireManager()
+    if (sessions.some((item) => item.raceId === next.id && item.phase === 'finished')) throw new Error('Finished race history is read-only.')
+    const navigating = session.raceId === next.id && (session.phase === 'prestart' || session.phase === 'racing')
+    const targetId = navigating ? raceRef.current.course[current.current.session.activeWaypointIndex]?.id : undefined
+    if (targetId && !next.course.some((waypoint) => waypoint.id === targetId)) {
+      setError('Choose another shared target before removing the current waypoint.')
+      return
+    }
     if (next.id !== raceRef.current.id) raceSelectionRef.current += 1
     const startLine = next.course.find(isStartWaypoint) ?? { id: `start-${next.id}`, markId: 'start-line', rounding: 'either' as const, role: 'start' as const }
     const finishLine = next.course.find(isFinishWaypoint) ?? { id: `finish-${next.id}`, markId: 'finish-line', rounding: 'either' as const, role: 'finish' as const }
-    const normalized = { ...next, course: [{ ...startLine, role: 'start' as const }, ...next.course.filter((waypoint) => !isStartWaypoint(waypoint) && !isFinishWaypoint(waypoint)), { ...finishLine, role: 'finish' as const }] }
+    const normalized = { ...next, boatId: boat.id, course: [{ ...startLine, role: 'start' as const }, ...next.course.filter((waypoint) => !isStartWaypoint(waypoint) && !isFinishWaypoint(waypoint)), { ...finishLine, role: 'finish' as const }] }
     raceRef.current = normalized
     setRace(normalized)
-    setRaces((current) => [...current.filter((item) => item.id !== normalized.id), normalized])
+    current.current.races = [...current.current.races.filter((item) => item.id !== normalized.id), normalized]
+    current.current.race = normalized
+    setRaces(current.current.races)
     await repository.saveRace(normalized)
-    syncCloud()
+    if (targetId) {
+      const updated = { ...current.current.session, activeWaypointIndex: normalized.course.findIndex((waypoint) => waypoint.id === targetId) }
+      setActiveSession(updated)
+      await repository.saveSession(updated)
+    }
+    syncCatalog()
+    if (session.raceId !== normalized.id) {
+      const nextSession = { ...createSeedSession(), id: `session-${normalized.id}`, raceId: normalized.id, syncedStartTime: Date.parse(normalized.scheduledStart), selectedSailIds: [], telemetry: [], roundedAt: {} }
+      setActiveSession(nextSession)
+      await repository.saveSession(nextSession)
+    }
   }
 
   const mutateRace = async (mutator: (race: RaceDefinition) => RaceDefinition) => saveRace(mutator(raceRef.current))
@@ -268,29 +423,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const selectRace = async (raceId: string) => {
     const requestId = ++raceSelectionRef.current
     const selected = races.find((item) => item.id === raceId)
-    if (!selected || selected.id === race.id) return
+    if (!selected || selected.boatId !== current.current.boat.id) return
     const stored = await repository.getSessionForRace(selected.id)
-    const next = stored ? { ...stored, updatedAt: Date.now() } : { ...createSeedSession(), id: crypto.randomUUID(), raceId: selected.id, phase: 'setup' as const, syncedStartTime: Date.parse(selected.scheduledStart), activeWaypointIndex: 0, telemetry: [], roundedAt: {}, updatedAt: Date.now() }
+    const next = stored ?? { ...createSeedSession(), id: `session-${selected.id}`, raceId: selected.id, phase: 'setup' as const, selectedSailIds: [], crewAssignments: [], syncedStartTime: Date.parse(selected.scheduledStart), activeWaypointIndex: 0, telemetry: [], roundedAt: {}, updatedAt: Date.now() }
     const selectedObservations = await repository.getObservations(next.id)
     if (requestId !== raceSelectionRef.current) return
     raceRef.current = selected
     setRace(selected)
-    setSession(next)
+    current.current.race = selected
+    setActiveSession(next)
     setObservations(selectedObservations)
     await repository.saveSession(next)
-    syncCloud()
   }
 
   const saveObservation = async (observation: LineObservation) => {
     setObservations((current) => [...current, observation])
     await repository.saveObservation(observation)
-    syncCloud()
+    syncCatalog()
   }
 
   const deleteObservation = async (id: string) => {
     setObservations((current) => current.filter((observation) => observation.id !== id))
     await repository.deleteObservation(id)
-    syncCloud()
+    syncCatalog()
   }
 
   const configureSimulator = (patch: Partial<Pick<SimulatorState, 'heading' | 'speedKnots' | 'accuracy'>>) =>
@@ -304,25 +459,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const latestReading = simulatorEnabled ? simulator.reading : deviceReading
 
   const recordLatestReading = useCallback(async () => {
-    if (!latestReading) return
+    if (!latestReading || !isNavigator) return
     const last = session.telemetry.at(-1)
     if (last?.timestamp === latestReading.timestamp) return
     const telemetry = [...session.telemetry.slice(-3_599), latestReading]
     await repository.saveTelemetry(session.id, latestReading)
     await updateSession({ telemetry })
-  }, [latestReading, repository, session.id, session.telemetry, updateSession])
+  }, [isNavigator, latestReading, repository, session.id, session.telemetry, updateSession])
 
   const sails = allSails.filter((sail) => sail.boatId === boat.id)
 
   const value: AppContextValue = {
     loading,
+    error, syncStatus, userId, access, canManage, isNavigator, sessions, refreshSharing, enterRace, clearError: () => setError(''),
     online,
-    marks,
+    marks: marks.filter((item) => !item.boatId || item.boatId === boat.id),
     boats,
     boat,
     sails,
-    crew,
-    races,
+    crew: crew.filter((item) => !item.boatId || item.boatId === boat.id),
+    races: races.filter((item) => item.boatId === boat.id),
     race,
     session,
     observations,

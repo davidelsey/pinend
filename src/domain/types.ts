@@ -27,6 +27,7 @@ export type MarkPosition = (
 
 export type Mark = {
   id: string
+  boatId?: string
   name: string
   shortName: string
   position: MarkPosition
@@ -62,6 +63,7 @@ export type Sail = {
 
 export type CrewMember = {
   id: string
+  boatId?: string
   name: string
 }
 
@@ -84,6 +86,7 @@ export type Club = {
 
 export type RaceDefinition = {
   id: string
+  boatId?: string
   clubId: string
   series: string
   name: string
@@ -123,7 +126,12 @@ export type RaceSession = {
   telemetry: SensorReading[]
   roundedAt: Record<string, number>
   updatedAt: number
+  courseSnapshot?: RaceDefinition
+  marksSnapshot?: Mark[]
 }
+
+export type BoatRole = 'owner' | 'admin' | 'crew'
+export type BoatAccess = { boatId: string; role: BoatRole; navigatorId: string; members: { userId: string; name: string; role: BoatRole }[] }
 
 export type LineObservation = {
   id: string
