@@ -111,7 +111,9 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .course-map-marker--boat .course-map-marker__label { color: #53d3c2; }
 .course-plot .gm-style-cc { font-size: 9px; }
 .map-provider-error { position: absolute; inset: 50% auto auto 50%; z-index: 3; width: min(330px, calc(100% - 30px)); transform: translate(-50%,-50%); padding: 12px 14px; border-radius: 10px; color: #ffe7db; background: rgba(72,25,13,.92); font-size: 12px; font-weight: 700; text-align: center; }
-.map-empty--overlay { position: absolute; inset: 50% auto auto 50%; z-index: 2; width: max-content; max-width: calc(100% - 30px); transform: translate(-50%,-50%); background: rgba(3,18,30,.82); color: #dbe7e9; }
+.course-map-hint { position: absolute; bottom: 42px; left: 12px; z-index: 2; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 70px); padding: 9px 12px; border: 1px solid rgba(7,27,47,.1); border-radius: 10px; background: rgba(248,245,237,.96); color: #425a65; box-shadow: 0 2px 8px rgba(7,27,47,.08); font-size: 12px; line-height: 1.4; pointer-events: none; }
+.course-map-hint svg { flex-shrink: 0; color: #c6532c; }
+.course-map-hint--above-location { bottom: 74px; }
 .map-current-label { position: absolute; left: 10px; bottom: 42px; display: flex; align-items: center; gap: 5px; padding: 5px 7px; border-radius: 7px; color: #a7efe5; background: rgba(3,18,30,.7); font-size: 9px; font-weight: 700; }
 .map-current-label span { width: 7px; height: 7px; border-radius: 50%; background: var(--sea); }
 .map-empty { min-height: 220px; display: grid; place-items: center; background: #0a2c41; border-radius: 16px; color: #8fa8b5; }

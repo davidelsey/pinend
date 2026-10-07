@@ -22,7 +22,7 @@ describe('boat-first journeys', () => {
     fireEvent.change(within(dialog).getByLabelText('Race name'), { target: { value: 'Harbour race' } })
     fireEvent.change(within(dialog).getByLabelText('Scheduled start'), { target: { value: '2030-12-12T12:00' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create race' }))
-    await screen.findByRole('heading', { name: 'Harbour race' })
+    await screen.findByRole('heading', { name: 'Race marks' })
     const original = await database.sessions.toArray()
     fireEvent.change(screen.getByRole('combobox', { name: 'Switch boat' }), { target: { value: '__add' } })
     fireEvent.click(screen.getByRole('button', { name: /Create a boat/ }))
@@ -51,5 +51,22 @@ describe('boat-first journeys', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Navigate to this target' }))
     await screen.findByText('RACING')
     await waitFor(async () => expect((await database.sessions.toArray())[0]).toMatchObject({ activeWaypointIndex: 2, syncedStartTime: Date.parse('2020-01-01T10:00:00Z'), roundedAt: {} }))
+  })
+  it('refreshes the default start to two hours ahead rounded to the nearest quarter hour', async () => {
+    localStorage.removeItem('pin-end-empty')
+    render(<App />)
+    await screen.findByRole('heading', { name: 'See you on the line.' })
+    for (const [now, expected] of [
+      ['2030-12-12T12:07:29', '2030-12-12T14:00'],
+      ['2030-12-12T12:07:30', '2030-12-12T14:15'],
+      ['2030-12-12T23:56:00', '2030-12-13T02:00'],
+    ]) {
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date(now).getTime())
+      try {
+        fireEvent.click(screen.getByRole('button', { name: 'New race' }))
+        expect(screen.getByLabelText('Scheduled start')).toHaveValue(expected)
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      } finally { clock.mockRestore() }
+    }
   })
 })

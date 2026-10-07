@@ -9,11 +9,12 @@ describe('CoursePlot', () => {
     const unresolvedRace = { ...seedRace, course: [] }
     const view = render(<CoursePlot marks={[]} race={unresolvedRace} />)
 
-    expect(screen.getByText('No resolved positions yet')).toBeInTheDocument()
+    expect(screen.getByText('Position your marks to plot the course.')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Course map, north up' })).toBeInTheDocument()
     view.rerender(<CoursePlot marks={seedMarks} race={seedRace} />)
     await waitFor(() => expect(view.container.querySelectorAll('.course-map-marker').length).toBeGreaterThan(0))
     expect(view.container.querySelector('.course-map-canvas')).toHaveAttribute('data-fitted', 'true')
+    expect(screen.queryByText('Position your marks to plot the course.')).not.toBeInTheDocument()
   })
 
   it('shows the boat and lets the user recenter or fit all waypoints', async () => {

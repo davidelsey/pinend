@@ -76,7 +76,7 @@ function PinEndApp() {
       ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing', syncedStartTime: Date.now(), activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} wakeLockStatus={wakeLock.status} />
       : <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setView('race')} />
   const content = onboarding ? <OnboardingPage onDone={() => { setAddingBoat(false); setView('races') }} onCancel={boats.length ? () => { setAddingBoat(false); localStorage.removeItem('pin-end-invite') } : undefined} />
-    : view === 'races' ? <RacesPage onOpen={openDetail} />
+    : view === 'races' ? <RacesPage onOpen={openDetail} onCreate={() => setView('marks')} />
     : view === 'detail' ? session.phase === 'finished' ? finish : <RaceDetailPage key={race.id} onEdit={() => setView('marks')} onPrepare={() => setView('setup')} onEnter={() => setView('race')} />
     : view === 'setup' && canManage ? <SetupPage onConfirmCourse={() => setView('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
     : view === 'marks' && canManage ? <MarksPage onEnterPrestart={openDetail} />

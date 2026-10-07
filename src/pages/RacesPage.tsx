@@ -5,7 +5,14 @@ import { raceSection } from '../domain/raceEntry'
 import { cyca } from '../data/seed'
 import type { Mark } from '../domain/types'
 
-export function RacesPage({ onOpen }: { onOpen(): void }) {
+const defaultScheduledStart = () => {
+  const quarterHour = 15 * 60 * 1000
+  const date = new Date(Math.round((Date.now() + 2 * 60 * 60 * 1000) / quarterHour) * quarterHour)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+export function RacesPage({ onOpen, onCreate }: { onOpen(): void; onCreate(): void }) {
   const { boat, races, sessions, canManage, saveMark, saveRace, selectRace } = useApp()
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
@@ -14,7 +21,7 @@ export function RacesPage({ onOpen }: { onOpen(): void }) {
   const [busy, setBusy] = useState(false)
   const open = async (id: string) => { setBusy(true); try { await selectRace(id); onOpen() } catch (reason) { setError(String(reason)) } finally { setBusy(false) } }
   return <main className="page races-page">
-    <section className="hero races-hero"><div><span className="eyebrow"><Sailboat size={15} /> {boat.name}</span><h1>See you on the line.</h1><p>Your races, from the first signal to the replay.</p></div>{canManage && <button className="button button--orange" onClick={() => setCreating(true)}><Plus size={18} /> New race</button>}</section>
+    <section className="hero races-hero"><div><span className="eyebrow"><Sailboat size={15} /> {boat.name}</span><h1>See you on the line.</h1><p>Your races, from the first signal to the replay.</p></div>{canManage && <button className="button button--orange" onClick={() => { setStart(defaultScheduledStart()); setCreating(true) }}><Plus size={18} /> New race</button>}</section>
     {(['In progress', 'Upcoming', 'Previous'] as const).map((section) => {
       const items = races.filter((race) => raceSection(race, sessions.find((item) => item.raceId === race.id)) === section).sort((a, b) => section === 'Previous' ? Date.parse(b.scheduledStart) - Date.parse(a.scheduledStart) : Date.parse(a.scheduledStart) - Date.parse(b.scheduledStart))
       return <section className="race-list-section" key={section} aria-label={section}><div className="race-section-heading"><h2>{section}</h2><span>{items.length.toString().padStart(2, '0')}</span></div>{items.length ? <div className="race-card-grid">{items.map((race) => {
@@ -31,7 +38,7 @@ export function RacesPage({ onOpen }: { onOpen(): void }) {
         const finishMark: Mark = { id: `finish-line-${id}`, name: 'Finish line', shortName: 'FINISH', position: { kind: 'gate', labels: ['Pin', 'Boat'], linkedToMarkId: startMark.id }, provenance: 'personal' }
         await saveMark(startMark); await saveMark(finishMark)
         await saveRace({ id, boatId: boat.id, clubId: cyca.id, name: name.trim(), series: 'Club racing', fleet: 'Open fleet', scheduledStart: new Date(start).toISOString(), course: [{ id: crypto.randomUUID(), markId: startMark.id, role: 'start', rounding: 'either' }, { id: crypto.randomUUID(), markId: finishMark.id, role: 'finish', rounding: 'either' }] })
-        setCreating(false); onOpen()
+        setCreating(false); onCreate()
       } catch (reason) { setError(String(reason)) } finally { setBusy(false) }
     })() }}><span className="eyebrow">{boat.name}</span><h2>A new race</h2><label className="field"><span>Race name</span><input autoFocus required value={name} onChange={(event) => setName(event.target.value)} /></label><label className="field"><span>Scheduled start</span><input type="datetime-local" required value={start} onChange={(event) => setStart(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="button button--primary button--wide" disabled={busy || !name.trim() || !start}>{busy ? 'Creating…' : 'Create race'}</button><button type="button" className="text-button" disabled={busy} onClick={() => setCreating(false)}>Cancel</button></form></div>}
   </main>

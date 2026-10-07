@@ -150,7 +150,9 @@ describe('primary local race journey', () => {
     fireEvent.change(within(form).getByLabelText('Race name'), { target: { value: 'Race 1' } })
     fireEvent.change(within(form).getByLabelText('Scheduled start'), { target: { value: '2030-10-12T13:00' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Create race' }))
-    expect(await screen.findByRole('heading', { name: 'Race 1' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Course mark list' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Position Start line' })).toBeInTheDocument()
     const savedRace = (await database.races.toArray()).find((item) => item.name === 'Race 1')!
     expect(savedRace.boatId).toBe('boat-1')
     expect(savedRace.course[0]).toMatchObject({ role: 'start' })

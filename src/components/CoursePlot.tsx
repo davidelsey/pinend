@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Compass, LocateFixed, Maximize2, Minus, Navigation, Plus } from 'lucide-react'
+import { Compass, LocateFixed, MapPin, Maximize2, Minus, Navigation, Plus } from 'lucide-react'
 import { normalizeBearing, resolveMarkPosition } from '../domain/geo'
 import type { Coordinate, Mark, RaceDefinition, SensorReading } from '../domain/types'
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
@@ -143,7 +143,7 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     <div className={`course-plot course-plot--real ${compact ? 'course-plot--compact' : ''}`} aria-label="Course map">
       <div ref={containerRef} className="course-map-canvas" role="img" aria-label={plotLabel} />
       {mapError && <div className="map-provider-error" role="status">{mapError}</div>}
-      {model.allPoints.length === 0 && <div className="map-empty map-empty--overlay">No resolved positions yet</div>}
+      {!mapError && model.coursePoints.length === 0 && <div className={`course-map-hint ${current ? 'course-map-hint--above-location' : ''}`} role="status"><MapPin size={16} aria-hidden="true" /><span>Position your marks to plot the course.</span></div>}
       <div className="map-controls">
         <button aria-label="Recenter on current location" disabled={!current || !loaded} onClick={() => { if (!current || !mapRef.current) return; mapRef.current.setCenter(googleCoordinate(current)); mapRef.current.setZoom(Math.max(mapRef.current.getZoom() ?? 12, 15)) }}><LocateFixed size={15} /> <span>Recenter</span></button>
         <button aria-label="Fit all course waypoints" disabled={model.coursePoints.length === 0 || !loaded} onClick={() => mapRef.current && fitMapToCoordinates(mapRef.current, model.coursePoints, FIT_PADDING)}><Maximize2 size={15} /> <span>Fit course</span></button>
