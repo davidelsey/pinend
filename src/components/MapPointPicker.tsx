@@ -34,10 +34,17 @@ function pinElement(label: string, variant: 'first' | 'second' | 'context') {
   return element
 }
 
+type Pin = {
+  marker: google.maps.marker.AdvancedMarkerElement
+  content: HTMLDivElement
+  coordinate: string
+  change?: (coordinate: Coordinate) => void
+}
+
 export function MapPointPicker({ value, onChange, secondValue, onSecondChange, endpointLabels = ['Pin', 'Boat'], observations = [], readOnly = false, otherMarks = [], otherGates = [] }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
-  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
+  const markersRef = useRef(new Map<string, Pin>())
   const linesRef = useRef<google.maps.Polyline[]>([])
   const markerClassRef = useRef<typeof google.maps.marker.AdvancedMarkerElement | null>(null)
   const fittedRef = useRef(false)
@@ -53,6 +60,7 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
 
   useEffect(() => {
     if (!containerRef.current) return
+    const pins = markersRef.current
     let cancelled = false
     void loadGoogleMaps()
       .then(({ maps, marker }) => {
@@ -64,9 +72,9 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
       .catch((error: Error) => setMapError(error.message))
     return () => {
       cancelled = true
-      markersRef.current.forEach((marker) => { marker.map = null })
+      pins.forEach(({ marker }) => { marker.map = null })
       linesRef.current.forEach((line) => line.setMap(null))
-      markersRef.current = []
+      pins.clear()
       linesRef.current = []
       mapRef.current = null
       markerClassRef.current = null
@@ -78,40 +86,60 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
     const map = mapRef.current
     const AdvancedMarkerElement = markerClassRef.current
     if (!map || !AdvancedMarkerElement || !loaded) return
-    linesRef.current.forEach((line) => line.setMap(null))
-    const sightLines = observations.map((observation) => new google.maps.Polyline({
-      map,
+    const sightLines = observations.map((observation) => ({
       path: [googleCoordinate(observation.observer), googleCoordinate(destinationPoint(observation.observer, 10, observation.bearingTrue))],
       strokeColor: '#f7dd72', strokeWeight: 3, strokeOpacity: 0.9,
     }))
     const gateLines = [
       ...(value && secondValue ? [{ pointA: value, pointB: secondValue, target: true }] : []),
       ...otherGates.map((gate) => ({ ...gate, target: false })),
-    ].map((gate) => new google.maps.Polyline({
-      map,
+    ].map((gate) => ({
       path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)],
       strokeColor: gate.target ? '#f5f1e8' : '#6d858a', strokeWeight: gate.target ? 4 : 2, strokeOpacity: 0.9,
     }))
-    linesRef.current = [...sightLines, ...gateLines]
-
-    markersRef.current.forEach((marker) => { marker.map = null })
-    const markers: google.maps.marker.AdvancedMarkerElement[] = []
-    const addTarget = (coordinate: Coordinate, label: string, variant: 'first' | 'second', change?: (coordinate: Coordinate) => void) => {
-      const marker = new AdvancedMarkerElement({ map, position: googleCoordinate(coordinate), content: pinElement(label, variant), gmpDraggable: !readOnly && Boolean(change) })
-      if (!readOnly && change) marker.addListener('dragend', () => {
-        const next = fromPosition(marker.position)
-        if (next) change(next)
-      })
-      markers.push(marker)
-    }
-    if (value) addTarget(value, secondValue ? endpointLabels[0] : 'Mark', 'first', onChange)
-    if (secondValue) addTarget(secondValue, endpointLabels[1], 'second', onSecondChange)
-    otherMarks.forEach((mark) => markers.push(new AdvancedMarkerElement({ map, position: googleCoordinate(mark.coordinate), content: pinElement(mark.label, 'context') })))
-    otherGates.forEach((gate) => {
-      const midpoint = { lat: (gate.pointA.latitude + gate.pointB.latitude) / 2, lng: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
-      markers.push(new AdvancedMarkerElement({ map, position: midpoint, content: pinElement(gate.label, 'context') }))
+    const lineOptions = [...sightLines, ...gateLines]
+    lineOptions.forEach((options, index) => {
+      if (linesRef.current[index]) linesRef.current[index].setOptions(options)
+      else linesRef.current[index] = new google.maps.Polyline({ ...options, map })
     })
-    markersRef.current = markers
+    linesRef.current.splice(lineOptions.length).forEach((line) => line.setMap(null))
+
+    const activeKeys = new Set<string>()
+    const updatePin = (key: string, coordinate: Coordinate, label: string, variant: 'first' | 'second' | 'context', change?: (coordinate: Coordinate) => void) => {
+      activeKeys.add(key)
+      const coordinateKey = `${coordinate.latitude},${coordinate.longitude}`
+      let pin = markersRef.current.get(key)
+      if (!pin) {
+        const content = pinElement(label, variant)
+        const marker = new AdvancedMarkerElement({ map, position: googleCoordinate(coordinate), content })
+        const entry: Pin = { marker, content, coordinate: coordinateKey }
+        marker.addListener('dragend', () => {
+          const next = fromPosition(marker.position)
+          if (next) entry.change?.(next)
+        })
+        markersRef.current.set(key, entry)
+        pin = entry
+      }
+      // Do not reset a pin mid-drag on unrelated clock or GPS renders.
+      if (pin.coordinate !== coordinateKey) {
+        pin.marker.position = googleCoordinate(coordinate)
+        pin.coordinate = coordinateKey
+      }
+      const text = pin.content.querySelector('strong')!
+      if (text.textContent !== label) text.textContent = label
+      pin.change = readOnly ? undefined : change
+      if (pin.marker.gmpDraggable !== Boolean(pin.change)) pin.marker.gmpDraggable = Boolean(pin.change)
+    }
+    if (value) updatePin('first', value, secondValue ? endpointLabels[0] : 'Mark', 'first', onChange)
+    if (secondValue) updatePin('second', secondValue, endpointLabels[1], 'second', onSecondChange)
+    otherMarks.forEach((mark) => updatePin(`mark:${mark.id}`, mark.coordinate, mark.label, 'context'))
+    otherGates.forEach((gate) => {
+      const midpoint = { latitude: (gate.pointA.latitude + gate.pointB.latitude) / 2, longitude: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
+      updatePin(`gate:${gate.id}`, midpoint, gate.label, 'context')
+    })
+    markersRef.current.forEach(({ marker }, key) => {
+      if (!activeKeys.has(key)) { marker.map = null; markersRef.current.delete(key) }
+    })
     if (!fittedRef.current) {
       fitMapToCoordinates(map, plottedCoordinates, 35)
       fittedRef.current = true

@@ -35,7 +35,7 @@ class MockAdvancedMarker {
   }
 }
 
-class MockPolyline { setMap() { return undefined } }
+class MockPolyline { setMap() { return undefined } setOptions() { return undefined } }
 
 vi.stubGlobal('google', { maps: { Polyline: MockPolyline, event: { addListenerOnce: (_map: unknown, _event: string, callback: () => void) => callback() } } })
 vi.mock('../services/googleMaps', () => ({

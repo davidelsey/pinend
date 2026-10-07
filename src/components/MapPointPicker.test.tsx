@@ -3,6 +3,26 @@ import { describe, expect, it, vi } from 'vitest'
 import { MapPointPicker } from './MapPointPicker'
 
 describe('MapPointPicker gate mode', () => {
+  it('keeps pins mounted through parent updates and uses the latest drag callback', async () => {
+    const firstChange = vi.fn()
+    const nextChange = vi.fn()
+    const view = render(<MapPointPicker value={{ latitude: -33.86, longitude: 151.23 }} onChange={firstChange} />)
+    const map = screen.getByRole('img', { name: 'Drag mark on Sydney Harbour map' })
+    await waitFor(() => expect(map.querySelector('.point-map-pin')).not.toBeNull())
+    const pin = map.querySelector('.point-map-pin')!
+    view.rerender(<MapPointPicker value={{ latitude: -33.86, longitude: 151.23 }} onChange={nextChange} />)
+    expect(map.querySelector('.point-map-pin')).toBe(pin)
+    fireEvent(pin, new Event('dragend', { bubbles: true }))
+    expect(nextChange).toHaveBeenCalledOnce()
+    expect(firstChange).not.toHaveBeenCalled()
+    view.rerender(<MapPointPicker value={{ latitude: -33.85, longitude: 151.25 }} onChange={nextChange} />)
+    expect(map.querySelector('.point-map-pin')).toBe(pin)
+    fireEvent(pin, new Event('dragend', { bubbles: true }))
+    expect(nextChange).toHaveBeenLastCalledWith({ latitude: -33.85, longitude: 151.25 })
+    view.rerender(<MapPointPicker value={null} onChange={nextChange} />)
+    expect(map.querySelector('.point-map-pin')).toBeNull()
+  })
+
   it('shows two draggable pins with a dotted line and updates a dragged endpoint', async () => {
     const movePin = vi.fn()
     const moveBoat = vi.fn()
