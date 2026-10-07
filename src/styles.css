@@ -706,11 +706,14 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .point-picker__zoom { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; gap: 5px; }
 .point-picker__zoom button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid rgba(255,255,255,.45); border-radius: 8px; background: rgba(5, 28, 42, .9); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 .point-picker__map { touch-action: pan-x pan-y; }
-.point-map-pin { display: flex; align-items: center; gap: 4px; white-space: nowrap; color: #f5f1e8; font-size: 10px; text-shadow: 0 1px 3px #071b2f, 0 0 3px #071b2f; }
-.point-map-pin > span { width: 17px; height: 17px; border: 3px solid white; border-radius: 50% 50% 50% 0; background: #ff6b35; box-shadow: 0 2px 5px rgba(0,0,0,.4); transform: rotate(-45deg); }
+/* Maps anchors the bottom centre of this box. Keep labels out of its size,
+   and place the rotated square's lower tip exactly on that anchor. */
+.point-map-pin { --pin-size: 17px; position: relative; width: var(--pin-size); height: calc(var(--pin-size) * 1.41421356237); white-space: nowrap; color: #f5f1e8; font-size: 10px; text-shadow: 0 1px 3px #071b2f, 0 0 3px #071b2f; }
+.point-map-pin > span { position: absolute; left: 0; bottom: calc(var(--pin-size) * .20710678118); width: var(--pin-size); height: var(--pin-size); border: 3px solid white; border-radius: 50% 50% 50% 0; background: #ff6b35; box-shadow: 0 2px 5px rgba(0,0,0,.4); transform: rotate(-45deg); }
+.point-map-pin > strong { position: absolute; left: calc(100% + 6px); top: 0; }
 .point-map-pin--second > span { background: #53d3c2; }
-.point-map-pin--context { opacity: .82; font-size: 9px; }
-.point-map-pin--context > span { width: 11px; height: 11px; border-width: 2px; background: #f7dd72; }
+.point-map-pin--context { --pin-size: 11px; opacity: .82; font-size: 9px; }
+.point-map-pin--context > span { border-width: 2px; background: #f7dd72; }
 .point-picker__context-mark circle { fill: #f7dd72; stroke: #092b3e; stroke-width: .8; }
 .point-picker__context-mark text { fill: white; font-size: 3.5px; paint-order: stroke; stroke: #082c40; stroke-width: 1px; stroke-linejoin: round; }
 
