@@ -651,6 +651,19 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .mark-rounding-picker legend { margin-bottom: 7px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .mark-rounding-picker > div { display: flex; gap: 8px; }
 .selected-mark-summary { margin: 12px 0; padding: 11px 12px; display: flex; align-items: center; gap: 8px; border-radius: 10px; color: var(--teal-dark); background: var(--teal-pale); font-size: 12px; font-weight: 700; text-transform: capitalize; }
+.mark-chooser .field { margin-bottom: 10px; }
+.mark-chooser-results { max-height: min(260px, 32dvh); overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.mark-chooser-option { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; color: var(--teal-dark); }
+.mark-chooser-option:last-child { border-bottom: 0; }
+.mark-chooser-option:hover, .mark-chooser-option:focus-visible { background: var(--teal-pale); }
+.mark-chooser-option span { flex: 1; min-width: 0; }
+.mark-chooser-option strong, .mark-chooser-option small { display: block; overflow-wrap: anywhere; }
+.mark-chooser-option strong { color: var(--navy); font-size: 13px; }
+.mark-chooser-option small { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.mark-chooser-create { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--teal); border-radius: 10px; background: transparent; color: var(--teal-dark); text-align: left; overflow-wrap: anywhere; }
+.mark-chooser-create svg, .mark-chooser-option svg { flex-shrink: 0; }
+.mark-chooser-empty { padding: 14px; margin: 0; color: var(--muted); font-size: 12px; }
+.mark-chooser-selection { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; padding: 12px; border-radius: 10px; background: var(--teal-pale); color: var(--teal-dark); font-size: 12px; }
 .field-error { margin: 10px 0; color: #a73527; font-size: 10px; font-weight: 800; }
 .course-mark-remove { color: #71838b; }
 .course-mark-remove:hover { border-color: #d69088; color: #a72e25; background: #fff3f1; }

@@ -49,6 +49,8 @@ export function MarksPage({ onEnterPrestart }: Props) {
   const [addingMark, setAddingMark] = useState(false)
   const [markKind, setMarkKind] = useState<Mark['position']['kind']>('fixed')
   const [markName, setMarkName] = useState('')
+  const [selectedMarkId, setSelectedMarkId] = useState<string | null>(null)
+  const [creatingMark, setCreatingMark] = useState(false)
   const [markCoordinate, setMarkCoordinate] = useState({ latitude: -33.86, longitude: 151.24 })
   const [lineEndCoordinate, setLineEndCoordinate] = useState({ latitude: -33.86, longitude: 151.241 })
   const [markDistance, setMarkDistance] = useState(1)
@@ -69,10 +71,8 @@ export function MarksPage({ onEnterPrestart }: Props) {
   const finishLine = marks.find((mark) => mark.id === finishWaypoint?.markId)
   const finishLinked = finishLine?.position.kind === 'gate' && finishLine.position.linkedToMarkId === startWaypoint?.markId
   const selectableMarks = useMemo(() => marks.filter((mark) => mark.name !== 'Start line' && mark.name !== 'Finish line'), [marks])
-  const markOptionValue = (mark: Mark) => selectableMarks.filter((item) => item.name.toLocaleLowerCase() === mark.name.toLocaleLowerCase()).length === 1
-    ? mark.name
-    : `${mark.name} — ${mark.position.kind} · ${mark.id.slice(0, 6)}`
-  const selectedLibraryMark = selectableMarks.find((mark) => markOptionValue(mark).toLocaleLowerCase() === markName.trim().toLocaleLowerCase())
+  const selectedLibraryMark = selectableMarks.find((mark) => mark.id === selectedMarkId)
+  const matchingMarks = selectableMarks.filter((mark) => mark.name.toLocaleLowerCase().includes(markName.trim().toLocaleLowerCase()))
   const validCoordinate = (coordinate: { latitude: number; longitude: number }) => Number.isFinite(coordinate.latitude) && coordinate.latitude >= -90 && coordinate.latitude <= 90 && Number.isFinite(coordinate.longitude) && coordinate.longitude >= -180 && coordinate.longitude <= 180
   const newMarkIsValid = markKind === 'variable'
     || (validCoordinate(markCoordinate) && (markKind === 'fixed'
@@ -151,6 +151,8 @@ export function MarksPage({ onEnterPrestart }: Props) {
     if (addingMark && !force) return
     setInsertMarkAt(null)
     setMarkName('')
+    setSelectedMarkId(null)
+    setCreatingMark(false)
     setNewMarkRounding('port')
     window.setTimeout(() => insertionTrigger.current?.focus(), 0)
   }
@@ -172,7 +174,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
 
   const addCourseMark = async () => {
     const name = markName.trim()
-    if (!name || insertMarkAt === null || (!selectedLibraryMark && !newMarkIsValid) || addMarkInFlight.current) return
+    if (!name || insertMarkAt === null || (!selectedLibraryMark && (!creatingMark || !newMarkIsValid)) || addMarkInFlight.current) return
     addMarkInFlight.current = true
     setAddingMark(true)
     try {
@@ -294,19 +296,26 @@ export function MarksPage({ onEnterPrestart }: Props) {
       {positionMark && positionMark.position.kind !== 'gate' && <FullScreenMarkMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (coordinate) => { await saveMark({ ...positionMark, position: withManualMarkCoordinate(positionMark.position, coordinate) }); setPositionMark(null) }} />}
       {sightTarget && <SightMarksDialog key={sightTarget.endpoint === 'mark' ? sightTarget.markId : sightTarget.endpoint} now={Date.now()} open initialTarget={sightTarget} initialAction="sight" onClose={() => setSightTarget(null)} />}
       {insertMarkAt !== null && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add course mark" onKeyDown={handleMarkDialogKeyDown}>
-        <div className="form-modal" ref={markDialog}>
+        <div className="form-modal mark-chooser" ref={markDialog}>
           <div className="panel__heading"><div><Crosshair size={18} /><h2>Add course mark</h2></div><button className="text-button" disabled={addingMark} onClick={() => closeMarkCreator()}>Cancel</button></div>
-          <label className="field"><span>Select or create a mark</span><input autoFocus role="combobox" list="course-mark-options" value={markName} onChange={(event) => setMarkName(event.target.value)} placeholder="Search marks or enter a new name" /></label>
-          <datalist id="course-mark-options">{selectableMarks.map((mark) => <option key={mark.id} value={markOptionValue(mark)} />)}</datalist>
-          {selectedLibraryMark ? <p className="selected-mark-summary"><MapPin size={16} /> Using {selectedLibraryMark.name} · {selectedLibraryMark.position.kind}</p> : markName.trim() && <>
+          <label className="field"><span>{creatingMark ? 'New mark name' : 'Search marks'}</span><input autoFocus disabled={addingMark} value={markName} onChange={(event) => { setMarkName(event.target.value); setSelectedMarkId(null) }} placeholder="Search by name" autoComplete="off" /></label>
+          {!selectedLibraryMark && !creatingMark && <>
+            <div className="mark-chooser-results" role="region" aria-label="Matching marks">
+              {matchingMarks.map((mark) => <button className="mark-chooser-option" key={mark.id} disabled={addingMark} onClick={() => { setSelectedMarkId(mark.id); setMarkName(mark.name) }}><MapPin size={20} /><span><strong>{mark.name}</strong><small>{mark.position.kind === 'fixed' ? 'Fixed position' : mark.position.kind === 'gate' ? 'Two-point gate' : mark.position.kind === 'variable' ? 'Movable mark' : 'Constructed position'}{selectableMarks.filter((item) => item.name === mark.name).length > 1 ? ` · ${mark.id.slice(0, 6)}` : ''}</small></span><ChevronRight size={18} /></button>)}
+              {!matchingMarks.length && <p className="mark-chooser-empty">No matching marks.</p>}
+            </div>
+            <button className="mark-chooser-create" disabled={addingMark || !markName.trim()} onClick={() => setCreatingMark(true)}><Plus size={18} /><span>{markName.trim() ? `Create “${markName.trim()}”` : 'Type a name to create a new mark'}</span></button>
+          </>}
+          {(selectedLibraryMark || creatingMark) && <div className="mark-chooser-selection"><span>{selectedLibraryMark ? `Using ${selectedLibraryMark.name} · ${selectedLibraryMark.position.kind}` : 'Creating a new mark'}</span><button className="text-button" disabled={addingMark} onClick={() => { setSelectedMarkId(null); setCreatingMark(false); setMarkName('') }}>Change</button></div>}
+          {creatingMark && <>
             <div className="segment-control" role="group" aria-label="Mark position type">{(['fixed', 'variable', 'constructed', 'gate'] as const).map((kind) => <button aria-pressed={markKind === kind} className={markKind === kind ? 'active' : ''} key={kind} onClick={() => setMarkKind(kind)}>{kind}</button>)}</div>
             {markKind !== 'variable' && <><MapPointPicker value={markCoordinate} onChange={setMarkCoordinate} /><div className="form-grid"><label className="field"><span>{markKind === 'fixed' ? 'Latitude' : markKind === 'gate' ? 'Pin latitude' : 'Origin latitude'}</span><input type="number" step="0.00001" value={markCoordinate.latitude} onChange={(event) => setMarkCoordinate({ ...markCoordinate, latitude: Number(event.target.value) })} /></label><label className="field"><span>{markKind === 'fixed' ? 'Longitude' : markKind === 'gate' ? 'Pin longitude' : 'Origin longitude'}</span><input type="number" step="0.00001" value={markCoordinate.longitude} onChange={(event) => setMarkCoordinate({ ...markCoordinate, longitude: Number(event.target.value) })} /></label></div></>}
             {markKind === 'constructed' && <><div className="form-grid"><label className="field"><span>Distance (NM)</span><input type="number" min="0" step="0.1" value={markDistance} onChange={(event) => setMarkDistance(Number(event.target.value))} /></label><label className="field"><span>Bearing</span><input type="number" min="0" max="359.9" value={markBearing} onChange={(event) => setMarkBearing(Number(event.target.value))} /></label></div><div className="segment-control" role="group" aria-label="Bearing reference"><button aria-pressed={bearingReference === 'true'} className={bearingReference === 'true' ? 'active' : ''} onClick={() => setBearingReference('true')}>True</button><button aria-pressed={bearingReference === 'magnetic'} className={bearingReference === 'magnetic' ? 'active' : ''} onClick={() => setBearingReference('magnetic')}>Magnetic</button></div>{bearingReference === 'magnetic' && <label className="field"><span>Magnetic declination (east positive)</span><input type="number" step="0.1" value={declination} onChange={(event) => setDeclination(Number(event.target.value))} /></label>}<p className="microcopy"><Ruler size={13} /> Bearing, reference and origin are retained with the mark.</p></>}
             {markKind === 'gate' && <div className="form-grid"><label className="field"><span>Boat latitude</span><input type="number" step="0.00001" value={lineEndCoordinate.latitude} onChange={(event) => setLineEndCoordinate({ ...lineEndCoordinate, latitude: Number(event.target.value) })} /></label><label className="field"><span>Boat longitude</span><input type="number" step="0.00001" value={lineEndCoordinate.longitude} onChange={(event) => setLineEndCoordinate({ ...lineEndCoordinate, longitude: Number(event.target.value) })} /></label></div>}
           </>}
-          {!selectedLibraryMark && markName.trim() && !newMarkIsValid && <p id="new-mark-validation" className="field-error" role="alert">Enter a valid position. Gates must be at least 3 m wide; distance must be positive, bearing 0–359.9°, and magnetic declination −180–180°.</p>}
+          {creatingMark && markName.trim() && !newMarkIsValid && <p id="new-mark-validation" className="field-error" role="alert">Enter a valid position. Gates must be at least 3 m wide; distance must be positive, bearing 0–359.9°, and magnetic declination −180–180°.</p>}
           <fieldset className="mark-rounding-picker"><legend>Rounding</legend><div role="radiogroup" aria-label="New mark rounding"><label className={`rounding-arrow rounding-arrow--port ${newMarkRounding === 'port' ? 'is-selected' : ''}`}><input type="radio" name="new-mark-rounding" aria-label="Round new mark to port" checked={newMarkRounding === 'port'} onChange={() => setNewMarkRounding('port')} /><CornerUpLeft size={20} /></label><label className={`rounding-arrow rounding-arrow--starboard ${newMarkRounding === 'starboard' ? 'is-selected' : ''}`}><input type="radio" name="new-mark-rounding" aria-label="Round new mark to starboard" checked={newMarkRounding === 'starboard'} onChange={() => setNewMarkRounding('starboard')} /><CornerUpRight size={20} /></label></div></fieldset>
-          <button className="button button--primary button--wide" aria-describedby={!selectedLibraryMark && markName.trim() && !newMarkIsValid ? 'new-mark-validation' : undefined} disabled={addingMark || !markName.trim() || (!selectedLibraryMark && !newMarkIsValid)} onClick={() => void addCourseMark()}><Plus size={16} /> {addingMark ? 'Adding…' : 'Add to course'}</button>
+          <button className="button button--primary button--wide" aria-describedby={creatingMark && markName.trim() && !newMarkIsValid ? 'new-mark-validation' : undefined} disabled={addingMark || !markName.trim() || (!selectedLibraryMark && (!creatingMark || !newMarkIsValid))} onClick={() => void addCourseMark()}><Plus size={16} /> {addingMark ? 'Adding…' : 'Add to course'}</button>
         </div>
       </div>}
     </div>
