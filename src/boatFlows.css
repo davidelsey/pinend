@@ -1,4 +1,17 @@
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.app-shell .app-header--simple { height: 56px; padding: 0 12px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 8px; }
+.app-page-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; letter-spacing: -.03em; }
+.app-header--simple .icon-button { width: 40px; height: 40px; }
+.app-overflow { position: relative; }
+.app-options { position: absolute; z-index: 40; right: 0; top: 46px; width: min(280px, calc(100vw - 24px)); max-height: calc(100dvh - 70px); overflow-y: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 8px 30px rgba(7,27,47,.2); }
+.app-options .header-boat-picker { display: block; max-width: none; }
+.app-options nav { display: grid; margin: 8px 0; }
+.app-options nav button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: var(--navy); text-align: left; }
+.app-options nav button:hover { background: var(--teal-pale); }
+.app-options small { display: block; margin-top: 8px; color: var(--muted); }
+.race-marks-actions { flex-shrink: 0; display: flex; justify-content: flex-end; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.race-marks-actions .button { min-width: 120px; min-height: 42px; }
+.app-shell .sticky-action { bottom: calc(8px + env(safe-area-inset-bottom)); }
 .header-boat-picker { max-width: 44%; }
 .header-boat-picker select { width: 100%; min-height: 42px; border: 1px solid #d5dedb; border-radius: 10px; background: #fff; color: var(--navy); padding: 8px 12px; font-weight: 800; }
 .boat-first-nav { grid-template-columns: repeat(3, 1fr); justify-content: center; }

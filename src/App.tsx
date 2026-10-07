@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Anchor, Bug, ChevronLeft, CloudOff, Crosshair, LogIn, LogOut, Radio, Sailboat, Settings, Waves, Wifi, X } from 'lucide-react'
+import { Anchor, Bug, ChevronLeft, CloudOff, Crosshair, LogIn, LogOut, MoreVertical, Radio, Sailboat, Settings, Waves, Wifi, X } from 'lucide-react'
 import { AppProvider, useApp } from './app/AppContext'
 import { useDeviceSensors } from './hooks/useDeviceSensors'
 import { useWakeLock } from './hooks/useWakeLock'
@@ -47,6 +47,8 @@ function LoginPage({ onLocal }: { onLocal(demo?: boolean): void }) {
 function PinEndApp() {
   const { loading, online, error, clearError, boats, boat, selectBoat, race, session, updateSession, acceptDeviceReading, isNavigator, canManage, syncStatus, recordLatestReading, latestReading, refreshSharing } = useApp()
   const [view, setView] = useState<View>('races')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [addingBoat, setAddingBoat] = useState(Boolean(localStorage.getItem('pin-end-invite')))
   const [now, setNow] = useState(Date.now())
   const automaticStartInFlight = useRef(false)
@@ -65,9 +67,19 @@ function PinEndApp() {
     void updateSession({ phase: 'racing', activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) }).catch(() => { automaticStartInFlight.current = false })
   }, [active, isNavigator, now, race.course, session.autoStartArmed, session.phase, session.syncedStartTime, updateSession])
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'auto' }) }, [view])
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false) }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setMenuOpen(false); menuRef.current?.querySelector('button')?.focus() } }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape) }
+  }, [menuOpen])
   if (loading) return <div className="loading-screen"><span className="brand-mark"><Crosshair size={28} /></span><strong>Loading your boats…</strong></div>
   const onboarding = boats.length === 0 || addingBoat
   const inRace = view === 'race' && active && !onboarding
+  const navigate = (next: View) => { setMenuOpen(false); setView(next) }
+  const pageTitle = onboarding ? 'Add / join boat' : view === 'marks' ? 'Race marks' : view === 'races' ? 'Races' : view === 'boat' ? 'Boat' : view === 'debug' ? 'Debug' : view === 'setup' ? 'Race setup' : race.name
   const openDetail = () => setView('detail')
   const finish = <FinishedPage onReset={() => setView('races')} />
   const raceContent = session.phase === 'finished' ? finish : session.phase === 'setup'
@@ -83,17 +95,23 @@ function PinEndApp() {
     : view === 'boat' ? <BoatPage key={boat.id} />
     : view === 'debug' && import.meta.env.DEV ? <DebugPage /> : raceContent
   return <div className={`app-shell ${inRace ? 'app-shell--racing' : ''} ${view === 'marks' && canManage && !onboarding ? 'app-shell--marks' : ''}`}>
-    <header className="app-header">
-      <button className="app-brand" aria-label="Race home" onClick={() => setView('races')}><span className="brand-mark"><Crosshair size={21} /></span><strong>PIN END</strong></button>
-      {!onboarding && <label className="header-boat-picker"><span className="sr-only">Switch boat</span><select value={boat.id} onChange={(event) => { if (event.target.value === '__add') setAddingBoat(true); else { selectBoat(event.target.value); setView('races') } }}>
+    <header className="app-header app-header--simple">
+      <button className="icon-button" aria-label="Back" disabled={(!onboarding && view === 'races') || (onboarding && !boats.length)} onClick={() => { if (onboarding) { setAddingBoat(false); localStorage.removeItem('pin-end-invite') } navigate(view === 'marks' || view === 'setup' ? 'detail' : 'races') }}><ChevronLeft size={22} /></button>
+      <h1 className="app-page-title">{pageTitle}</h1>
+      <div className="app-overflow" ref={menuRef}>
+      <button className="icon-button" aria-label="More options" aria-expanded={menuOpen} aria-controls="app-options" onClick={() => setMenuOpen(!menuOpen)}><MoreVertical size={22} /></button>
+      {menuOpen && <div className="app-options" id="app-options">
+      {!onboarding && <label className="header-boat-picker"><span className="sr-only">Switch boat</span><select value={boat.id} onChange={(event) => { setMenuOpen(false); if (event.target.value === '__add') setAddingBoat(true); else { selectBoat(event.target.value); setView('races') } }}>
         {boats.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__add">＋ Add / join boat</option>
       </select></label>}
+      {!onboarding && <nav aria-label="Primary navigation"><button onClick={() => navigate('races')}><Anchor size={18} /> Races</button><button onClick={() => navigate('boat')}><Sailboat size={18} /> Boat</button>{import.meta.env.DEV && <button onClick={() => navigate('debug')}><Bug size={18} /> Debug</button>}</nav>}
       <div className="app-header__status"><span className={`connection ${online ? '' : 'connection--offline'}`}>{online ? <Wifi size={14} /> : <CloudOff size={14} />}{online ? 'Online' : 'Offline'}</span>{supabase && <button className="icon-button" aria-label="Sign out" onClick={() => void signOut()}><LogOut size={16} /></button>}</div>
+      <small>{view === 'race' ? isNavigator ? 'You are navigating · ' : 'Following navigator · ' : ''}{syncStatus}</small>
+      </div>}
+      </div>
     </header>
     {error && <div className="app-alert" role="alert"><span>{error}</span><button onClick={() => void refreshSharing()}>Retry sync</button><button aria-label="Dismiss message" onClick={clearError}><X size={18} /></button></div>}
-    {!onboarding && view !== 'races' && view !== 'boat' && view !== 'debug' && <div className="race-breadcrumb"><button onClick={() => setView(view === 'detail' || view === 'race' ? 'races' : 'detail')}><ChevronLeft size={16} />{view === 'detail' || view === 'race' ? 'All races' : race.name}</button><span>{view === 'race' ? isNavigator ? 'You are navigating' : 'Following navigator' : 'Race workspace'} · {syncStatus}</span></div>}
     <div className="app-content">{content}</div>
-    {!onboarding && !inRace && <nav className="bottom-nav boat-first-nav" aria-label="Primary navigation"><button className={view !== 'boat' && view !== 'debug' ? 'active' : ''} onClick={() => setView('races')}><Anchor size={20} /><span>Races</span></button><button className={view === 'boat' ? 'active' : ''} onClick={() => setView('boat')}><Sailboat size={20} /><span>Boat</span></button>{import.meta.env.DEV && <button className={view === 'debug' ? 'active' : ''} onClick={() => setView('debug')}><Bug size={20} /><span>Debug</span></button>}</nav>}
   </div>
 }
 

@@ -32,7 +32,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 
 .loading-screen { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 16px; background: var(--navy); color: var(--cream); }
 .brand-mark { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--orange); color: var(--navy); }
-.app-shell { min-height: 100vh; padding-bottom: 72px; }
+.app-shell { min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
 .app-shell--racing { padding-bottom: 0; background: var(--navy); }
 .app-content { min-height: calc(100vh - 65px); }
 .app-header { height: 65px; padding: 0 max(22px, calc((100vw - 1240px) / 2)); display: flex; align-items: center; justify-content: space-between; background: rgba(248, 245, 237, .96); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(12px); }
@@ -592,7 +592,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .app-shell--marks > .race-breadcrumb { padding: 2px 12px; }
 .app-shell--marks > .app-content { flex: 1; min-height: 0; overflow: hidden; }
 .app-shell--marks > .bottom-nav { position: static; flex-shrink: 0; }
-.app-shell--marks .race-marks-page { width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.app-shell--marks .race-marks-page { width: 100%; height: 100%; min-height: 0; margin: 0; padding: 8px 12px 0; display: flex; flex-direction: column; gap: 8px; }
 .race-marks-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 0; }
 .race-marks-heading h1 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
 .race-marks-heading .button { min-height: 38px; padding: 8px 12px; }
@@ -663,7 +663,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .start-line-targets > div { display: flex; align-items: center; gap: 9px; }
 .start-line-targets > div span { display: grid; }
 .start-line-targets small { color: var(--muted); }
-.mark-map-editor { position: fixed; z-index: 100; inset: 0; width: 100vw; height: 100dvh; padding-bottom: calc(66px + env(safe-area-inset-bottom)); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; color: var(--ink); background: var(--paper); }
+.mark-map-editor { position: fixed; z-index: 100; inset: 0; width: 100vw; height: 100dvh; padding-bottom: env(safe-area-inset-bottom); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; color: var(--ink); background: var(--paper); }
 .mark-map-editor__header { min-height: 70px; padding: max(14px, env(safe-area-inset-top)) 18px 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .mark-map-editor__header span { color: var(--orange-dark); font-size: 8px; font-weight: 800; letter-spacing: .14em; }
 .mark-map-editor__header h2 { margin: 2px 0 0; font-size: 20px; }

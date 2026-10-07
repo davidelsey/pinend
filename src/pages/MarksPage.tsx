@@ -217,10 +217,6 @@ export function MarksPage({ onEnterPrestart }: Props) {
 
   return (
     <div className="page standard-page race-marks-page">
-      <header className="race-marks-heading">
-        <h1>Race marks</h1>
-        {session.phase !== 'finished' && <button className="button button--primary" onClick={() => void enterPrestart()} aria-label="Done editing course">Done <ChevronRight size={18} /></button>}
-      </header>
 
       <div className="race-marks-workspace">
       <CoursePlot marks={marks} race={race} current={latestReading} zoomControls />
@@ -293,6 +289,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
       </div>
       </div>
       </div>
+      {session.phase !== 'finished' && <footer className="race-marks-actions"><button className="button button--primary" onClick={() => void enterPrestart()} aria-label="Done editing course">Done <ChevronRight size={18} /></button></footer>}
       {positionMark?.position.kind === 'gate' && <FullScreenLineMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => positionMark.id === 'start-line' ? item.endpoint === 'pin' || item.endpoint === 'committee' : item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (pointA, pointB) => { if (positionMark.position.kind !== 'gate') return; await saveMark({ ...positionMark, position: { ...positionMark.position, pointA, pointB } }); setPositionMark(null) }} />}
       {positionMark && positionMark.position.kind !== 'gate' && <FullScreenMarkMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (coordinate) => { await saveMark({ ...positionMark, position: withManualMarkCoordinate(positionMark.position, coordinate) }); setPositionMark(null) }} />}
       {sightTarget && <SightMarksDialog key={sightTarget.endpoint === 'mark' ? sightTarget.markId : sightTarget.endpoint} now={Date.now()} open initialTarget={sightTarget} initialAction="sight" onClose={() => setSightTarget(null)} />}

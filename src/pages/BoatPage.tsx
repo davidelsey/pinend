@@ -32,7 +32,6 @@ export function BoatPage() {
               <label className="field"><span>Length overall (m)</span><input type="number" step="0.01" value={draft.lengthMetres} onChange={(e) => setDraft({ ...draft, lengthMetres: Number(e.target.value) })} /></label>
               <label className="field"><span>Draft (m)</span><input type="number" step="0.01" value={draft.draftMetres} onChange={(e) => setDraft({ ...draft, draftMetres: Number(e.target.value) })} /></label>
             </div>
-            <button className="button button--primary" onClick={() => void saveBoat(draft)}><Check size={16} /> Save particulars</button>
           </section>
 
           <section className="panel">
@@ -64,6 +63,7 @@ export function BoatPage() {
         </aside>
       </div>
 
+      {canManage && <footer className="sticky-action"><div><strong>Boat particulars</strong></div><button className="button button--primary" onClick={() => void saveBoat(draft)}><Check size={16} /> Save particulars</button></footer>}
       {showAddSail && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <form className="form-modal" onSubmit={(event) => {

@@ -51,6 +51,7 @@ describe('shared crew race screens', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
     render(<App />)
     await resume()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     expect(screen.getByText(/Offline · last synced target/)).toBeInTheDocument()
     await waitFor(() => expect(server.getUser).not.toHaveBeenCalled())
   })

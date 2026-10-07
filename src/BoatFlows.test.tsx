@@ -24,6 +24,7 @@ describe('boat-first journeys', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create race' }))
     await screen.findByRole('heading', { name: 'Race marks' })
     const original = await database.sessions.toArray()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'Switch boat' }), { target: { value: '__add' } })
     fireEvent.click(screen.getByRole('button', { name: /Create a boat/ }))
     fireEvent.change(screen.getByLabelText('Boat name'), { target: { value: 'Windward' } })
@@ -32,6 +33,7 @@ describe('boat-first journeys', () => {
     expect(screen.queryByText('Harbour race')).not.toBeInTheDocument()
     expect(await database.sessions.toArray()).toEqual(original)
     const saltwater = (await database.boats.toArray()).find((boat) => boat.name === 'Saltwater')!
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'Switch boat' }), { target: { value: saltwater.id } })
     expect(await screen.findByText('Harbour race')).toBeInTheDocument()
     expect(localStorage.getItem('pin-end-selected-boat')).toBe(saltwater.id)

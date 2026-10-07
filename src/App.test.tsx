@@ -44,8 +44,12 @@ describe('primary local race journey', () => {
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Course' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' })
-    expect(within(navigation).getAllByRole('button').map((button) => button.textContent)).toEqual(['Races', 'Boat', 'Debug'])
+    expect(within(navigation).getAllByRole('button').map((button) => button.textContent?.trim())).toEqual(['Races', 'Boat', 'Debug'])
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'More options' })).toHaveAttribute('aria-expanded', 'false')
 
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
     expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
@@ -249,7 +253,7 @@ describe('primary local race journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
     expect(screen.getByRole('button', { name: 'Previous mark' })).toBeDisabled()
     expect(screen.queryByRole('dialog', { name: 'Return to pre-start?' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'All races' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     fireEvent.click(await screen.findByRole('button', { name: /Race 4.*Resume race/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Resume race' }))
     expect(await screen.findByText('RACING')).toBeInTheDocument()
@@ -330,10 +334,12 @@ describe('primary local race journey', () => {
     await confirmCourseAndEnterPrestart()
     fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
     expect(await screen.findByText('RACING')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'All races' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Use simulated sensors' }))
     fireEvent.click(screen.getByRole('button', { name: /^Near / }))
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Races' }))
     fireEvent.click(await screen.findByRole('button', { name: /Race 4.*Resume race/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Resume race' }))
@@ -360,12 +366,14 @@ describe('primary local race journey', () => {
     await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     expect(await screen.findByRole('heading', { name: 'Drive the simulated boat.' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Drag the boat and its speed handle on the simulator map' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Drag boat position' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Drag to set heading and speed' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Use simulated sensors' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Races' }))
     fireEvent.click(await screen.findByRole('button', { name: /Race 4.*Prepare race/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Race details & preparation' }))
@@ -377,6 +385,7 @@ describe('primary local race journey', () => {
     await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     const remoteSimulator = {
       coordinate: { latitude: -33.91, longitude: 151.21 },
@@ -425,6 +434,7 @@ describe('primary local race journey', () => {
     await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     expect(screen.getByRole('checkbox', { name: 'Use simulated sensors' })).not.toBeChecked()
     expect(screen.getByText(/6\.2 kn/)).toBeInTheDocument()
@@ -434,6 +444,7 @@ describe('primary local race journey', () => {
     const firstWindow = await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     fireEvent.change(screen.getByRole('slider', { name: 'GPS accuracy' }), { target: { value: '11' } })
     expect(JSON.parse(localStorage.getItem('pin-end-dev-simulator') ?? '{}').simulator.accuracy).toBe(11)
@@ -441,6 +452,7 @@ describe('primary local race journey', () => {
     firstWindow.unmount()
     await openSetup()
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     expect(screen.getByText('±11 m')).toBeInTheDocument()
   })
