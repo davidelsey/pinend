@@ -82,7 +82,7 @@ function PinEndApp() {
     : view === 'marks' && canManage ? <MarksPage onEnterPrestart={openDetail} />
     : view === 'boat' ? <BoatPage key={boat.id} />
     : view === 'debug' && import.meta.env.DEV ? <DebugPage /> : raceContent
-  return <div className={`app-shell ${inRace ? 'app-shell--racing' : ''}`}>
+  return <div className={`app-shell ${inRace ? 'app-shell--racing' : ''} ${view === 'marks' && canManage && !onboarding ? 'app-shell--marks' : ''}`}>
     <header className="app-header">
       <button className="app-brand" aria-label="Race home" onClick={() => setView('races')}><span className="brand-mark"><Crosshair size={21} /></span><strong>PIN END</strong></button>
       {!onboarding && <label className="header-boat-picker"><span className="sr-only">Switch boat</span><select value={boat.id} onChange={(event) => { if (event.target.value === '__add') setAddingBoat(true); else { selectBoat(event.target.value); setView('races') } }}>

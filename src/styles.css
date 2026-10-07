@@ -587,7 +587,33 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .prestart-course-mark small { color: var(--muted); }
 .prestart-course-mark > div { display: flex; gap: 8px; }
 .prestart-course-mark .button { min-height: 38px; padding: 8px 11px; }
-.race-marks-tabs { width: min(420px, 100%); margin: 0 auto 16px; }
+.app-shell--marks { height: 100dvh; min-height: 0; padding-bottom: 0; display: flex; flex-direction: column; overflow: hidden; }
+.app-shell--marks > .app-header, .app-shell--marks > .race-breadcrumb, .app-shell--marks > .app-alert { flex-shrink: 0; }
+.app-shell--marks > .race-breadcrumb { padding: 2px 12px; }
+.app-shell--marks > .app-content { flex: 1; min-height: 0; overflow: hidden; }
+.app-shell--marks > .bottom-nav { position: static; flex-shrink: 0; }
+.app-shell--marks .race-marks-page { width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.race-marks-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 0; }
+.race-marks-heading h1 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
+.race-marks-heading .button { min-height: 38px; padding: 8px 12px; }
+.race-marks-workspace { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.race-marks-workspace > .course-plot { min-width: 0; min-height: 0; height: 100%; }
+.race-marks-workspace .course-map-canvas, .race-marks-workspace .course-plot > svg { min-height: 0; height: 100%; }
+.race-marks-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.race-marks-tabs { flex-shrink: 0; width: 100%; margin: 0; }
+.race-marks-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
+.race-marks-scroll .race-mark-list { margin-top: 0; }
+.race-marks-scroll .race-mark-row { grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 10px; }
+.race-marks-scroll .course-mark-controls { grid-column: 2; grid-row: 2; }
+.race-marks-scroll .race-mark-row__actions { grid-column: 1 / -1; }
+@media (orientation: landscape) {
+  .race-marks-workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-shell--marks > .app-header { height: 48px; }
+  .app-shell--marks > .bottom-nav { height: 44px; }
+  .app-shell--marks > .race-breadcrumb { display: none; }
+}
 .race-mark-list { display: grid; gap: 9px; margin-top: 16px; }
 .course-builder { display: grid; gap: 12px; }
 .course-builder .race-mark-list { gap: 0; }

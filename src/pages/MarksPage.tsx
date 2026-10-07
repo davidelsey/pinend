@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Camera, Check, ChevronRight, Copy, CornerUpLeft, CornerUpRight, Crosshair, GripVertical, LockKeyhole, MapPinned, MapPin, Plus, Ruler, Trash2 } from 'lucide-react'
+import { Camera, ChevronRight, Copy, CornerUpLeft, CornerUpRight, Crosshair, GripVertical, LockKeyhole, MapPinned, MapPin, Plus, Ruler, Trash2 } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { FullScreenMarkMapEditor } from '../components/FullScreenMarkMapEditor'
@@ -217,17 +217,20 @@ export function MarksPage({ onEnterPrestart }: Props) {
 
   return (
     <div className="page standard-page race-marks-page">
-      <section className="page-title page-title--row">
-        <div><span className="eyebrow"><MapPin size={14} /> Course confirmation</span><h1>Race marks</h1><p>Check every rounding and resolve movable marks before pre-start.</p></div>
-      </section>
+      <header className="race-marks-heading">
+        <h1>Race marks</h1>
+        {session.phase !== 'finished' && <button className="button button--primary" onClick={() => void enterPrestart()} aria-label="Done editing course">Done <ChevronRight size={18} /></button>}
+      </header>
 
+      <div className="race-marks-workspace">
+      <CoursePlot marks={marks} race={race} current={latestReading} zoomControls />
+      <div className="race-marks-panel">
       <div className="segment-control race-marks-tabs" role="tablist" aria-label="Marks view">
         <button role="tab" aria-selected={view === 'course'} className={view === 'course' ? 'active' : ''} onClick={() => setView('course')}>Course</button>
         <button role="tab" aria-selected={view === 'marks'} className={view === 'marks' ? 'active' : ''} onClick={() => setView('marks')}>Marks</button>
       </div>
 
-      <CoursePlot marks={marks} race={race} current={latestReading} zoomControls />
-
+      <div className="race-marks-scroll">
       {view === 'course' ? (
         <section className="course-builder" aria-label="Course builder">
           <div className="race-mark-list" role="region" aria-label="Course mark list">
@@ -287,8 +290,9 @@ export function MarksPage({ onEnterPrestart }: Props) {
           {raceMarks.map((mark) => <MarkRow key={mark.id} mark={mark} isFinish={mark.id === finishWaypoint?.markId} finishLinked={finishLinked} onFinishLinked={mark.id === finishWaypoint?.markId ? (linked) => void setFinishLinked(linked) : undefined} onPosition={setPositionMark} onSight={(item) => setSightTarget({ endpoint: 'mark', markId: item.id })} />)}
         </section>
       )}
-
-      {session.phase !== 'finished' && <div className="sticky-action"><div><strong><Check size={16} /> Course reviewed</strong><span>{race.course.length} roundings · {raceMarks.length} unique marks</span></div><button className="button button--primary" onClick={() => void enterPrestart()}>Done editing course <ChevronRight size={18} /></button></div>}
+      </div>
+      </div>
+      </div>
       {positionMark?.position.kind === 'gate' && <FullScreenLineMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => positionMark.id === 'start-line' ? item.endpoint === 'pin' || item.endpoint === 'committee' : item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (pointA, pointB) => { if (positionMark.position.kind !== 'gate') return; await saveMark({ ...positionMark, position: { ...positionMark.position, pointA, pointB } }); setPositionMark(null) }} />}
       {positionMark && positionMark.position.kind !== 'gate' && <FullScreenMarkMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (coordinate) => { await saveMark({ ...positionMark, position: withManualMarkCoordinate(positionMark.position, coordinate) }); setPositionMark(null) }} />}
       {sightTarget && <SightMarksDialog key={sightTarget.endpoint === 'mark' ? sightTarget.markId : sightTarget.endpoint} now={Date.now()} open initialTarget={sightTarget} initialAction="sight" onClose={() => setSightTarget(null)} />}
