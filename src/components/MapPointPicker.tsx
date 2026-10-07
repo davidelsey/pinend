@@ -113,16 +113,21 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
         const content = pinElement(label, variant)
         const marker = new AdvancedMarkerElement({ map, position: googleCoordinate(coordinate), content })
         const entry: Pin = { marker, content, coordinate: coordinateKey }
-        marker.addListener('dragend', () => {
+        const reportPosition = () => {
           const next = fromPosition(marker.position)
           if (next) entry.change?.(next)
-        })
+        }
+        marker.addListener('drag', reportPosition)
+        marker.addListener('dragend', reportPosition)
         markersRef.current.set(key, entry)
         pin = entry
       }
       // Do not reset a pin mid-drag on unrelated clock or GPS renders.
       if (pin.coordinate !== coordinateKey) {
-        pin.marker.position = googleCoordinate(coordinate)
+        const current = fromPosition(pin.marker.position)
+        if (current?.latitude !== coordinate.latitude || current?.longitude !== coordinate.longitude) {
+          pin.marker.position = googleCoordinate(coordinate)
+        }
         pin.coordinate = coordinateKey
       }
       const text = pin.content.querySelector('strong')!
