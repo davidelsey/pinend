@@ -40,9 +40,10 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const navigationReading = latestReading ?? session.telemetry.at(-1) ?? null
   const activeWaypoint = race.course[session.activeWaypointIndex]
   const alreadyRounded = Boolean(activeWaypoint && session.roundedAt[activeWaypoint.id] != null)
-  const skippedWaypoints = race.course.slice(0, session.activeWaypointIndex)
-    .map((waypoint, index) => ({ waypoint, index }))
-    .filter(({ waypoint }) => session.roundedAt[waypoint.id] == null)
+  const priorWaypoint = race.course[session.activeWaypointIndex - 1]
+  const priorMarkPending = Boolean(priorWaypoint && session.roundedAt[priorWaypoint.id] == null)
+  const roundingBlocked = !alreadyRounded && priorMarkPending
+  const priorMarkName = marks.find((mark) => mark.id === priorWaypoint?.markId)?.name ?? 'the previous mark'
   const activeMark = marks.find((mark) => mark.id === activeWaypoint?.markId)
   const target = activeMark ? resolveMarkPosition(activeMark.position) : undefined
   const distance = navigationReading && target ? distanceNm(navigationReading, target) : null
@@ -76,8 +77,8 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   )
 
   useEffect(() => {
-    if (roundingSuggested && isNavigator && !alreadyRounded && dismissedSuggestion !== activeWaypoint?.id) setShowRounding(true)
-  }, [activeWaypoint?.id, alreadyRounded, dismissedSuggestion, isNavigator, roundingSuggested])
+    if (roundingSuggested && isNavigator && !alreadyRounded && !roundingBlocked && dismissedSuggestion !== activeWaypoint?.id) setShowRounding(true)
+  }, [activeWaypoint?.id, alreadyRounded, dismissedSuggestion, isNavigator, roundingBlocked, roundingSuggested])
 
   const undoRounding = async () => {
     if (!activeWaypoint || !isNavigator || !alreadyRounded) return
@@ -89,7 +90,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   }
 
   const advance = async () => {
-    if (!activeWaypoint || !isNavigator || alreadyRounded) return
+    if (!activeWaypoint || !isNavigator || alreadyRounded || roundingBlocked) return
     const nextIndex = session.activeWaypointIndex + 1
     if (nextIndex >= race.course.length) {
       await updateSession({ phase: 'finished', roundedAt: { ...session.roundedAt, [activeWaypoint.id]: Date.now() } })
@@ -140,10 +141,11 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           <div className="race-distance">{distanceDisplay.value} <span>{distanceDisplay.unit} TO MARK</span></div>
           <div className={`race-eta ${etaSeconds == null ? 'race-eta--unavailable' : ''}`}><Clock3 size={14} /> ETA {etaLabel} <span>AT CURRENT VMG</span></div>
           <div className="race-actions">
-            {isNavigator ? <button className="button button--race-next" onClick={() => alreadyRounded ? void undoRounding() : setShowRounding(true)}>
+            {isNavigator ? <button className="button button--race-next" disabled={roundingBlocked} aria-describedby={roundingBlocked ? 'rounding-blocked-reason' : undefined} onClick={() => alreadyRounded ? void undoRounding() : setShowRounding(true)}>
               {alreadyRounded ? <RotateCw size={18} /> : <Flag size={18} />} {alreadyRounded ? 'Undo rounding' : activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} {!alreadyRounded && <ChevronRight size={18} />}
             </button> : <p className="crew-following">Following the navigator’s target</p>}
           </div>
+          {isNavigator && roundingBlocked && <p className="rounding-blocked-reason" id="rounding-blocked-reason">Complete {priorMarkName} first.</p>}
         </section>
 
         <div className="race-metrics">
@@ -167,18 +169,13 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
         </div>
       </main>
 
-      {showRounding && (
+      {showRounding && !roundingBlocked && !alreadyRounded && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm mark rounding">
           <div className="rounding-modal">
             <div className="rounding-modal__icon"><Flag size={26} /></div>
             <span className="eyebrow">Confirm progression</span>
             <h2>{activeWaypoint?.role === 'finish' ? 'Confirm race finish?' : activeWaypoint?.role === 'start' ? 'Start line crossed?' : `${activeMark?.name} rounded?`}</h2>
             <p>{roundingSuggested ? 'Pin End detected a close approach followed by movement away.' : 'Advance manually if you have completed this rounding.'}</p>
-            {skippedWaypoints.length > 0 && <div className="rounding-skipped" role="alert">
-              <strong><AlertTriangle size={18} /> {skippedWaypoints.length === 1 ? 'An earlier mark was skipped' : 'Earlier marks were skipped'}</strong>
-              <ul>{skippedWaypoints.map(({ waypoint, index }) => <li key={waypoint.id}>Leg {index + 1}: {marks.find((mark) => mark.id === waypoint.markId)?.name ?? 'Unnamed mark'}</li>)}</ul>
-              <p>No rounding is recorded for these marks. Continuing will leave them unrounded.</p>
-            </div>}
             <div className="rounding-modal__stats">
               <span><strong>{distance?.toFixed(2) ?? '—'} NM</strong>current distance</span>
               <span><strong>±{Math.round(navigationReading?.accuracy ?? 0)} m</strong>GPS accuracy</span>
