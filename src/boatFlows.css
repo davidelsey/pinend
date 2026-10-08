@@ -1,6 +1,37 @@
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .app-shell .app-header--simple { height: 56px; padding: 0 12px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 8px; }
 .app-page-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; letter-spacing: -.03em; }
+.app-header-title { min-width: 0; }
+.app-race-status { display: flex; align-items: center; gap: 12px; margin-top: 2px; }
+.app-race-status .race-header__live, .app-race-status .race-header__elapsed { font-size: 9px; gap: 5px; }
+.app-race-status .race-header__elapsed { color: #425a65; }
+
+.race-view.race-view--split { height: calc(100dvh - 56px); min-height: 0; padding-bottom: 0; display: flex; flex-direction: column; overflow: hidden; }
+.race-view--split .race-main { width: 100%; flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: 0; }
+.race-view--split .race-instruments { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; justify-content: safe center; padding: 8px 12px; }
+.race-view--split .race-focus { padding: 0 0 8px; }
+.race-view--split .race-focus h1 { font-size: clamp(24px, 4vw, 42px); margin: 4px 0; min-width: 0; }
+.race-view--split .race-bearing strong { font-size: clamp(30px, 4vw, 48px); }
+.race-view--split .race-eta { margin-top: 5px; padding: 4px 10px; }
+.race-view--split .race-metrics { flex-shrink: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; border-radius: 10px; }
+.race-view--split .metric { padding: 8px; min-width: 0; }
+.race-view--split .metric__label { font-size: 8px; letter-spacing: 0; }
+.race-view--split .metric__label svg { display: none; }
+.race-view--split .metric__value { font-size: clamp(20px, 3vw, 30px); }
+.race-wind { background: #0b263a; position: relative; }
+.race-view--split .race-wind .metric { padding-bottom: 0; }
+.race-wind__direction { display: block; padding: 0 8px 5px; color: #a3b5bc; font-size: 10px; }
+.race-view--split .race-layout { display: block; min-width: 0; min-height: 0; }
+.race-view--split .race-map-panel { height: 100%; position: relative; }
+.race-view--split .course-plot, .race-view--split .course-map-canvas { height: 100%; min-height: 0; border-radius: 0; }
+.race-view--split .map-progress { position: absolute; bottom: 0; left: 0; right: 0; margin: 0; }
+.race-view--split .race-actions { flex-shrink: 0; margin: 0; padding: 8px 12px max(8px, env(safe-area-inset-bottom)); }
+.race-view--split .race-actions .button { min-height: 42px; padding: 8px 18px; }
+@media (orientation: landscape) {
+  .race-view--split .race-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .race-view--split .race-layout { grid-column: 1; grid-row: 1; }
+  .race-view--split .race-instruments { grid-column: 2; grid-row: 1; }
+}
 .app-header--simple .icon-button { width: 40px; height: 40px; }
 .app-overflow { position: relative; }
 .app-options { position: absolute; z-index: 40; right: 0; top: 46px; width: min(280px, calc(100vw - 24px)); max-height: calc(100dvh - 70px); overflow-y: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 8px 30px rgba(7,27,47,.2); }

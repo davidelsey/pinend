@@ -12,18 +12,16 @@ import {
   Flag,
   Gauge,
   Navigation,
-  Radio,
   RotateCw,
   Wind,
 } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { Metric } from '../components/Metric'
-import { formatCountdown } from '../domain/countdown'
 import { distanceNm, initialBearing, nauticalMilesToMetres, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
 import { shouldSuggestRounding } from '../domain/rounding'
 import { cyca } from '../data/seed'
-import { fetchForecast, fetchMarineForecast, type ForecastSnapshot, type MarineSnapshot } from '../services/weather'
+import { fetchForecast, type ForecastSnapshot } from '../services/weather'
 
 type Props = { now: number; wakeLockStatus: string; onFinish(): void }
 
@@ -38,7 +36,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   } = useApp()
   const [showRounding, setShowRounding] = useState(false)
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
-  const [marine, setMarine] = useState<MarineSnapshot | null>(null)
   const navigationReading = latestReading ?? session.telemetry.at(-1) ?? null
   const activeWaypoint = race.course[session.activeWaypointIndex]
   const activeMark = marks.find((mark) => mark.id === activeWaypoint?.markId)
@@ -59,11 +56,10 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     : etaSeconds >= 3600
       ? `${Math.floor(etaSeconds / 3600)}h ${Math.round((etaSeconds % 3600) / 60)}m`
       : `${Math.floor(etaSeconds / 60)}m ${Math.round(etaSeconds % 60)}s`
-  const elapsed = now - session.syncedStartTime
+  const wind = forecast?.hours.find((hour) => Math.abs(new Date(hour.time).getTime() - now) < 3600_000) ?? forecast?.hours[0]
 
   useEffect(() => {
     void fetchForecast(cyca.coordinate).then(setForecast)
-    void fetchMarineForecast(cyca.coordinate).then(setMarine)
   }, [])
 
 
@@ -106,14 +102,9 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   }
 
   return (
-    <div className="race-view">
-      <header className="race-header">
-        <div className="race-header__live"><span className="live-dot" /> RACING</div>
-        <div className="race-header__title"><strong>{race.name}</strong><span>{race.fleet}</span></div>
-        <div className="race-header__elapsed"><Clock3 size={14} /> {formatCountdown(-elapsed)}</div>
-      </header>
-
+    <div className="race-view race-view--split">
       <main className="race-main">
+        <div className="race-instruments">
         <section className="race-focus">
           <div className="race-focus__topline">
             <span>LEG {session.activeWaypointIndex + 1} OF {race.course.length}</span>
@@ -140,7 +131,8 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           <Metric label="GPS boat speed" value={navigationReading?.speedKnots.toFixed(1) ?? '—'} unit="kn" icon={<Gauge size={15} />} />
           <Metric label="VMG" value={vmg?.toFixed(1) ?? '—'} unit="kn" icon={<ArrowRight size={15} />} />
           <Metric label="Course" value={navigationReading ? Math.round(navigationReading.heading).toString().padStart(3, '0') : '—'} unit="°T" icon={<Compass size={15} />} />
-          <Metric label="Accuracy" value={navigationReading ? Math.round(navigationReading.accuracy).toString() : '—'} unit="m" icon={<Radio size={15} />} />
+          <div className="race-wind"><Metric label={forecast?.stale ? 'Wind · cached forecast' : 'Wind · forecast'} value={wind ? Math.round(wind.windSpeed).toString() : '—'} unit="kn" icon={<Wind size={15} />} /><span className="race-wind__direction">{wind ? `${Math.round(wind.windDirection).toString().padStart(3, '0')}° T` : 'Unavailable'}</span></div>
+        </div>
         </div>
 
         <div className="race-layout">
@@ -153,21 +145,13 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
             </div>
           </section>
 
-          <aside className="race-sidebar">
-            <section className="race-info-card">
-              <div><Wind size={18} /><span>Forecast wind</span><strong>{forecast?.hours[0] ? `${Math.round(forecast.hours[0].windDirection).toString().padStart(3, '0')}° T · ${Math.round(forecast.hours[0].windSpeed)} kn` : 'Unavailable'}</strong></div>
-              <div><Navigation size={18} /><span>Model current</span><strong>{marine?.currentKnots != null && marine.currentDirection != null ? `${marine.currentKnots.toFixed(1)} kn · ${Math.round(marine.currentDirection).toString().padStart(3, '0')}° T` : 'Unavailable'}</strong></div>
-              <small>{forecast?.stale || marine?.stale ? 'Cached data' : 'Latest downloaded data'} · advisory only</small>
-            </section>
-          </aside>
         </div>
-
+      </main>
         <div className="race-actions">
           {isNavigator ? <button className="button button--race-next" onClick={() => setShowRounding(true)}>
             <Flag size={18} /> {activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} <ChevronRight size={18} />
           </button> : <p className="crew-following">Following the navigator’s target</p>}
         </div>
-      </main>
 
       {showRounding && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm mark rounding">

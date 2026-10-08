@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Anchor, Bug, ChevronLeft, CloudOff, Crosshair, LogIn, LogOut, MoreVertical, Radio, Sailboat, Settings, Waves, Wifi, X } from 'lucide-react'
+import { Anchor, Bug, ChevronLeft, Clock3, CloudOff, Crosshair, LogIn, LogOut, MoreVertical, Radio, Sailboat, Settings, Waves, Wifi, X } from 'lucide-react'
+import { formatCountdown } from './domain/countdown'
 import { AppProvider, useApp } from './app/AppContext'
 import { useDeviceSensors } from './hooks/useDeviceSensors'
 import { useWakeLock } from './hooks/useWakeLock'
@@ -98,7 +99,7 @@ function PinEndApp() {
   return <div className={`app-shell ${inRace ? 'app-shell--racing' : ''} ${view === 'marks' && canManage && !onboarding ? 'app-shell--marks' : ''}`}>
     <header className="app-header app-header--simple">
       <button className="icon-button" aria-label="Back" disabled={(!onboarding && view === 'races') || (onboarding && !boats.length)} onClick={() => { if (onboarding) { setAddingBoat(false); localStorage.removeItem('pin-end-invite') } navigate(view === 'marks' || view === 'setup' ? 'detail' : 'races') }}><ChevronLeft size={22} /></button>
-      <h1 className="app-page-title">{pageTitle}</h1>
+      <div className="app-header-title"><h1 className="app-page-title">{pageTitle}</h1>{inRace && session.phase === 'racing' && <div className="app-race-status"><span className="race-header__live"><span className="live-dot" />RACING</span><span className="race-header__elapsed" aria-label="Elapsed race time"><Clock3 size={12} />{formatCountdown(session.syncedStartTime - now)}</span></div>}</div>
       <div className="app-overflow" ref={menuRef}>
       <button className="icon-button" aria-label="More options" aria-expanded={menuOpen} aria-controls="app-options" onClick={() => setMenuOpen(!menuOpen)}><MoreVertical size={22} /></button>
       {menuOpen && <div className="app-options" id="app-options">
