@@ -6,6 +6,26 @@ import type { Mark, RaceDefinition } from '../domain/types'
 import { loadGoogleMaps } from '../services/googleMaps'
 
 describe('CoursePlot', () => {
+  it('dims the course while highlighting the selected leg, including repeat visits to a mark', async () => {
+    const marks: Mark[] = [
+      { id: 'a', name: 'A', shortName: 'A', provenance: 'personal', position: { kind: 'fixed', coordinate: { latitude: -33.86, longitude: 151.23 } } },
+      { id: 'b', name: 'B', shortName: 'B', provenance: 'personal', position: { kind: 'fixed', coordinate: { latitude: -33.87, longitude: 151.24 } } },
+    ]
+    const race: RaceDefinition = { ...seedRace, course: ['a', 'b', 'a'].map((markId, index) => ({ id: `leg-${index}`, markId, rounding: 'port' })) }
+    const options = vi.spyOn(google.maps.Polyline.prototype, 'setOptions')
+    try {
+      const view = render(<CoursePlot marks={marks} race={race} activeWaypointIndex={1} />)
+      await screen.findByText('2 · B')
+      options.mockClear()
+      view.rerender(<CoursePlot marks={marks} race={race} activeWaypointIndex={2} />)
+      expect(options).toHaveBeenCalledWith(expect.objectContaining({ strokeOpacity: 0.2, path: [
+        { lat: -33.86, lng: 151.23 }, { lat: -33.87, lng: 151.24 }, { lat: -33.86, lng: 151.23 },
+      ] }))
+      expect(options).toHaveBeenCalledWith(expect.objectContaining({ strokeOpacity: 1, strokeWeight: 5, path: [
+        { lat: -33.87, lng: 151.24 }, { lat: -33.86, lng: 151.23 },
+      ] }))
+    } finally { options.mockRestore() }
+  })
   it('includes the first GPS fix in the viewport after the course has already loaded', async () => {
     const { maps } = await loadGoogleMaps()
     const fit = vi.spyOn(maps.Map.prototype, 'fitBounds')

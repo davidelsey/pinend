@@ -262,7 +262,7 @@ describe('primary local race journey', () => {
     fireEvent.click(screen.getByRole('button', { name: /Start now/i }))
 
     await waitFor(() => expect(screen.getByText('RACING')).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: /Mark rounded/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show current leg' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
@@ -323,7 +323,7 @@ describe('primary local race journey', () => {
       await waitFor(() => expect(document.querySelector('.race-focus__topline')).toHaveTextContent(`LEG ${i + 2} OF`))
     }
     expect(await screen.findByRole('heading', { name: 'Finish line' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Finish race' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show current leg' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
     await screen.findByRole('heading', { name: 'Shark Island' })
     fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
@@ -383,22 +383,19 @@ describe('primary local race journey', () => {
     await waitFor(() => expect(screen.getByText('M TO MARK').closest('.race-distance')).toHaveTextContent(/^\d+ M TO MARK$/))
   })
 
-  it('requires the prior mark and keeps undo available when a prior rounding is undone', async () => {
+  it('returns to the first unrounded leg and keeps undo available for completed marks', async () => {
     await openSetup()
     await confirmCourseAndEnterPrestart()
     fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
     await screen.findByText('RACING')
     fireEvent.click(screen.getByRole('button', { name: 'Next mark' }))
     await screen.findByRole('heading', { name: 'Windward mark' })
-    fireEvent.click(screen.getByRole('button', { name: 'Mark rounded' }))
-    expect(screen.getByRole('button', { name: 'Mark rounded' })).toBeDisabled()
-    expect(screen.getByText('Complete Clark Island first.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show current leg' })).toBeEnabled()
+    expect(screen.queryByText('Complete Clark Island first.')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect((await database.sessions.toArray())[0].roundedAt['leg-2']).toBeUndefined()
-    fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
-    await screen.findByRole('heading', { name: 'Clark Island' })
-    expect(screen.getByRole('button', { name: 'Mark rounded' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Previous mark' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show current leg' }))
+    await screen.findByRole('heading', { name: 'Start line' })
     fireEvent.click(await screen.findByRole('button', { name: 'Start line crossed' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirm & advance' }))
     await screen.findByRole('heading', { name: 'Clark Island' })
@@ -429,7 +426,9 @@ describe('primary local race journey', () => {
     await screen.findByRole('heading', { name: 'Shark Island' })
     expect(screen.getByRole('button', { name: 'Undo rounding' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Undo rounding' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Mark rounded' })).toBeDisabled())
+    fireEvent.click(await screen.findByRole('button', { name: 'Show current leg' }))
+    await screen.findByRole('heading', { name: 'Windward mark' })
+    expect(screen.getByRole('button', { name: 'Mark rounded' })).toBeEnabled()
   })
 
   it('automatically displays the simulated boat in race mode without GPS in development', async () => {

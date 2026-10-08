@@ -9,7 +9,7 @@ import { animateCourseDirection } from '../services/courseDirection'
 
 type CurrentPosition = Coordinate & Partial<Pick<SensorReading, 'heading' | 'headingSource' | 'deviceHeading' | 'courseOverGround'>>
 type SimulationControls = { speedKnots: number; onPosition(coordinate: Coordinate): void; onVector(heading: number, speedKnots: number): void }
-type Props = { marks: Mark[]; race: RaceDefinition; current?: CurrentPosition | null; activeMarkId?: string; line?: { pin: Coordinate; committee: Coordinate } | null; compact?: boolean; zoomControls?: boolean; simulation?: SimulationControls }
+type Props = { marks: Mark[]; race: RaceDefinition; current?: CurrentPosition | null; activeMarkId?: string; activeWaypointIndex?: number; line?: { pin: Coordinate; committee: Coordinate } | null; compact?: boolean; zoomControls?: boolean; simulation?: SimulationControls }
 type MarkerInteraction = { onDrag?(coordinate: Coordinate): void; onKeyDown?(event: KeyboardEvent): void }
 const FIT_PADDING = 44
 
@@ -26,7 +26,7 @@ function markerElement(label: string, variant: 'mark' | 'active' | 'line' | 'boa
   return element
 }
 
-export function CoursePlot({ marks, race, current, activeMarkId, line, compact, zoomControls = false, simulation }: Props) {
+export function CoursePlot({ marks, race, current, activeMarkId, activeWaypointIndex, line, compact, zoomControls = false, simulation }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
@@ -112,9 +112,19 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     const vectorEnd = simulation && current ? destinationPoint(current, 0.05 + simulation.speedKnots / 6, boatHeading ?? 0) : null
     const gateIsActive = (gate: typeof visibleGates[number]) => gate.id === activeMarkId
       || (model.sharedStartFinish && gate.isStart && model.gates.some((item) => item.isFinish && item.id === activeMarkId))
+    const focusLeg = activeWaypointIndex != null
+    const coordinateAt = (index: number) => {
+      const gate = model.gates.find((item) => item.waypointIndex === index)
+      return gate ? { latitude: (gate.pointA.latitude + gate.pointB.latitude) / 2, longitude: (gate.pointA.longitude + gate.pointB.longitude) / 2 } : model.courseMarks.find((item) => item.waypointIndex === index)?.coordinate
+    }
+    const legStart = focusLeg ? coordinateAt(activeWaypointIndex - 1) : undefined
+    const legEnd = focusLeg ? coordinateAt(activeWaypointIndex) : undefined
+    const activePath = legStart && legEnd ? [legStart, legEnd] : null
+    const hasRoute = model.routeCoordinates.length > 1
     const lineOptions: google.maps.PolylineOptions[] = [
-      ...(model.routeCoordinates.length > 1 ? [{ path: model.routeCoordinates.map(googleCoordinate), strokeColor: '#f5f1e8', strokeWeight: 3, strokeOpacity: 0.8 }] : []),
-      ...visibleGates.map((gate) => ({ path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)], strokeColor: gateIsActive(gate) ? '#ffb340' : gate.isFinish ? '#53d3c2' : '#ff6b35', strokeWeight: gateIsActive(gate) ? 9 : 6, strokeOpacity: 1, icons: [] })),
+      ...(hasRoute ? [{ path: model.routeCoordinates.map(googleCoordinate), strokeColor: '#f5f1e8', strokeWeight: 3, strokeOpacity: focusLeg ? 0.2 : 0.8, zIndex: 1, ...(focusLeg ? { icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, fillColor: '#ff6b35', fillOpacity: 0.2, strokeOpacity: 0.2, strokeWeight: 1 }, offset: '24px', repeat: '96px' }] } : {}) }] : []),
+      ...(activePath ? [{ path: activePath.map(googleCoordinate), strokeColor: '#f5f1e8', strokeWeight: 5, strokeOpacity: 1, zIndex: 2 }] : []),
+      ...visibleGates.map((gate) => ({ path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)], strokeColor: gateIsActive(gate) ? '#ffb340' : gate.isFinish ? '#53d3c2' : '#ff6b35', strokeWeight: gateIsActive(gate) ? 9 : 6, strokeOpacity: focusLeg && !gateIsActive(gate) ? 0.2 : 1, icons: [] })),
       ...(vectorEnd && current ? [{ path: [googleCoordinate(current), googleCoordinate(vectorEnd)], strokeColor: '#ff6b35', strokeWeight: 3, icons: [] }] : []),
     ]
     lineOptions.forEach((options, index) => {
@@ -122,7 +132,7 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
       else linesRef.current[index] = new google.maps.Polyline({ ...options, map })
     })
     linesRef.current.splice(lineOptions.length).forEach((line) => line.setMap(null))
-    courseLineRef.current = model.routeCoordinates.length > 1 ? linesRef.current[0] : null
+    courseLineRef.current = focusLeg ? activePath ? linesRef.current[hasRoute ? 1 : 0] : null : hasRoute ? linesRef.current[0] : null
 
     const nextMarkers: google.maps.marker.AdvancedMarkerElement[] = []
     const addMarker = ({ onDrag, onKeyDown, ...options }: google.maps.marker.AdvancedMarkerElementOptions & { content: HTMLDivElement } & MarkerInteraction) => {
@@ -221,7 +231,7 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
       initialFitRef.current = true
     }
     positionedBoatRef.current = Boolean(current)
-  }, [activeMarkId, boatHeading, courseOverGround, current, loaded, mapBearing, model, simulation, travelHeadingAvailable])
+  }, [activeMarkId, activeWaypointIndex, boatHeading, courseOverGround, current, loaded, mapBearing, model, simulation, travelHeadingAvailable])
 
   useEffect(() => {
     if (loaded) return animateCourseDirection(() => courseLineRef.current)

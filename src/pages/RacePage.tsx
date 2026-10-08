@@ -43,7 +43,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const priorWaypoint = race.course[session.activeWaypointIndex - 1]
   const priorMarkPending = Boolean(priorWaypoint && session.roundedAt[priorWaypoint.id] == null)
   const roundingBlocked = !alreadyRounded && priorMarkPending
-  const priorMarkName = marks.find((mark) => mark.id === priorWaypoint?.markId)?.name ?? 'the previous mark'
   const activeMark = marks.find((mark) => mark.id === activeWaypoint?.markId)
   const target = activeMark ? resolveMarkPosition(activeMark.position) : undefined
   const distance = navigationReading && target ? distanceNm(navigationReading, target) : null
@@ -104,6 +103,14 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     setShowRounding(false)
   }
 
+  const showCurrentLeg = async () => {
+    if (!isNavigator) return
+    const index = race.course.findIndex((waypoint) => session.roundedAt[waypoint.id] == null)
+    if (index < 0) return
+    setShowRounding(false)
+    await updateSession({ activeWaypointIndex: index })
+  }
+
   const selectPrevious = async () => {
     if (!isNavigator || session.activeWaypointIndex <= 0) return
     setShowRounding(false)
@@ -141,11 +148,10 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           <div className="race-distance">{distanceDisplay.value} <span>{distanceDisplay.unit} TO MARK</span></div>
           <div className={`race-eta ${etaSeconds == null ? 'race-eta--unavailable' : ''}`}><Clock3 size={14} /> ETA {etaLabel} <span>AT CURRENT VMG</span></div>
           <div className="race-actions">
-            {isNavigator ? <button className="button button--race-next" disabled={roundingBlocked} aria-describedby={roundingBlocked ? 'rounding-blocked-reason' : undefined} onClick={() => alreadyRounded ? void undoRounding() : setShowRounding(true)}>
-              {alreadyRounded ? <RotateCw size={18} /> : <Flag size={18} />} {alreadyRounded ? 'Undo rounding' : activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} {!alreadyRounded && <ChevronRight size={18} />}
+            {isNavigator ? <button className="button button--race-next" onClick={() => alreadyRounded ? void undoRounding() : roundingBlocked ? void showCurrentLeg() : setShowRounding(true)}>
+              {alreadyRounded ? <RotateCw size={18} /> : roundingBlocked ? <Navigation size={18} /> : <Flag size={18} />} {alreadyRounded ? 'Undo rounding' : roundingBlocked ? 'Show current leg' : activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} {!alreadyRounded && <ChevronRight size={18} />}
             </button> : <p className="crew-following">Following the navigator’s target</p>}
           </div>
-          {isNavigator && roundingBlocked && <p className="rounding-blocked-reason" id="rounding-blocked-reason">Complete {priorMarkName} first.</p>}
         </section>
 
         <div className="race-metrics">
@@ -158,7 +164,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
 
         <div className="race-layout">
           <section className="race-map-panel">
-            <CoursePlot marks={marks} race={race} current={navigationReading} activeMarkId={activeMark?.id} />
+            <CoursePlot marks={marks} race={race} current={navigationReading} activeMarkId={activeMark?.id} activeWaypointIndex={session.activeWaypointIndex} />
             <div className="map-progress">
               {race.course.map((waypoint, index) => (
                 <span key={waypoint.id} className={index === session.activeWaypointIndex ? 'active' : session.roundedAt[waypoint.id] != null ? 'done' : ''} />
