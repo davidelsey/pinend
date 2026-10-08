@@ -4,6 +4,7 @@ import { destinationPoint } from '../domain/geo'
 import type { Coordinate, LineObservation } from '../domain/types'
 import { googleMapOptions, loadGoogleMaps } from '../services/googleMaps'
 import { fitMapToCoordinates, googleCoordinate } from '../services/mapCoordinates'
+import { animateCourseDirection } from '../services/courseDirection'
 
 type Props = {
   value: Coordinate | null
@@ -47,6 +48,7 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
   const mapRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef(new Map<string, Pin>())
   const linesRef = useRef<google.maps.Polyline[]>([])
+  const courseLineRef = useRef<google.maps.Polyline | null>(null)
   const markerClassRef = useRef<typeof google.maps.marker.AdvancedMarkerElement | null>(null)
   const fittedRef = useRef(false)
   const [loaded, setLoaded] = useState(false)
@@ -78,6 +80,7 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
       linesRef.current.forEach((line) => line.setMap(null))
       pins.clear()
       linesRef.current = []
+      courseLineRef.current = null
       mapRef.current = null
       markerClassRef.current = null
       fittedRef.current = false
@@ -101,13 +104,14 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
     }))
     const lineOptions = [
       ...(coursePath.length > 1 ? [{ path: coursePath.map(googleCoordinate), strokeColor: '#9cb6bd', strokeWeight: 3, strokeOpacity: 0.8, clickable: false, draggable: false, editable: false, zIndex: 0 }] : []),
-      ...sightLines, ...gateLines,
+      ...[...sightLines, ...gateLines].map((options) => ({ ...options, icons: [] })),
     ]
     lineOptions.forEach((options, index) => {
       if (linesRef.current[index]) linesRef.current[index].setOptions(options)
       else linesRef.current[index] = new google.maps.Polyline({ ...options, map })
     })
     linesRef.current.splice(lineOptions.length).forEach((line) => line.setMap(null))
+    courseLineRef.current = coursePath.length > 1 ? linesRef.current[0] : null
 
     const activeKeys = new Set<string>()
     const updatePin = (key: string, coordinate: Coordinate, label: string, variant: 'first' | 'second' | 'context', change?: (coordinate: Coordinate) => void) => {
@@ -157,6 +161,10 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
       fittedRef.current = true
     }
   }, [endpointLabels, loaded, observations, onChange, onSecondChange, otherGates, otherMarks, plottedCoordinates, readOnly, secondValue, value, coursePath])
+
+  useEffect(() => {
+    if (loaded) return animateCourseDirection(() => courseLineRef.current)
+  }, [loaded])
 
   const label = readOnly ? 'Sight rays on Sydney Harbour map' : secondValue ? 'Drag gate pins on Sydney Harbour map' : 'Drag mark on Sydney Harbour map'
   return (

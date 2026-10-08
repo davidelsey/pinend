@@ -37,7 +37,7 @@ class MockAdvancedMarker {
 
 class MockPolyline { setMap() { return undefined } setOptions() { return undefined } }
 
-vi.stubGlobal('google', { maps: { Polyline: MockPolyline, event: { addListenerOnce: (_map: unknown, _event: string, callback: () => void) => callback() } } })
+vi.stubGlobal('google', { maps: { Polyline: MockPolyline, SymbolPath: { FORWARD_CLOSED_ARROW: 1 }, event: { addListenerOnce: (_map: unknown, _event: string, callback: () => void) => callback() } } })
 vi.mock('../services/googleMaps', () => ({
   googleMapOptions: (center: unknown) => ({ center, zoom: 12 }),
   loadGoogleMaps: async () => ({ maps: { Map: MockGoogleMap }, marker: { AdvancedMarkerElement: MockAdvancedMarker } }),

@@ -71,6 +71,8 @@ describe('CoursePlot', () => {
     expect(screen.queryByText(/· FINISH/)).not.toBeInTheDocument()
     expect(screen.getByLabelText('START / FINISH: Pin')).toBeInTheDocument()
     expect(screen.getByLabelText('START / FINISH: Boat')).toBeInTheDocument()
+    expect(screen.queryByText('Pin')).not.toBeInTheDocument()
+    expect(screen.queryByText('Boat')).not.toBeInTheDocument()
     view.rerender(<CoursePlot marks={marks} race={race} activeMarkId="finish" />)
     expect(screen.getByLabelText('START / FINISH: Pin')).toHaveClass('course-map-marker--active')
     expect(screen.getByLabelText('START / FINISH: Boat')).toHaveClass('course-map-marker--active')
