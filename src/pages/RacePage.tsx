@@ -14,8 +14,6 @@ import {
   Navigation,
   Radio,
   RotateCw,
-  Sailboat,
-  Shield,
   Wind,
 } from 'lucide-react'
 import { useApp } from '../app/AppContext'
@@ -160,11 +158,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
               <div><Wind size={18} /><span>Forecast wind</span><strong>{forecast?.hours[0] ? `${Math.round(forecast.hours[0].windDirection).toString().padStart(3, '0')}° T · ${Math.round(forecast.hours[0].windSpeed)} kn` : 'Unavailable'}</strong></div>
               <div><Navigation size={18} /><span>Model current</span><strong>{marine?.currentKnots != null && marine.currentDirection != null ? `${marine.currentKnots.toFixed(1)} kn · ${Math.round(marine.currentDirection).toString().padStart(3, '0')}° T` : 'Unavailable'}</strong></div>
               <small>{forecast?.stale || marine?.stale ? 'Cached data' : 'Latest downloaded data'} · advisory only</small>
-            </section>
-            <section className="race-info-card system-status">
-              <div><Shield size={18} /><span>Offline race pack</span><strong>Ready</strong></div>
-              <div><Sailboat size={18} /><span>Screen awake</span><strong>{wakeLockStatus}</strong></div>
-              <div><Radio size={18} /><span>Sensor source</span><strong>{latestReading?.source ?? (navigationReading ? 'last saved fix' : 'waiting')}</strong></div>
             </section>
           </aside>
         </div>
