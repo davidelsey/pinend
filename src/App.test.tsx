@@ -131,6 +131,20 @@ describe('primary local race journey', () => {
     const newPointMap = within(creator).getByRole('img', { name: 'Drag mark on Sydney Harbour map' })
     await waitFor(() => expect(newPointMap).toHaveTextContent('Clark Island'))
     expect(newPointMap).toHaveTextContent('Shark Island')
+    const updateCourseLine = vi.spyOn(google.maps.Polyline.prototype, 'setOptions')
+    try {
+      const draftPin = newPointMap.querySelector('.point-map-pin--first')!
+      fireEvent(draftPin, new CustomEvent('drag', { detail: { lat: -33.855, lng: 151.245 } }))
+      const preview = [...updateCourseLine.mock.calls].reverse().find(([options]) => options?.clickable === false)?.[0]
+      const previewPath = preview?.path as google.maps.LatLngLiteral[]
+      expect(previewPath).toContainEqual({ lat: -33.855, lng: 151.245 })
+      const draftIndex = previewPath.findIndex((point) => point.lat === -33.855 && point.lng === 151.245)
+      const shark = (await database.marks.toArray()).find((mark) => mark.name === 'Shark Island')!
+      expect(shark.position.kind).toBe('fixed')
+      if (shark.position.kind === 'fixed') expect(previewPath[draftIndex + 1]).toEqual({ lat: shark.position.coordinate.latitude, lng: shark.position.coordinate.longitude })
+      expect(newPointMap.querySelector('.point-map-pin--first')).toBe(draftPin)
+      fireEvent(draftPin, new CustomEvent('drag', { detail: { lat: -33.86, lng: 151.24 } }))
+    } finally { updateCourseLine.mockRestore() }
     expect(addButton).toBeEnabled()
     fireEvent.click(addButton)
     fireEvent.click(addButton)

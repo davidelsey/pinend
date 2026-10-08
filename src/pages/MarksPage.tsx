@@ -7,7 +7,7 @@ import { FullScreenLineMapEditor } from '../components/FullScreenLineMapEditor'
 import { MapPointPicker } from '../components/MapPointPicker'
 import { SightMarksDialog, type SightTargetRef } from '../components/SightMarksDialog'
 import { distanceMetres, intersectSightings, resolveMarkPosition, withManualMarkCoordinate, withSightingMarkCoordinate, withoutSightingMarkCoordinate } from '../domain/geo'
-import type { CourseWaypoint, LineObservation, Mark } from '../domain/types'
+import type { Coordinate, CourseWaypoint, LineObservation, Mark } from '../domain/types'
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 
 type Props = { onEnterPrestart(): void }
@@ -70,12 +70,20 @@ export function MarksPage({ onEnterPrestart }: Props) {
     }),
     gates: raceMarks.flatMap((mark) => mark.position.kind === 'gate' && !mark.position.linkedToMarkId && mark.position.pointA && mark.position.pointB
       ? [{ id: mark.id, label: mark.name, pointA: mark.position.pointA, pointB: mark.position.pointB }] : []),
-    path: race.course.flatMap((waypoint) => {
+    path: race.course.flatMap((waypoint, index) => {
       const mark = raceMarks.find((item) => item.id === waypoint.markId)
       const coordinate = mark && resolveMarkPosition(mark.position)
-      return coordinate ? [coordinate] : []
+      const path: Coordinate[] = []
+      if (creatingMark && insertMarkAt !== null && index === Math.min(race.course.length - 1, Math.max(1, insertMarkAt))) {
+        path.push(markKind === 'gate' ? {
+          latitude: (markCoordinate.latitude + lineEndCoordinate.latitude) / 2,
+          longitude: (markCoordinate.longitude + lineEndCoordinate.longitude) / 2,
+        } : markCoordinate)
+      }
+      if (coordinate) path.push(coordinate)
+      return path
     }),
-  }), [race.course, raceMarks])
+  }), [race.course, raceMarks, creatingMark, insertMarkAt, markKind, markCoordinate, lineEndCoordinate])
   const finishWaypoint = race.course.find(isFinishWaypoint)
   const finishLine = marks.find((mark) => mark.id === finishWaypoint?.markId)
   const finishLinked = finishLine?.position.kind === 'gate' && finishLine.position.linkedToMarkId === startWaypoint?.markId
