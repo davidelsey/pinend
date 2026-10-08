@@ -82,7 +82,9 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   const undoRounding = async () => {
     if (!activeWaypoint || !isNavigator || !alreadyRounded) return
     const roundedAt = { ...session.roundedAt }
-    delete roundedAt[activeWaypoint.id]
+    for (const waypoint of race.course.slice(session.activeWaypointIndex)) {
+      delete roundedAt[waypoint.id]
+    }
     setDismissedSuggestion(activeWaypoint.id)
     setShowRounding(false)
     await updateSession({ roundedAt })
