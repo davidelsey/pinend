@@ -4,6 +4,23 @@ import { useState } from 'react'
 import { MapPointPicker } from './MapPointPicker'
 
 describe('MapPointPicker gate mode', () => {
+  it('shows the existing course as read-only context while the new mark stays editable', async () => {
+    const change = vi.fn()
+    const updateLine = vi.spyOn(google.maps.Polyline.prototype, 'setOptions')
+    const coursePath = [{ latitude: -33.86, longitude: 151.23 }, { latitude: -33.85, longitude: 151.25 }]
+    const otherMarks = [{ id: 'existing', label: 'Existing mark', coordinate: coursePath[0] }]
+    try {
+      const view = render(<MapPointPicker value={coursePath[1]} onChange={change} otherMarks={otherMarks} coursePath={coursePath} />)
+      await screen.findByText('Existing mark')
+      view.rerender(<MapPointPicker value={{ ...coursePath[1] }} onChange={change} otherMarks={otherMarks} coursePath={coursePath} />)
+      expect(updateLine).toHaveBeenCalledWith(expect.objectContaining({ path: [{ lat: -33.86, lng: 151.23 }, { lat: -33.85, lng: 151.25 }], clickable: false, draggable: false, editable: false }))
+      fireEvent(screen.getByText('Existing mark').closest('.point-map-pin')!, new Event('dragend'))
+      expect(change).not.toHaveBeenCalled()
+      fireEvent(screen.getByText('Mark').closest('.point-map-pin')!, new Event('dragend'))
+      expect(change).toHaveBeenCalledOnce()
+    } finally { updateLine.mockRestore() }
+  })
+
   it('redraws the gate during either endpoint drag without replacing pins', async () => {
     const updateLine = vi.spyOn(google.maps.Polyline.prototype, 'setOptions')
     function Gate() {

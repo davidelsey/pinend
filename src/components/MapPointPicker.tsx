@@ -15,6 +15,7 @@ type Props = {
   readOnly?: boolean
   otherMarks?: Array<{ id: string; label: string; coordinate: Coordinate }>
   otherGates?: Array<{ id: string; label: string; pointA: Coordinate; pointB: Coordinate }>
+  coursePath?: Coordinate[]
 }
 
 const fromPosition = (position: google.maps.LatLng | google.maps.LatLngLiteral | null | undefined): Coordinate | null => {
@@ -41,7 +42,7 @@ type Pin = {
   change?: (coordinate: Coordinate) => void
 }
 
-export function MapPointPicker({ value, onChange, secondValue, onSecondChange, endpointLabels = ['Pin', 'Boat'], observations = [], readOnly = false, otherMarks = [], otherGates = [] }: Props) {
+export function MapPointPicker({ value, onChange, secondValue, onSecondChange, endpointLabels = ['Pin', 'Boat'], observations = [], readOnly = false, otherMarks = [], otherGates = [], coursePath = [] }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef(new Map<string, Pin>())
@@ -56,7 +57,8 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
     ...observations.map((observation) => observation.observer),
     ...otherMarks.map((mark) => mark.coordinate),
     ...otherGates.flatMap((gate) => [gate.pointA, gate.pointB]),
-  ], [observations, otherGates, otherMarks, secondValue, value])
+    ...coursePath,
+  ], [observations, otherGates, otherMarks, secondValue, value, coursePath])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -97,7 +99,10 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
       path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)],
       strokeColor: gate.target ? '#f5f1e8' : '#6d858a', strokeWeight: gate.target ? 4 : 2, strokeOpacity: 0.9,
     }))
-    const lineOptions = [...sightLines, ...gateLines]
+    const lineOptions = [
+      ...(coursePath.length > 1 ? [{ path: coursePath.map(googleCoordinate), strokeColor: '#9cb6bd', strokeWeight: 3, strokeOpacity: 0.8, clickable: false, draggable: false, editable: false, zIndex: 0 }] : []),
+      ...sightLines, ...gateLines,
+    ]
     lineOptions.forEach((options, index) => {
       if (linesRef.current[index]) linesRef.current[index].setOptions(options)
       else linesRef.current[index] = new google.maps.Polyline({ ...options, map })
@@ -141,6 +146,8 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
     otherGates.forEach((gate) => {
       const midpoint = { latitude: (gate.pointA.latitude + gate.pointB.latitude) / 2, longitude: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
       updatePin(`gate:${gate.id}`, midpoint, gate.label, 'context')
+      updatePin(`gate:${gate.id}:a`, gate.pointA, `${gate.label} · Pin`, 'context')
+      updatePin(`gate:${gate.id}:b`, gate.pointB, `${gate.label} · Boat`, 'context')
     })
     markersRef.current.forEach(({ marker }, key) => {
       if (!activeKeys.has(key)) { marker.map = null; markersRef.current.delete(key) }
@@ -149,7 +156,7 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
       fitMapToCoordinates(map, plottedCoordinates, 35)
       fittedRef.current = true
     }
-  }, [endpointLabels, loaded, observations, onChange, onSecondChange, otherGates, otherMarks, plottedCoordinates, readOnly, secondValue, value])
+  }, [endpointLabels, loaded, observations, onChange, onSecondChange, otherGates, otherMarks, plottedCoordinates, readOnly, secondValue, value, coursePath])
 
   const label = readOnly ? 'Sight rays on Sydney Harbour map' : secondValue ? 'Drag gate pins on Sydney Harbour map' : 'Drag mark on Sydney Harbour map'
   return (

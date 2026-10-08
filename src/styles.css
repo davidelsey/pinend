@@ -107,6 +107,9 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .course-map-marker__icon { flex: 0 0 auto; width: 18px; height: 18px; margin-right: 4px; border: 3px solid #071b2f; border-radius: 50%; background: #f5f1e8; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
 .course-map-marker--active .course-map-marker__icon { width: 22px; height: 22px; border-color: #f5f1e8; background: #ff6b35; box-shadow: 0 0 0 5px rgba(255,107,53,.28); }
 .course-map-marker--line { transform: translate(5px,-3px); }
+.course-map-endpoint { position: relative; width: 14px; height: 14px; }
+.course-map-endpoint .course-map-marker__icon { width: 14px; height: 14px; margin: 0; }
+.course-map-endpoint .course-map-marker__label { position: absolute; left: 20px; top: 0; }
 .course-map-marker--boat .course-map-marker__icon { width: 0; height: 0; margin-right: 5px; border: 7px solid transparent; border-bottom: 18px solid #53d3c2; border-radius: 0; background: transparent; box-shadow: none; transform-origin: 50% 65%; }
 .course-map-marker--boat .course-map-marker__label { color: #53d3c2; }
 .course-plot .gm-style-cc { font-size: 9px; }
@@ -679,6 +682,8 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .course-mark-remove { color: #71838b; }
 .course-mark-remove:hover { border-color: #d69088; color: #a72e25; background: #fff3f1; }
 .race-mark-row__main { min-width: 0; display: grid; gap: 2px; }
+.race-mark-row > button.race-mark-row__main { padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; }
+.race-mark-row.race-mark-row--selected { border-color: var(--orange); box-shadow: inset 0 0 0 1px var(--orange); background: #fff5e9; }
 .race-mark-row__main span { color: var(--orange-dark); font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .race-mark-row__main small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
 .race-mark-row__actions { display: flex; gap: 7px; }

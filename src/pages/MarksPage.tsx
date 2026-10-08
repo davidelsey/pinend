@@ -14,16 +14,16 @@ type Props = { onEnterPrestart(): void }
 type View = 'course' | 'marks'
 type CourseDrag = { waypointId: string; mode: 'move' | 'duplicate' }
 
-function MarkRow({ mark, waypoint, isFinish = false, finishLinked = false, onFinishLinked, onPosition, onSight, onRounding, onRemove }: { mark: Mark; waypoint?: CourseWaypoint; isFinish?: boolean; finishLinked?: boolean; onFinishLinked?(linked: boolean): void; onPosition(mark: Mark): void; onSight(mark: Mark): void; onRounding?(rounding: CourseWaypoint['rounding']): void; onRemove?(): void }) {
+function MarkRow({ mark, selected, onSelect, waypoint, isFinish = false, finishLinked = false, onFinishLinked, onPosition, onSight, onRounding, onRemove }: { mark: Mark; selected: boolean; onSelect(): void; waypoint?: CourseWaypoint; isFinish?: boolean; finishLinked?: boolean; onFinishLinked?(linked: boolean): void; onPosition(mark: Mark): void; onSight(mark: Mark): void; onRounding?(rounding: CourseWaypoint['rounding']): void; onRemove?(): void }) {
   const coordinate = resolveMarkPosition(mark.position)
   return (
-    <article className={`race-mark-row ${waypoint ? 'race-mark-row--course' : ''}`}>
+    <article className={`race-mark-row ${waypoint ? 'race-mark-row--course' : ''} ${selected ? 'race-mark-row--selected' : ''}`} onClick={onSelect}>
       <div className={`mark-card__icon mark-card__icon--${mark.position.kind}`}><MapPin size={19} /></div>
-      <div className="race-mark-row__main">
+      <button className="race-mark-row__main" aria-label={`Show ${mark.name} on map`} aria-pressed={selected} onClick={onSelect}>
         <strong>{mark.name}</strong>
         <span>{mark.position.kind === 'gate' ? 'Two-point gate' : waypoint ? `Round to ${waypoint.rounding}` : `${mark.position.kind} mark`}</span>
         <small>{isFinish && finishLinked ? 'Locked to the start gate' : coordinate ? mark.position.kind === 'gate' ? 'Two-point line' : mark.position.kind === 'fixed' ? 'Fixed position' : 'Movable mark positioned' : mark.position.kind === 'gate' ? 'Position or sight both Pin and Boat ends' : 'Position required for this race'}</small>
-      </div>
+      </button>
       {waypoint && mark.position.kind !== 'gate' && <div className="course-mark-controls" role="radiogroup" aria-label={`Rounding for ${mark.name}`}>
         <label className={`rounding-arrow rounding-arrow--port ${waypoint.rounding === 'port' ? 'is-selected' : ''}`}><input type="radio" name={`rounding-${waypoint.id}`} aria-label={`Round ${mark.name} to port`} checked={waypoint.rounding === 'port'} onChange={() => onRounding?.('port')} /><CornerUpLeft size={20} /></label>
         <label className={`rounding-arrow rounding-arrow--starboard ${waypoint.rounding === 'starboard' ? 'is-selected' : ''}`}><input type="radio" name={`rounding-${waypoint.id}`} aria-label={`Round ${mark.name} to starboard`} checked={waypoint.rounding === 'starboard'} onChange={() => onRounding?.('starboard')} /><CornerUpRight size={20} /></label>
@@ -42,6 +42,7 @@ function MarkRow({ mark, waypoint, isFinish = false, finishLinked = false, onFin
 export function MarksPage({ onEnterPrestart }: Props) {
   const { marks, race, session, observations, latestReading, saveMark, mutateRace, deleteObservation } = useApp()
   const [view, setView] = useState<View>('course')
+  const [highlightedMarkId, setHighlightedMarkId] = useState<string>()
   const [courseDrag, setCourseDrag] = useState<CourseDrag | null>(null)
   const [dragTargetId, setDragTargetId] = useState<string | null>(null)
   const [insertMarkAt, setInsertMarkAt] = useState<number | null>(null)
@@ -64,6 +65,19 @@ export function MarksPage({ onEnterPrestart }: Props) {
     return mark && !unique.some((item) => item.id === mark.id) ? [...unique, mark] : unique
   }, []), [marks, race.course])
   const startWaypoint = race.course.find(isStartWaypoint)
+  const mapContext = useMemo(() => ({
+    points: raceMarks.flatMap((mark) => {
+      const coordinate = resolveMarkPosition(mark.position)
+      return coordinate && mark.position.kind !== 'gate' ? [{ id: mark.id, label: mark.name, coordinate }] : []
+    }),
+    gates: raceMarks.flatMap((mark) => mark.position.kind === 'gate' && !mark.position.linkedToMarkId && mark.position.pointA && mark.position.pointB
+      ? [{ id: mark.id, label: mark.name, pointA: mark.position.pointA, pointB: mark.position.pointB }] : []),
+    path: race.course.flatMap((waypoint) => {
+      const mark = raceMarks.find((item) => item.id === waypoint.markId)
+      const coordinate = mark && resolveMarkPosition(mark.position)
+      return coordinate ? [coordinate] : []
+    }),
+  }), [race.course, raceMarks])
   const finishWaypoint = race.course.find(isFinishWaypoint)
   const finishLine = marks.find((mark) => mark.id === finishWaypoint?.markId)
   const finishLinked = finishLine?.position.kind === 'gate' && finishLine.position.linkedToMarkId === startWaypoint?.markId
@@ -218,7 +232,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
     <div className="page standard-page race-marks-page">
 
       <div className="race-marks-workspace">
-      <CoursePlot marks={marks} race={race} current={latestReading} zoomControls />
+      <CoursePlot marks={marks} race={race} current={latestReading} activeMarkId={highlightedMarkId} zoomControls />
       <div className="race-marks-panel">
       <div className="segment-control race-marks-tabs" role="tablist" aria-label="Marks view">
         <button role="tab" aria-selected={view === 'course'} className={view === 'course' ? 'active' : ''} onClick={() => setView('course')}>Course</button>
@@ -262,6 +276,8 @@ export function MarksPage({ onEnterPrestart }: Props) {
                     ><Copy size={14} /></button>
                   </div>}
                   <MarkRow
+                    selected={highlightedMarkId === mark.id}
+                    onSelect={() => setHighlightedMarkId(mark.id)}
                     mark={mark}
                     waypoint={waypoint}
                     isFinish={isFinishWaypoint(waypoint)}
@@ -282,7 +298,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
         </section>
       ) : (
         <section className="race-mark-list" aria-label="Race mark list">
-          {raceMarks.map((mark) => <MarkRow key={mark.id} mark={mark} isFinish={mark.id === finishWaypoint?.markId} finishLinked={finishLinked} onFinishLinked={mark.id === finishWaypoint?.markId ? (linked) => void setFinishLinked(linked) : undefined} onPosition={setPositionMark} onSight={(item) => setSightTarget({ endpoint: 'mark', markId: item.id })} />)}
+          {raceMarks.map((mark) => <MarkRow key={mark.id} mark={mark} selected={highlightedMarkId === mark.id} onSelect={() => setHighlightedMarkId(mark.id)} isFinish={mark.id === finishWaypoint?.markId} finishLinked={finishLinked} onFinishLinked={mark.id === finishWaypoint?.markId ? (linked) => void setFinishLinked(linked) : undefined} onPosition={setPositionMark} onSight={(item) => setSightTarget({ endpoint: 'mark', markId: item.id })} />)}
         </section>
       )}
       </div>
@@ -309,7 +325,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
           </>}
           {selectedLibraryMark && <div className="mark-chooser-selection"><span>Using {selectedLibraryMark.name} · {selectedLibraryMark.position.kind}</span><button className="text-button" disabled={addingMark} onClick={() => { setSelectedMarkId(null); setCreatingMark(false); setMarkName('') }}>Change</button></div>}
           {creatingMark && <>
-            <MapPointPicker value={markCoordinate} onChange={setMarkCoordinate} secondValue={markKind === 'gate' ? lineEndCoordinate : undefined} onSecondChange={markKind === 'gate' ? setLineEndCoordinate : undefined} />
+            <MapPointPicker value={markCoordinate} onChange={setMarkCoordinate} secondValue={markKind === 'gate' ? lineEndCoordinate : undefined} onSecondChange={markKind === 'gate' ? setLineEndCoordinate : undefined} otherMarks={mapContext.points} otherGates={mapContext.gates} coursePath={mapContext.path} />
           </>}
           <footer className="mark-chooser-actions">
           {showAddHint && addMarkHint && <p id="add-mark-hint" className="field-error" role="status">{addMarkHint}</p>}

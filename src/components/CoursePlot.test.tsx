@@ -64,10 +64,15 @@ describe('CoursePlot', () => {
       { id: 'finish-waypoint', markId: 'finish', rounding: 'either', role: 'finish' },
     ] }
 
-    render(<CoursePlot marks={marks} race={race} />)
+    const view = render(<CoursePlot marks={marks} race={race} />)
 
     expect(await screen.findByText('START / FINISH')).toBeInTheDocument()
     expect(screen.queryByText(/· START/)).not.toBeInTheDocument()
     expect(screen.queryByText(/· FINISH/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('START / FINISH: Pin')).toBeInTheDocument()
+    expect(screen.getByLabelText('START / FINISH: Boat')).toBeInTheDocument()
+    view.rerender(<CoursePlot marks={marks} race={race} activeMarkId="finish" />)
+    expect(screen.getByLabelText('START / FINISH: Pin')).toHaveClass('course-map-marker--active')
+    expect(screen.getByLabelText('START / FINISH: Boat')).toHaveClass('course-map-marker--active')
   })
 })

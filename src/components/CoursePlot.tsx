@@ -101,9 +101,11 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     const AdvancedMarkerElement = markerClassRef.current
     if (!map || !AdvancedMarkerElement || !loaded) return
     const visibleGates = model.gates.filter((gate) => !(model.sharedStartFinish && gate.isFinish))
+    const gateIsActive = (gate: typeof visibleGates[number]) => gate.id === activeMarkId
+      || (model.sharedStartFinish && gate.isStart && model.gates.some((item) => item.isFinish && item.id === activeMarkId))
     linesRef.current.forEach((line) => line.setMap(null))
     const routeLine = model.routeCoordinates.length > 1 ? new google.maps.Polyline({ map, path: model.routeCoordinates.map(googleCoordinate), strokeColor: '#f5f1e8', strokeWeight: 3, strokeOpacity: 0.8 }) : null
-    const gateLines = visibleGates.map((gate) => new google.maps.Polyline({ map, path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)], strokeColor: gate.isFinish ? '#53d3c2' : '#ff6b35', strokeWeight: 6 }))
+    const gateLines = visibleGates.map((gate) => new google.maps.Polyline({ map, path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)], strokeColor: gateIsActive(gate) ? '#ffb340' : gate.isFinish ? '#53d3c2' : '#ff6b35', strokeWeight: gateIsActive(gate) ? 9 : 6 }))
     linesRef.current = [...(routeLine ? [routeLine] : []), ...gateLines]
 
     markersRef.current.forEach((marker) => { marker.map = null })
@@ -118,7 +120,14 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     visibleGates.forEach((gate) => {
       const label = model.sharedStartFinish && gate.isStart ? 'START / FINISH' : `${gate.waypointIndex + 1} · ${gate.shortName}`
       const midpoint = { lat: (gate.pointA.latitude + gate.pointB.latitude) / 2, lng: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
-      nextMarkers.push(new AdvancedMarkerElement({ map, content: markerElement(label, 'line'), position: midpoint, anchorLeft: '0%', anchorTop: '-100%' }))
+      nextMarkers.push(new AdvancedMarkerElement({ map, content: markerElement(label, gateIsActive(gate) ? 'active' : 'line'), position: midpoint, anchorLeft: '0%', anchorTop: '-100%' }))
+      ;[gate.pointA, gate.pointB].forEach((coordinate, index) => {
+        const endpointLabel = gate.position.kind === 'gate' ? gate.position.labels?.[index] ?? (index === 0 ? 'Pin' : 'Boat') : ''
+        const content = markerElement(endpointLabel, gateIsActive(gate) ? 'active' : 'mark')
+        content.classList.add('course-map-endpoint')
+        content.setAttribute('aria-label', `${label}: ${endpointLabel}`)
+        nextMarkers.push(new AdvancedMarkerElement({ map, content, position: googleCoordinate(coordinate), anchorLeft: '-50%', anchorTop: '-50%' }))
+      })
     })
     if (current) {
       const element = markerElement('YOU', 'boat')
