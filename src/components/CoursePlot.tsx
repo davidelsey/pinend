@@ -14,11 +14,9 @@ const FIT_PADDING = 44
 function markerElement(label: string, variant: 'mark' | 'active' | 'line' | 'boat') {
   const element = document.createElement('div')
   element.className = `course-map-marker course-map-marker--${variant}`
-  if (variant !== 'line') {
-    const icon = document.createElement('span')
-    icon.className = 'course-map-marker__icon'
-    element.append(icon)
-  }
+  const icon = document.createElement('span')
+  icon.className = 'course-map-marker__icon'
+  element.append(icon)
   const text = document.createElement('span')
   text.className = 'course-map-marker__label'
   text.textContent = label
@@ -106,31 +104,54 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     const visibleGates = model.gates.filter((gate) => !(model.sharedStartFinish && gate.isFinish))
     const gateIsActive = (gate: typeof visibleGates[number]) => gate.id === activeMarkId
       || (model.sharedStartFinish && gate.isStart && model.gates.some((item) => item.isFinish && item.id === activeMarkId))
-    linesRef.current.forEach((line) => line.setMap(null))
-    const routeLine = model.routeCoordinates.length > 1 ? new google.maps.Polyline({ map, path: model.routeCoordinates.map(googleCoordinate), strokeColor: '#f5f1e8', strokeWeight: 3, strokeOpacity: 0.8 }) : null
-    courseLineRef.current = routeLine
-    const gateLines = visibleGates.map((gate) => new google.maps.Polyline({ map, path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)], strokeColor: gateIsActive(gate) ? '#ffb340' : gate.isFinish ? '#53d3c2' : '#ff6b35', strokeWeight: gateIsActive(gate) ? 9 : 6 }))
-    linesRef.current = [...(routeLine ? [routeLine] : []), ...gateLines]
+    const lineOptions: google.maps.PolylineOptions[] = [
+      ...(model.routeCoordinates.length > 1 ? [{ path: model.routeCoordinates.map(googleCoordinate), strokeColor: '#f5f1e8', strokeWeight: 3, strokeOpacity: 0.8 }] : []),
+      ...visibleGates.map((gate) => ({ path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)], strokeColor: gateIsActive(gate) ? '#ffb340' : gate.isFinish ? '#53d3c2' : '#ff6b35', strokeWeight: gateIsActive(gate) ? 9 : 6, strokeOpacity: 1, icons: [] })),
+    ]
+    lineOptions.forEach((options, index) => {
+      if (linesRef.current[index]) linesRef.current[index].setOptions(options)
+      else linesRef.current[index] = new google.maps.Polyline({ ...options, map })
+    })
+    linesRef.current.splice(lineOptions.length).forEach((line) => line.setMap(null))
+    courseLineRef.current = model.routeCoordinates.length > 1 ? linesRef.current[0] : null
 
-    markersRef.current.forEach((marker) => { marker.map = null })
     const nextMarkers: google.maps.marker.AdvancedMarkerElement[] = []
-    model.courseMarks.forEach((mark) => nextMarkers.push(new AdvancedMarkerElement({
+    const addMarker = (options: google.maps.marker.AdvancedMarkerElementOptions & { content: HTMLDivElement }) => {
+      let marker = markersRef.current[nextMarkers.length]
+      if (!marker) marker = new AdvancedMarkerElement(options)
+      else {
+        const content = marker.content as HTMLDivElement
+        content.className = options.content.className
+        const label = options.content.getAttribute('aria-label')
+        if (label) content.setAttribute('aria-label', label)
+        else content.removeAttribute('aria-label')
+        const text = content.querySelector('.course-map-marker__label')!
+        const nextText = options.content.querySelector('.course-map-marker__label')!.textContent
+        if (text.textContent !== nextText) text.textContent = nextText
+        content.querySelector<HTMLElement>('.course-map-marker__icon')!.style.transform = options.content.querySelector<HTMLElement>('.course-map-marker__icon')!.style.transform
+        marker.position = options.position
+        marker.anchorLeft = options.anchorLeft
+        marker.anchorTop = options.anchorTop
+      }
+      nextMarkers.push(marker)
+    }
+    model.courseMarks.forEach((mark) => addMarker({
       map,
       content: markerElement(`${mark.waypointIndex + 1} · ${mark.shortName}`, mark.id === activeMarkId ? 'active' : 'mark'),
       position: googleCoordinate(mark.coordinate),
       anchorLeft: '0%',
       anchorTop: '-50%',
-    })))
+    }))
     visibleGates.forEach((gate) => {
       const label = model.sharedStartFinish && gate.isStart ? 'START / FINISH' : `${gate.waypointIndex + 1} · ${gate.shortName}`
       const midpoint = { lat: (gate.pointA.latitude + gate.pointB.latitude) / 2, lng: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
-      nextMarkers.push(new AdvancedMarkerElement({ map, content: markerElement(label, gateIsActive(gate) ? 'active' : 'line'), position: midpoint, anchorLeft: '0%', anchorTop: '-100%' }))
+      addMarker({ map, content: markerElement(label, gateIsActive(gate) ? 'active' : 'line'), position: midpoint, anchorLeft: '0%', anchorTop: '-100%' })
       ;[gate.pointA, gate.pointB].forEach((coordinate, index) => {
         const endpointLabel = gate.position.kind === 'gate' ? gate.position.labels?.[index] ?? (index === 0 ? 'Pin' : 'Boat') : ''
         const content = markerElement('', gateIsActive(gate) ? 'active' : 'mark')
         content.classList.add('course-map-endpoint')
         content.setAttribute('aria-label', `${label}: ${endpointLabel}`)
-        nextMarkers.push(new AdvancedMarkerElement({ map, content, position: googleCoordinate(coordinate), anchorLeft: '-50%', anchorTop: '-50%' }))
+        addMarker({ map, content, position: googleCoordinate(coordinate), anchorLeft: '-50%', anchorTop: '-50%' })
       })
     })
     if (current) {
@@ -138,8 +159,9 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
       const icon = element.querySelector<HTMLElement>('.course-map-marker__icon')
       if (icon && travelHeadingAvailable) icon.style.transform = `rotate(${normalizeBearing(courseOverGround - mapBearing)}deg)`
       element.setAttribute('aria-label', travelHeadingAvailable ? `You, travelling ${Math.round(normalizeBearing(courseOverGround))} degrees` : 'You, direction unavailable')
-      nextMarkers.push(new AdvancedMarkerElement({ map, content: element, position: googleCoordinate(current), anchorLeft: '-50%', anchorTop: '-50%' }))
+      addMarker({ map, content: element, position: googleCoordinate(current), anchorLeft: '-50%', anchorTop: '-50%' })
     }
+    markersRef.current.slice(nextMarkers.length).forEach((marker) => { marker.map = null })
     markersRef.current = nextMarkers
     if (!initialFitRef.current && model.allPoints.length > 0) {
       fitMapToCoordinates(map, model.allPoints, FIT_PADDING)

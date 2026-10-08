@@ -1,10 +1,24 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { seedMarks, seedRace } from '../data/seed'
 import { CoursePlot } from './CoursePlot'
 import type { Mark, RaceDefinition } from '../domain/types'
 
 describe('CoursePlot', () => {
+  it('keeps course overlays mounted through pre-start line and sensor updates', async () => {
+    const detach = vi.spyOn(google.maps.Polyline.prototype, 'setMap')
+    try {
+      const props = { marks: seedMarks, race: seedRace, line: { pin: { latitude: -33.86, longitude: 151.23 }, committee: { latitude: -33.86, longitude: 151.24 } } }
+      const view = render(<CoursePlot {...props} current={{ latitude: -33.87, longitude: 151.24 }} />)
+      await waitFor(() => expect(view.container.querySelector('.course-map-marker')).not.toBeNull())
+      const points = [...view.container.querySelectorAll('.course-map-marker')]
+      detach.mockClear()
+      view.rerender(<CoursePlot {...props} line={{ ...props.line }} current={{ latitude: -33.8701, longitude: 151.2401 }} />)
+      view.container.querySelectorAll('.course-map-marker').forEach((point, index) => expect(point).toBe(points[index]))
+      expect(detach).not.toHaveBeenCalled()
+    } finally { detach.mockRestore() }
+  })
+
   it('initializes the real map before the first course position is resolved', async () => {
     const unresolvedRace = { ...seedRace, course: [] }
     const view = render(<CoursePlot marks={[]} race={unresolvedRace} />)
