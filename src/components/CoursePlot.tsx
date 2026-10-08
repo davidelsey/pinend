@@ -176,13 +176,11 @@ export function CoursePlot({ marks, race, current, activeMarkId, activeWaypointI
       interactionsRef.current.set(marker, { onDrag, onKeyDown })
       nextMarkers.push(marker)
     }
-    model.courseMarks.forEach((mark) => addMarker({
-      map,
-      content: markerElement(`${mark.waypointIndex + 1} · ${mark.shortName}`, mark.id === activeMarkId ? 'active' : 'mark'),
-      position: googleCoordinate(mark.coordinate),
-      anchorLeft: '0%',
-      anchorTop: '-50%',
-    }))
+    model.courseMarks.forEach((mark) => {
+      const content = markerElement(`${mark.waypointIndex + 1} · ${mark.shortName}`, mark.id === activeMarkId ? 'active' : 'mark')
+      content.classList.add('course-map-waypoint')
+      addMarker({ map, content, position: googleCoordinate(mark.coordinate), anchorLeft: '-50%', anchorTop: '-50%' })
+    })
     visibleGates.forEach((gate) => {
       const label = model.sharedStartFinish && gate.isStart ? 'START / FINISH' : `${gate.waypointIndex + 1} · ${gate.shortName}`
       const midpoint = { lat: (gate.pointA.latitude + gate.pointB.latitude) / 2, lng: (gate.pointA.longitude + gate.pointB.longitude) / 2 }

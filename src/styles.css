@@ -106,6 +106,9 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .course-map-marker { display: flex; align-items: center; pointer-events: none; white-space: nowrap; color: #f5f1e8; font-size: 10px; font-weight: 800; text-shadow: 0 1px 3px #071b2f, 0 0 3px #071b2f; }
 .course-map-marker__icon { flex: 0 0 auto; width: 18px; height: 18px; margin-right: 4px; border: 3px solid #071b2f; border-radius: 50%; background: #f5f1e8; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
 .course-map-marker--active .course-map-marker__icon { width: 22px; height: 22px; border-color: #f5f1e8; background: #ff6b35; box-shadow: 0 0 0 5px rgba(255,107,53,.28); }
+.course-map-waypoint { position: relative; width: 22px; height: 22px; justify-content: center; }
+.course-map-waypoint .course-map-marker__icon { margin: 0; }
+.course-map-waypoint .course-map-marker__label { position: absolute; left: 28px; }
 .course-map-marker--line { transform: translate(5px,-3px); }
 .course-map-marker--line .course-map-marker__icon { display: none; }
 .course-map-endpoint { position: relative; width: 14px; height: 14px; }
