@@ -368,6 +368,17 @@ describe('primary local race journey', () => {
     await waitFor(() => expect(screen.getByText('M TO MARK').closest('.race-distance')).toHaveTextContent(/^\d+ M TO MARK$/))
   })
 
+  it('automatically displays the simulated boat in race mode without GPS in development', async () => {
+    await openSetup()
+    await confirmCourseAndEnterPrestart()
+    fireEvent.click(screen.getByRole('button', { name: /START Gun/i }))
+    expect(await screen.findByText('RACING')).toBeInTheDocument()
+    expect(await screen.findByLabelText('You, travelling 22 degrees')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Recenter on current location' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Enable GPS' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Use simulated boat' })).not.toBeInTheDocument()
+  })
+
   it('uses distinct port and starboard rounding arrows in race mode', async () => {
     await openSetup()
 
@@ -390,8 +401,8 @@ describe('primary local race journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }))
     expect(await screen.findByRole('heading', { name: 'Drive the simulated boat.' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Drag the boat and its speed handle on the simulator map' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Drag boat position' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Course map, north up' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Drag boat position' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Drag to set heading and speed' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Use simulated sensors' }))
     fireEvent.click(screen.getByRole('button', { name: 'More options' }))

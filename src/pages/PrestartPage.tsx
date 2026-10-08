@@ -17,7 +17,7 @@ const resolveEndpoint = (observations: LineObservation[], endpoint: LineObservat
 }
 
 export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, wakeLockStatus }: Props) {
-  const { isNavigator, marks, race, session, observations, latestReading, simulatorEnabled, stepSimulator, updateSession } = useApp()
+  const { isNavigator, marks, race, session, observations, latestReading, updateSession } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const remaining = session.syncedStartTime - now
   const startWaypointIndex = Math.max(0, race.course.findIndex(isStartWaypoint))
@@ -56,11 +56,6 @@ export function PrestartPage({ now, onStartRace, sensorStatus, onEnableSensors, 
     return () => window.clearTimeout(timeout)
   }, [message])
 
-  useEffect(() => {
-    if (!simulatorEnabled) return
-    const interval = window.setInterval(() => stepSimulator(1), 1000)
-    return () => window.clearInterval(interval)
-  }, [simulatorEnabled, stepSimulator])
 
 
 

@@ -36,8 +36,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     race,
     session,
     latestReading,
-    simulatorEnabled,
-    stepSimulator,
     updateSession,
   } = useApp()
   const [showRounding, setShowRounding] = useState(false)
@@ -70,11 +68,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     void fetchMarineForecast(cyca.coordinate).then(setMarine)
   }, [])
 
-  useEffect(() => {
-    if (!simulatorEnabled) return
-    const interval = window.setInterval(() => stepSimulator(1), 1000)
-    return () => window.clearInterval(interval)
-  }, [simulatorEnabled, stepSimulator])
 
 
 

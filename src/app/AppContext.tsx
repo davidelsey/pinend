@@ -128,6 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const simulatorSnapshotRef = useRef(simulatorSnapshot)
   const { enabled: simulatorEnabled, simulator } = simulatorSnapshot
   const [deviceReading, setDeviceReading] = useState<SensorReading | null>(null)
+  const useSimulatedReading = simulatorEnabled || (import.meta.env.DEV && !deviceReading)
 
   const current = useRef({ boat, race, session, marks, boats, allSails, crew, races, userId, accessList })
   current.current = { boat, race, session, marks, boats, allSails, crew, races, userId, accessList }
@@ -286,6 +287,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const stored = import.meta.env.DEV ? localStorage.getItem(simulatorStorageKey) : null
       const latest = stored ? parseSimulatorSnapshot(stored) ?? simulatorSnapshotRef.current : simulatorSnapshotRef.current
       const next = update(latest)
+      if (next === latest) return
       simulatorSnapshotRef.current = next
       if (import.meta.env.DEV) localStorage.setItem(simulatorStorageKey, JSON.stringify(next))
       setSimulatorSnapshot(next)
@@ -296,8 +298,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setSimulatorEnabled = useCallback((enabled: boolean) => {
-    updateSimulatorSnapshot((current) => ({ ...current, enabled }))
+    updateSimulatorSnapshot((current) => ({ ...current, enabled, simulator: configureSimulatorState(current.simulator, {}) }))
   }, [updateSimulatorSnapshot])
+
+  useEffect(() => {
+    if (!useSimulatedReading) return
+    const timer = window.setInterval(() => updateSimulatorSnapshot((current) => {
+      const now = Date.now()
+      const elapsed = (now - current.simulator.reading.timestamp) / 1000
+      // Updates are locked across tabs; only one tab advances each shared GPS fix.
+      if ((!current.enabled && deviceReading) || elapsed < 0.9) return current
+      return { ...current, simulator: moveSimulator(current.simulator, Math.min(elapsed, 2), now) }
+    }), 1000)
+    return () => window.clearInterval(timer)
+  }, [deviceReading, useSimulatedReading, updateSimulatorSnapshot])
 
   const updateSession = useCallback(async (patch: Partial<RaceSession>) => {
     const state = current.current
@@ -456,7 +470,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const placeSimulator = (latitude: number, longitude: number, heading?: number) =>
     updateSimulatorSnapshot((current) => ({ ...current, simulator: setSimulatorPosition(current.simulator, { latitude, longitude }, heading) }))
 
-  const latestReading = simulatorEnabled ? simulator.reading : deviceReading
+  const latestReading = useSimulatedReading ? simulator.reading : deviceReading
 
   const recordLatestReading = useCallback(async () => {
     if (!latestReading || !isNavigator) return

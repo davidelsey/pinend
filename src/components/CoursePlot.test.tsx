@@ -3,8 +3,31 @@ import { describe, expect, it, vi } from 'vitest'
 import { seedMarks, seedRace } from '../data/seed'
 import { CoursePlot } from './CoursePlot'
 import type { Mark, RaceDefinition } from '../domain/types'
+import { loadGoogleMaps } from '../services/googleMaps'
 
 describe('CoursePlot', () => {
+  it('includes the first GPS fix in the viewport after the course has already loaded', async () => {
+    const { maps } = await loadGoogleMaps()
+    const fit = vi.spyOn(maps.Map.prototype, 'fitBounds')
+    try {
+      const view = render(<CoursePlot marks={seedMarks} race={seedRace} />)
+      await waitFor(() => expect(fit).toHaveBeenCalled())
+      fit.mockClear()
+      view.rerender(<CoursePlot marks={seedMarks} race={seedRace} current={{ latitude: -34, longitude: 151 }} />)
+      expect(fit).toHaveBeenCalledWith(expect.objectContaining({ south: -34, west: 151 }), 44)
+      fit.mockClear()
+      view.rerender(<CoursePlot marks={seedMarks} race={seedRace} current={{ latitude: -34.001, longitude: 151 }} />)
+      expect(fit).not.toHaveBeenCalled()
+    } finally { fit.mockRestore() }
+  })
+  it('shows a compass direction when GPS course is unavailable and a dot when neither is known', async () => {
+    const current = { latitude: -33.87, longitude: 151.24, deviceHeading: 270 }
+    const view = render(<CoursePlot marks={seedMarks} race={seedRace} current={current} />)
+    const boat = await screen.findByLabelText('You, heading 270 degrees')
+    expect(boat.querySelector('.course-map-marker__icon')).toHaveStyle({ transform: 'rotate(270deg)' })
+    view.rerender(<CoursePlot marks={seedMarks} race={seedRace} current={{ latitude: -33.87, longitude: 151.24 }} />)
+    expect(screen.getByLabelText('You, direction unavailable')).toHaveClass('course-map-marker--no-heading')
+  })
   it('keeps course overlays mounted through pre-start line and sensor updates', async () => {
     const detach = vi.spyOn(google.maps.Polyline.prototype, 'setMap')
     try {

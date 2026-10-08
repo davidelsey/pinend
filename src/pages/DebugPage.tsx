@@ -4,7 +4,7 @@ import { SimulatorMap } from '../components/SimulatorMap'
 import { resolveMarkPosition } from '../domain/geo'
 
 export function DebugPage() {
-  const { marks, race, session, simulator, simulatorEnabled, setSimulatorEnabled, configureSimulator, placeSimulator, stepSimulator } = useApp()
+  const { marks, race, session, simulator, simulatorEnabled, latestReading, setSimulatorEnabled, configureSimulator, placeSimulator, stepSimulator } = useApp()
   const target = race.course
     .slice(session.activeWaypointIndex)
     .map((waypoint) => marks.find((mark) => mark.id === waypoint.markId))
@@ -32,6 +32,7 @@ export function DebugPage() {
             <button className="button button--small button--secondary" onClick={() => stepSimulator(30)}><FastForward size={15} /> Move 30 sec</button>
             {target && <button className="button button--small button--secondary" onClick={() => placeSimulator(target.coordinate.latitude - 0.00015, target.coordinate.longitude, simulator.heading)}><LocateFixed size={15} /> Near {target.mark.shortName}</button>}
           </div>
+          <p className="debug-sensor-status" role="status">{simulatorEnabled ? 'Simulated GPS, direction and speed are active throughout the app.' : latestReading?.source === 'simulator' ? 'Using the simulated boat throughout the app while GPS is unavailable.' : 'Enable simulated sensors to override device GPS throughout the app.'}</p>
         </div>
       </section>
     </div>

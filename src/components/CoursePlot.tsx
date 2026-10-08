@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Compass, LocateFixed, MapPin, Maximize2, Minus, Navigation, Plus } from 'lucide-react'
-import { normalizeBearing, resolveMarkPosition } from '../domain/geo'
+import { destinationPoint, distanceNm, initialBearing, normalizeBearing, resolveMarkPosition } from '../domain/geo'
 import type { Coordinate, Mark, RaceDefinition, SensorReading } from '../domain/types'
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 import { googleMapOptions, loadGoogleMaps } from '../services/googleMaps'
@@ -8,7 +8,9 @@ import { fitMapToCoordinates, googleCoordinate } from '../services/mapCoordinate
 import { animateCourseDirection } from '../services/courseDirection'
 
 type CurrentPosition = Coordinate & Partial<Pick<SensorReading, 'heading' | 'headingSource' | 'deviceHeading' | 'courseOverGround'>>
-type Props = { marks: Mark[]; race: RaceDefinition; current?: CurrentPosition | null; activeMarkId?: string; line?: { pin: Coordinate; committee: Coordinate } | null; compact?: boolean; zoomControls?: boolean }
+type SimulationControls = { speedKnots: number; onPosition(coordinate: Coordinate): void; onVector(heading: number, speedKnots: number): void }
+type Props = { marks: Mark[]; race: RaceDefinition; current?: CurrentPosition | null; activeMarkId?: string; line?: { pin: Coordinate; committee: Coordinate } | null; compact?: boolean; zoomControls?: boolean; simulation?: SimulationControls }
+type MarkerInteraction = { onDrag?(coordinate: Coordinate): void; onKeyDown?(event: KeyboardEvent): void }
 const FIT_PADDING = 44
 
 function markerElement(label: string, variant: 'mark' | 'active' | 'line' | 'boat') {
@@ -24,7 +26,7 @@ function markerElement(label: string, variant: 'mark' | 'active' | 'line' | 'boa
   return element
 }
 
-export function CoursePlot({ marks, race, current, activeMarkId, line, compact, zoomControls = false }: Props) {
+export function CoursePlot({ marks, race, current, activeMarkId, line, compact, zoomControls = false, simulation }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
@@ -32,6 +34,8 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
   const courseLineRef = useRef<google.maps.Polyline | null>(null)
   const markerClassRef = useRef<typeof google.maps.marker.AdvancedMarkerElement | null>(null)
   const initialFitRef = useRef(false)
+  const positionedBoatRef = useRef(false)
+  const interactionsRef = useRef(new WeakMap<google.maps.marker.AdvancedMarkerElement, MarkerInteraction>())
   const [loaded, setLoaded] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const [orientation, setOrientation] = useState<'north' | 'device'>('north')
@@ -69,8 +73,9 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
   const legacyCourseOverGround = current?.headingSource === 'course-over-ground' || current?.headingSource === 'simulator' ? current.heading : undefined
   const deviceHeading = current?.deviceHeading ?? legacyDeviceHeading
   const courseOverGround = current?.courseOverGround ?? legacyCourseOverGround
+  const boatHeading = courseOverGround ?? deviceHeading
   const deviceHeadingAvailable = deviceHeading != null && Number.isFinite(deviceHeading)
-  const travelHeadingAvailable = courseOverGround != null && Number.isFinite(courseOverGround)
+  const travelHeadingAvailable = boatHeading != null && Number.isFinite(boatHeading)
   const deviceAligned = orientation === 'device' && deviceHeadingAvailable
   const mapBearing = deviceAligned ? normalizeBearing(deviceHeading) : 0
   const plotLabel = deviceAligned ? `Course map, device aligned at ${Math.round(normalizeBearing(deviceHeading)).toString().padStart(3, '0')} degrees` : 'Course map, north up'
@@ -94,6 +99,7 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
       mapRef.current = null
       markerClassRef.current = null
       initialFitRef.current = false
+      positionedBoatRef.current = false
     }
   }, [])
 
@@ -102,11 +108,14 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     const AdvancedMarkerElement = markerClassRef.current
     if (!map || !AdvancedMarkerElement || !loaded) return
     const visibleGates = model.gates.filter((gate) => !(model.sharedStartFinish && gate.isFinish))
+    // A ten-minute velocity vector, with a short minimum handle for a stopped boat.
+    const vectorEnd = simulation && current ? destinationPoint(current, 0.05 + simulation.speedKnots / 6, boatHeading ?? 0) : null
     const gateIsActive = (gate: typeof visibleGates[number]) => gate.id === activeMarkId
       || (model.sharedStartFinish && gate.isStart && model.gates.some((item) => item.isFinish && item.id === activeMarkId))
     const lineOptions: google.maps.PolylineOptions[] = [
       ...(model.routeCoordinates.length > 1 ? [{ path: model.routeCoordinates.map(googleCoordinate), strokeColor: '#f5f1e8', strokeWeight: 3, strokeOpacity: 0.8 }] : []),
       ...visibleGates.map((gate) => ({ path: [googleCoordinate(gate.pointA), googleCoordinate(gate.pointB)], strokeColor: gateIsActive(gate) ? '#ffb340' : gate.isFinish ? '#53d3c2' : '#ff6b35', strokeWeight: gateIsActive(gate) ? 9 : 6, strokeOpacity: 1, icons: [] })),
+      ...(vectorEnd && current ? [{ path: [googleCoordinate(current), googleCoordinate(vectorEnd)], strokeColor: '#ff6b35', strokeWeight: 3, icons: [] }] : []),
     ]
     lineOptions.forEach((options, index) => {
       if (linesRef.current[index]) linesRef.current[index].setOptions(options)
@@ -116,9 +125,20 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     courseLineRef.current = model.routeCoordinates.length > 1 ? linesRef.current[0] : null
 
     const nextMarkers: google.maps.marker.AdvancedMarkerElement[] = []
-    const addMarker = (options: google.maps.marker.AdvancedMarkerElementOptions & { content: HTMLDivElement }) => {
+    const addMarker = ({ onDrag, onKeyDown, ...options }: google.maps.marker.AdvancedMarkerElementOptions & { content: HTMLDivElement } & MarkerInteraction) => {
       let marker = markersRef.current[nextMarkers.length]
-      if (!marker) marker = new AdvancedMarkerElement(options)
+      if (!marker) {
+        marker = new AdvancedMarkerElement(options)
+        const created = marker
+        const drag = () => {
+          const position = created.position
+          if (!position) return
+          interactionsRef.current.get(created)?.onDrag?.({ latitude: typeof position.lat === 'function' ? position.lat() : position.lat, longitude: typeof position.lng === 'function' ? position.lng() : position.lng })
+        }
+        created.addListener('drag', drag)
+        created.addListener('dragend', drag)
+        options.content.addEventListener('keydown', (event) => { if (event instanceof KeyboardEvent) interactionsRef.current.get(created)?.onKeyDown?.(event) })
+      }
       else {
         const content = marker.content as HTMLDivElement
         content.className = options.content.className
@@ -129,10 +149,21 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
         const nextText = options.content.querySelector('.course-map-marker__label')!.textContent
         if (text.textContent !== nextText) text.textContent = nextText
         content.querySelector<HTMLElement>('.course-map-marker__icon')!.style.transform = options.content.querySelector<HTMLElement>('.course-map-marker__icon')!.style.transform
-        marker.position = options.position
+        const position = marker.position
+        const nextPosition = options.position as google.maps.LatLngLiteral
+        const lat = position && (typeof position.lat === 'function' ? position.lat() : position.lat)
+        const lng = position && (typeof position.lng === 'function' ? position.lng() : position.lng)
+        if (lat !== nextPosition.lat || lng !== nextPosition.lng) marker.position = nextPosition
         marker.anchorLeft = options.anchorLeft
         marker.anchorTop = options.anchorTop
       }
+      marker.gmpDraggable = Boolean(onDrag)
+      marker.zIndex = options.zIndex
+      const content = marker.content as HTMLDivElement
+      content.tabIndex = onDrag ? 0 : -1
+      if (onDrag) content.setAttribute('role', 'button')
+      else content.removeAttribute('role')
+      interactionsRef.current.set(marker, { onDrag, onKeyDown })
       nextMarkers.push(marker)
     }
     model.courseMarks.forEach((mark) => addMarker({
@@ -157,17 +188,40 @@ export function CoursePlot({ marks, race, current, activeMarkId, line, compact, 
     if (current) {
       const element = markerElement('YOU', 'boat')
       const icon = element.querySelector<HTMLElement>('.course-map-marker__icon')
-      if (icon && travelHeadingAvailable) icon.style.transform = `rotate(${normalizeBearing(courseOverGround - mapBearing)}deg)`
-      element.setAttribute('aria-label', travelHeadingAvailable ? `You, travelling ${Math.round(normalizeBearing(courseOverGround))} degrees` : 'You, direction unavailable')
-      addMarker({ map, content: element, position: googleCoordinate(current), anchorLeft: '-50%', anchorTop: '-50%' })
+      if (icon && travelHeadingAvailable) icon.style.transform = `rotate(${normalizeBearing(boatHeading - mapBearing)}deg)`
+      if (!travelHeadingAvailable) element.classList.add('course-map-marker--no-heading')
+      element.setAttribute('aria-label', simulation ? 'Drag boat position' : travelHeadingAvailable ? `You, ${courseOverGround != null ? 'travelling' : 'heading'} ${Math.round(normalizeBearing(boatHeading))} degrees` : 'You, direction unavailable')
+      addMarker({ map, content: element, position: googleCoordinate(current), anchorLeft: '-50%', anchorTop: '-50%', zIndex: 1000,
+        onDrag: simulation?.onPosition,
+        onKeyDown: simulation ? (event) => {
+          const bearings: Record<string, number> = { ArrowUp: 0, ArrowRight: 90, ArrowDown: 180, ArrowLeft: 270 }
+          if (!(event.key in bearings)) return
+          event.preventDefault()
+          simulation.onPosition(destinationPoint(current, 0.01, bearings[event.key]))
+        } : undefined,
+      })
+      if (simulation && vectorEnd) {
+        const handle = markerElement('Speed / direction', 'active')
+        handle.classList.add('course-map-vector-handle')
+        handle.setAttribute('aria-label', 'Drag to set heading and speed')
+        addMarker({ map, content: handle, position: googleCoordinate(vectorEnd), anchorLeft: '-50%', anchorTop: '-50%', zIndex: 1001,
+          onDrag: (point) => simulation.onVector(initialBearing(current, point), Math.min(20, Math.max(0, (distanceNm(current, point) - 0.05) * 6))),
+          onKeyDown: (event) => {
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return
+            event.preventDefault()
+            simulation.onVector(normalizeBearing((boatHeading ?? 0) + (event.key === 'ArrowLeft' ? -5 : event.key === 'ArrowRight' ? 5 : 0)), Math.min(20, Math.max(0, simulation.speedKnots + (event.key === 'ArrowUp' ? 0.5 : event.key === 'ArrowDown' ? -0.5 : 0))))
+          },
+        })
+      }
     }
     markersRef.current.slice(nextMarkers.length).forEach((marker) => { marker.map = null })
     markersRef.current = nextMarkers
-    if (!initialFitRef.current && model.allPoints.length > 0) {
-      fitMapToCoordinates(map, model.allPoints, FIT_PADDING)
+    if ((!initialFitRef.current || (current && !positionedBoatRef.current)) && model.allPoints.length > 0) {
+      fitMapToCoordinates(map, vectorEnd ? [...model.allPoints, vectorEnd] : model.allPoints, FIT_PADDING)
       initialFitRef.current = true
     }
-  }, [activeMarkId, courseOverGround, current, loaded, mapBearing, model, travelHeadingAvailable])
+    positionedBoatRef.current = Boolean(current)
+  }, [activeMarkId, boatHeading, courseOverGround, current, loaded, mapBearing, model, simulation, travelHeadingAvailable])
 
   useEffect(() => {
     if (loaded) return animateCourseDirection(() => courseLineRef.current)

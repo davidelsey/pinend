@@ -56,7 +56,7 @@ export function useDeviceSensors(enabled: boolean, declinationDegrees = 12.8) {
           heading,
           speedKnots: (position.coords.speed ?? 0) * 1.94384,
           source: 'device',
-          headingSource: compassHeading != null ? 'compass' : 'course-over-ground',
+          headingSource: compassHeading != null ? 'compass' : courseOverGround != null ? 'course-over-ground' : undefined,
           headingReliable: compassHeading != null,
           deviceHeading,
           courseOverGround,

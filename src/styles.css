@@ -111,8 +111,15 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .course-map-endpoint { position: relative; width: 14px; height: 14px; }
 .course-map-endpoint .course-map-marker__icon { width: 14px; height: 14px; margin: 0; }
 .course-map-endpoint .course-map-marker__label { position: absolute; left: 20px; top: 0; }
-.course-map-marker--boat .course-map-marker__icon { width: 0; height: 0; margin-right: 5px; border: 7px solid transparent; border-bottom: 18px solid #53d3c2; border-radius: 0; background: transparent; box-shadow: none; transform-origin: 50% 65%; }
-.course-map-marker--boat .course-map-marker__label { color: #53d3c2; }
+.course-map-marker--boat { position: relative; width: 34px; height: 34px; border: 2px solid white; border-radius: 50%; background: #071b2f; box-shadow: 0 0 0 5px rgba(83,211,194,.25), 0 2px 6px #071b2f66; justify-content: center; }
+.course-map-marker--boat .course-map-marker__icon { width: 24px; height: 24px; margin: 0; border: 0; border-radius: 0; background: #53d3c2; box-shadow: none; clip-path: polygon(50% 0, 95% 100%, 50% 75%, 5% 100%); transform-origin: center; }
+.course-map-marker--boat .course-map-marker__label { position: absolute; left: 40px; color: #53d3c2; }
+.course-map-marker--no-heading .course-map-marker__icon { width: 14px; height: 14px; border-radius: 50%; clip-path: none; }
+.course-map-marker[role="button"] { pointer-events: auto; cursor: grab; }
+.course-map-marker[role="button"]:active { cursor: grabbing; }
+.course-map-vector-handle { position: relative; width: 28px; height: 28px; justify-content: center; }
+.course-map-vector-handle .course-map-marker__icon { margin: 0; }
+.course-map-vector-handle .course-map-marker__label { position: absolute; left: 34px; }
 .course-plot .gm-style-cc { font-size: 9px; }
 .map-provider-error { position: absolute; inset: 50% auto auto 50%; z-index: 3; width: min(330px, calc(100% - 30px)); transform: translate(-50%,-50%); padding: 12px 14px; border-radius: 10px; color: #ffe7db; background: rgba(72,25,13,.92); font-size: 12px; font-weight: 700; text-align: center; }
 .course-map-hint { position: absolute; bottom: 42px; left: 12px; z-index: 2; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 70px); padding: 9px 12px; border: 1px solid rgba(7,27,47,.1); border-radius: 10px; background: rgba(248,245,237,.96); color: #425a65; box-shadow: 0 2px 8px rgba(7,27,47,.08); font-size: 12px; line-height: 1.4; pointer-events: none; }
@@ -182,17 +189,9 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .toggle-row input { width: 34px; height: 18px; accent-color: var(--orange); }
 .debug-map-panel { width: min(920px, 100%); overflow: hidden; border-radius: 18px; background: var(--navy); box-shadow: 0 16px 45px rgba(7,27,47,.18); }
 .simulator-map { position: relative; min-height: 480px; color: white; background: #082b40; touch-action: none; user-select: none; }
-.simulator-map > svg { display: block; width: 100%; min-height: 480px; height: min(62vh, 650px); touch-action: none; }
-.simulator-map__mark circle { fill: #f5f1e8; stroke: #071b2f; stroke-width: .7; }
-.simulator-map__mark text { fill: #f5f1e8; font-size: 2.25px; font-weight: 800; paint-order: stroke; stroke: #082b40; stroke-width: .7px; }
-.simulator-map__vector { stroke: #ffb37f; stroke-width: 1.2; stroke-dasharray: 2 1.6; }
-.simulator-map__touch-target { fill: transparent; stroke: none; }
-.simulator-map__boat, .simulator-map__handle { cursor: grab; }
-.simulator-map__boat:active, .simulator-map__handle:active { cursor: grabbing; }
-.simulator-map__boat path { fill: #53d3c2; stroke: #071b2f; stroke-width: .8; }
-.simulator-map__boat text { fill: #a7efe5; font-size: 2.5px; font-weight: 900; paint-order: stroke; stroke: #082b40; stroke-width: .8px; }
-.simulator-map__handle circle:not(.simulator-map__touch-target) { fill: var(--orange); stroke: white; stroke-width: .65; }
-.simulator-map__handle path { fill: none; stroke: white; stroke-width: .6; stroke-linecap: round; }
+.simulator-map .course-plot, .simulator-map .course-map-canvas { min-height: 480px; height: min(62vh, 650px); }
+.simulator-map .map-current-label { display: none; }
+.debug-sensor-status { grid-column: 1 / -1; margin: 0; color: #dcebee; font-size: 12px; }
 .simulator-map__legend { position: absolute; z-index: 2; right: 12px; bottom: 12px; left: 12px; display: flex; justify-content: space-between; gap: 10px; pointer-events: none; }
 .simulator-map__legend span { display: flex; align-items: center; gap: 5px; padding: 7px 9px; border-radius: 8px; color: #dcebee; background: rgba(3,18,30,.78); font-size: 9px; font-weight: 800; }
 .debug-map-panel__controls { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(230px, 1fr) auto; align-items: center; gap: 16px; padding: 12px 14px; color: white; background: #071b2f; }
@@ -540,8 +539,8 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .bottom-nav button { flex: 1; min-width: 0; }
   .countdown-hero { margin-top: -18px; padding: 35px 14px; min-height: 330px; }
   .countdown { font-size: 78px; }
-  .simulator-map, .simulator-map > svg { min-height: 430px; }
-  .simulator-map > svg { height: 56vh; }
+  .simulator-map, .simulator-map .course-plot, .simulator-map .course-map-canvas { min-height: 430px; }
+  .simulator-map .course-map-canvas { height: 56vh; }
   .simulator-map__legend { flex-direction: column; align-items: flex-start; }
   .debug-map-panel__controls { grid-template-columns: 1fr; }
   .debug-map-panel__controls .button-row { grid-column: auto; display: grid; grid-template-columns: 1fr 1fr; }
