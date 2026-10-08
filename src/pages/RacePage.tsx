@@ -125,6 +125,11 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           <div className="race-bearing"><Navigation size={28} /><strong>{bearing == null ? '—' : Math.round(bearing).toString().padStart(3, '0')}°</strong><span>T</span></div>
           <div className="race-distance">{distanceDisplay.value} <span>{distanceDisplay.unit} TO MARK</span></div>
           <div className={`race-eta ${etaSeconds == null ? 'race-eta--unavailable' : ''}`}><Clock3 size={14} /> ETA {etaLabel} <span>AT CURRENT VMG</span></div>
+          <div className="race-actions">
+            {isNavigator ? <button className="button button--race-next" onClick={() => setShowRounding(true)}>
+              <Flag size={18} /> {activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} <ChevronRight size={18} />
+            </button> : <p className="crew-following">Following the navigator’s target</p>}
+          </div>
         </section>
 
         <div className="race-metrics">
@@ -147,11 +152,6 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
 
         </div>
       </main>
-        <div className="race-actions">
-          {isNavigator ? <button className="button button--race-next" onClick={() => setShowRounding(true)}>
-            <Flag size={18} /> {activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} <ChevronRight size={18} />
-          </button> : <p className="crew-following">Following the navigator’s target</p>}
-        </div>
 
       {showRounding && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm mark rounding">

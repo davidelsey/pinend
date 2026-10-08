@@ -3,30 +3,38 @@
 .app-page-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; letter-spacing: -.03em; }
 .app-header-title { min-width: 0; }
 .app-race-status { display: flex; align-items: center; gap: 12px; margin-top: 2px; }
-.app-race-status .race-header__live, .app-race-status .race-header__elapsed { font-size: 9px; gap: 5px; }
+.app-race-status .race-header__live, .app-race-status .race-header__elapsed { font-size: 11px; gap: 5px; }
 .app-race-status .race-header__elapsed { color: #425a65; }
 
 .race-view.race-view--split { height: calc(100dvh - 56px); min-height: 0; padding-bottom: 0; display: flex; flex-direction: column; overflow: hidden; }
 .race-view--split .race-main { width: 100%; flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: 0; }
-.race-view--split .race-instruments { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; justify-content: safe center; padding: 8px 12px; }
-.race-view--split .race-focus { padding: 0 0 8px; }
-.race-view--split .race-focus h1 { font-size: clamp(24px, 4vw, 42px); margin: 4px 0; min-width: 0; }
-.race-view--split .race-bearing strong { font-size: clamp(30px, 4vw, 48px); }
-.race-view--split .race-eta { margin-top: 5px; padding: 4px 10px; }
+.race-view--split .race-instruments { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; justify-content: safe center; gap: 16px; padding: 12px; }
+.race-view--split .race-focus { flex-shrink: 0; padding: 0; }
+.race-view--split .race-focus__topline { font-size: 12px; letter-spacing: .04em; color: #a3b5bc; }
+.race-view--split .race-focus h1 { font-size: clamp(28px, 4vw, 46px); margin: 8px 0; min-width: 0; }
+.race-view--split .race-bearing strong { font-size: clamp(40px, 5vw, 64px); }
+.race-view--split .race-bearing span { font-size: 13px; }
+.race-view--split .race-distance { font-size: 24px; }
+.race-view--split .race-distance span { font-size: 12px; letter-spacing: .04em; color: #a3b5bc; }
+.race-view--split .race-eta { margin-top: 8px; padding: 6px 12px; font-size: 14px; flex-wrap: wrap; justify-content: center; }
+.race-view--split .race-eta span { font-size: 11px; letter-spacing: 0; color: #a3b5bc; }
 .race-view--split .race-metrics { flex-shrink: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; border-radius: 10px; }
-.race-view--split .metric { padding: 8px; min-width: 0; }
-.race-view--split .metric__label { font-size: 8px; letter-spacing: 0; }
+.race-view--split .metric { padding: 10px 8px; min-width: 0; }
+.race-view--split .metric__label { font-size: 12px; min-height: 30px; line-height: 1.25; letter-spacing: 0; color: #a3b5bc; }
 .race-view--split .metric__label svg { display: none; }
-.race-view--split .metric__value { font-size: clamp(20px, 3vw, 30px); }
+.race-view--split .metric__value { font-size: clamp(24px, 3vw, 36px); }
+.race-view--split .metric__value span { font-size: 12px; }
 .race-wind { background: #0b263a; position: relative; }
 .race-view--split .race-wind .metric { padding-bottom: 0; }
-.race-wind__direction { display: block; padding: 0 8px 5px; color: #a3b5bc; font-size: 10px; }
+.race-wind__direction { display: block; padding: 0 8px 6px; color: #a3b5bc; font-size: 12px; }
 .race-view--split .race-layout { display: block; min-width: 0; min-height: 0; }
 .race-view--split .race-map-panel { height: 100%; position: relative; }
 .race-view--split .course-plot, .race-view--split .course-map-canvas { height: 100%; min-height: 0; border-radius: 0; }
 .race-view--split .map-progress { position: absolute; bottom: 0; left: 0; right: 0; margin: 0; }
-.race-view--split .race-actions { flex-shrink: 0; margin: 0; padding: 8px 12px max(8px, env(safe-area-inset-bottom)); }
-.race-view--split .race-actions .button { min-height: 42px; padding: 8px 18px; }
+.race-view--split .race-actions { margin: 12px 0 0; padding: 0; }
+.race-view--split .race-actions .button { min-height: 46px; padding: 10px 22px; font-size: 16px; }
+.race-view--split .course-map-marker { font-size: 12px; }
+.race-view--split .map-current-label { font-size: 11px; }
 @media (orientation: landscape) {
   .race-view--split .race-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .race-view--split .race-layout { grid-column: 1; grid-row: 1; }
