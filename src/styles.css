@@ -652,6 +652,16 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .mark-rounding-picker > div { display: flex; gap: 8px; }
 .selected-mark-summary { margin: 12px 0; padding: 11px 12px; display: flex; align-items: center; gap: 8px; border-radius: 10px; color: var(--teal-dark); background: var(--teal-pale); font-size: 12px; font-weight: 700; text-transform: capitalize; }
 .mark-chooser .field { margin-bottom: 10px; }
+.mark-create-backdrop { padding: 0; }
+.mark-chooser.mark-chooser--fullscreen { width: 100%; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border-radius: 0; display: flex; flex-direction: column; overflow: hidden; }
+.mark-chooser--fullscreen > .panel__heading { flex-shrink: 0; margin: 0; padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--line); }
+.mark-chooser--fullscreen > .field { flex-shrink: 0; margin: 0; padding: 10px 16px; }
+.mark-chooser--fullscreen > .point-picker { flex: 1; min-height: 0; margin: 0; border-radius: 0; }
+.mark-chooser--fullscreen .point-picker__map { height: 100%; min-height: 0; }
+.mark-chooser--fullscreen .mark-chooser-actions { flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); }
+.mark-chooser--fullscreen .mark-rounding-picker { margin: 0 auto 0 0; }
+.mark-chooser--fullscreen .mark-chooser-actions > .button { width: auto; min-width: 150px; }
+.mark-chooser--fullscreen .field-error { flex-basis: 100%; margin: 0; }
 .mark-chooser-results { max-height: min(260px, 32dvh); overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
 .mark-chooser-option { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; color: var(--teal-dark); }
 .mark-chooser-option:last-child { border-bottom: 0; }

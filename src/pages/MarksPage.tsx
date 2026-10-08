@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Camera, ChevronRight, Copy, CornerUpLeft, CornerUpRight, Crosshair, GripVertical, LockKeyhole, MapPinned, MapPin, Plus, Ruler, Trash2 } from 'lucide-react'
+import { Camera, ChevronRight, Copy, CornerUpLeft, CornerUpRight, Crosshair, GripVertical, LockKeyhole, MapPinned, MapPin, Plus, Trash2 } from 'lucide-react'
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { FullScreenMarkMapEditor } from '../components/FullScreenMarkMapEditor'
@@ -7,7 +7,7 @@ import { FullScreenLineMapEditor } from '../components/FullScreenLineMapEditor'
 import { MapPointPicker } from '../components/MapPointPicker'
 import { SightMarksDialog, type SightTargetRef } from '../components/SightMarksDialog'
 import { distanceMetres, intersectSightings, resolveMarkPosition, withManualMarkCoordinate, withSightingMarkCoordinate, withoutSightingMarkCoordinate } from '../domain/geo'
-import type { BearingReference, CourseWaypoint, LineObservation, Mark } from '../domain/types'
+import type { CourseWaypoint, LineObservation, Mark } from '../domain/types'
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 
 type Props = { onEnterPrestart(): void }
@@ -47,16 +47,12 @@ export function MarksPage({ onEnterPrestart }: Props) {
   const [insertMarkAt, setInsertMarkAt] = useState<number | null>(null)
   const [newMarkRounding, setNewMarkRounding] = useState<CourseWaypoint['rounding']>('port')
   const [addingMark, setAddingMark] = useState(false)
-  const [markKind, setMarkKind] = useState<Mark['position']['kind']>('fixed')
+  const [markKind, setMarkKind] = useState<'fixed' | 'gate'>('fixed')
   const [markName, setMarkName] = useState('')
   const [selectedMarkId, setSelectedMarkId] = useState<string | null>(null)
   const [creatingMark, setCreatingMark] = useState(false)
   const [markCoordinate, setMarkCoordinate] = useState({ latitude: -33.86, longitude: 151.24 })
   const [lineEndCoordinate, setLineEndCoordinate] = useState({ latitude: -33.86, longitude: 151.241 })
-  const [markDistance, setMarkDistance] = useState(1)
-  const [markBearing, setMarkBearing] = useState(0)
-  const [bearingReference, setBearingReference] = useState<BearingReference>('true')
-  const [declination, setDeclination] = useState(12.8)
   const [positionMark, setPositionMark] = useState<Mark | null>(null)
   const [sightTarget, setSightTarget] = useState<SightTargetRef | null>(null)
   const insertionTrigger = useRef<HTMLButtonElement | null>(null)
@@ -74,10 +70,8 @@ export function MarksPage({ onEnterPrestart }: Props) {
   const selectedLibraryMark = selectableMarks.find((mark) => mark.id === selectedMarkId)
   const matchingMarks = selectableMarks.filter((mark) => mark.name.toLocaleLowerCase().includes(markName.trim().toLocaleLowerCase()))
   const validCoordinate = (coordinate: { latitude: number; longitude: number }) => Number.isFinite(coordinate.latitude) && coordinate.latitude >= -90 && coordinate.latitude <= 90 && Number.isFinite(coordinate.longitude) && coordinate.longitude >= -180 && coordinate.longitude <= 180
-  const newMarkIsValid = markKind === 'variable'
-    || (validCoordinate(markCoordinate) && (markKind === 'fixed'
-      || (markKind === 'constructed' && Number.isFinite(markDistance) && markDistance > 0 && Number.isFinite(markBearing) && markBearing >= 0 && markBearing < 360 && (bearingReference !== 'magnetic' || (Number.isFinite(declination) && declination >= -180 && declination <= 180)))
-      || (markKind === 'gate' && validCoordinate(lineEndCoordinate) && distanceMetres(markCoordinate, lineEndCoordinate) >= 3)))
+  const newMarkIsValid = validCoordinate(markCoordinate) && (markKind === 'fixed'
+    || (validCoordinate(lineEndCoordinate) && distanceMetres(markCoordinate, lineEndCoordinate) >= 3))
 
   const setFinishLinked = async (linked: boolean) => {
     const start = marks.find((mark) => mark.id === startWaypoint?.markId)
@@ -197,11 +191,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
           provenance: 'personal',
           position: markKind === 'fixed'
             ? { kind: 'fixed', coordinate: markCoordinate }
-            : markKind === 'variable'
-              ? { kind: 'variable' }
-              : markKind === 'gate'
-                ? { kind: 'gate', pointA: markCoordinate, pointB: lineEndCoordinate, labels: ['Pin', 'Boat'] }
-                : { kind: 'constructed', origin: markCoordinate, distanceNm: markDistance, bearing: { degrees: markBearing, reference: bearingReference, declination: bearingReference === 'magnetic' ? declination : undefined } },
+            : { kind: 'gate', pointA: markCoordinate, pointB: lineEndCoordinate, labels: ['Pin', 'Boat'] },
         }
         await saveMark(raceMark)
       }
@@ -295,14 +285,14 @@ export function MarksPage({ onEnterPrestart }: Props) {
       {positionMark?.position.kind === 'gate' && <FullScreenLineMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => positionMark.id === 'start-line' ? item.endpoint === 'pin' || item.endpoint === 'committee' : item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (pointA, pointB) => { if (positionMark.position.kind !== 'gate') return; await saveMark({ ...positionMark, position: { ...positionMark.position, pointA, pointB } }); setPositionMark(null) }} />}
       {positionMark && positionMark.position.kind !== 'gate' && <FullScreenMarkMapEditor mark={positionMark} otherMarks={raceMarks.filter((mark) => mark.id !== positionMark.id)} fallback={latestReading} observations={observations.filter((item) => item.endpoint === 'mark' && item.markId === positionMark.id)} onDeleteObservation={discardMarkObservation} onCancel={() => setPositionMark(null)} onSave={async (coordinate) => { await saveMark({ ...positionMark, position: withManualMarkCoordinate(positionMark.position, coordinate) }); setPositionMark(null) }} />}
       {sightTarget && <SightMarksDialog key={sightTarget.endpoint === 'mark' ? sightTarget.markId : sightTarget.endpoint} now={Date.now()} open initialTarget={sightTarget} initialAction="sight" onClose={() => setSightTarget(null)} />}
-      {insertMarkAt !== null && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add course mark" onKeyDown={handleMarkDialogKeyDown}>
-        <div className="form-modal mark-chooser" ref={markDialog}>
-          <div className="panel__heading"><div><Crosshair size={18} /><h2>Add course mark</h2></div><button className="text-button" disabled={addingMark} onClick={() => closeMarkCreator()}>Cancel</button></div>
-          <div className="segment-control" role="group" aria-label="Add mark from">
+      {insertMarkAt !== null && <div className={`modal-backdrop ${creatingMark ? 'mark-create-backdrop' : ''}`} role="dialog" aria-modal="true" aria-label="Add course mark" onKeyDown={handleMarkDialogKeyDown}>
+        <div className={`form-modal mark-chooser ${creatingMark ? 'mark-chooser--fullscreen' : ''}`} ref={markDialog}>
+          <div className="panel__heading"><div>{creatingMark ? <button className="text-button" disabled={addingMark} onClick={() => setCreatingMark(false)}>Back</button> : <Crosshair size={18} />}<h2>{creatingMark ? markKind === 'gate' ? 'New gate' : 'New point' : 'Add course mark'}</h2></div><button className="text-button" disabled={addingMark} onClick={() => closeMarkCreator()}>Cancel</button></div>
+          {!creatingMark && <div className="segment-control" role="group" aria-label="Add mark from">
             <button disabled={addingMark} aria-pressed={!creatingMark} className={!creatingMark ? 'active' : ''} onClick={() => { setCreatingMark(false); setSelectedMarkId(null) }}>Existing mark</button>
             <button disabled={addingMark} aria-pressed={creatingMark && markKind !== 'gate'} className={creatingMark && markKind !== 'gate' ? 'active' : ''} onClick={() => { setCreatingMark(true); setSelectedMarkId(null); setMarkKind('fixed') }}>New point</button>
             <button disabled={addingMark} aria-pressed={creatingMark && markKind === 'gate'} className={creatingMark && markKind === 'gate' ? 'active' : ''} onClick={() => { setCreatingMark(true); setSelectedMarkId(null); setMarkKind('gate') }}>New gate</button>
-          </div>
+          </div>}
           <label className="field"><span>{creatingMark ? 'New mark name' : 'Search marks'}</span><input autoFocus disabled={addingMark} value={markName} onChange={(event) => { setMarkName(event.target.value); setSelectedMarkId(null) }} placeholder={creatingMark ? 'Name your mark' : 'Search by name'} autoComplete="off" /></label>
           {!selectedLibraryMark && !creatingMark && <>
             <div className="mark-chooser-results" role="region" aria-label="Matching marks">
@@ -310,15 +300,15 @@ export function MarksPage({ onEnterPrestart }: Props) {
               {!matchingMarks.length && <p className="mark-chooser-empty">No matching marks.</p>}
             </div>
           </>}
-          {(selectedLibraryMark || creatingMark) && <div className="mark-chooser-selection"><span>{selectedLibraryMark ? `Using ${selectedLibraryMark.name} · ${selectedLibraryMark.position.kind}` : 'Creating a new mark'}</span><button className="text-button" disabled={addingMark} onClick={() => { setSelectedMarkId(null); setCreatingMark(false); setMarkName('') }}>Change</button></div>}
+          {selectedLibraryMark && <div className="mark-chooser-selection"><span>Using {selectedLibraryMark.name} · {selectedLibraryMark.position.kind}</span><button className="text-button" disabled={addingMark} onClick={() => { setSelectedMarkId(null); setCreatingMark(false); setMarkName('') }}>Change</button></div>}
           {creatingMark && <>
-            {markKind !== 'gate' && <div className="segment-control" role="group" aria-label="Mark position type">{(['fixed', 'variable', 'constructed'] as const).map((kind) => <button aria-pressed={markKind === kind} className={markKind === kind ? 'active' : ''} key={kind} onClick={() => setMarkKind(kind)}>{kind}</button>)}</div>}
-            {markKind !== 'variable' && <MapPointPicker value={markCoordinate} onChange={setMarkCoordinate} secondValue={markKind === 'gate' ? lineEndCoordinate : undefined} onSecondChange={markKind === 'gate' ? setLineEndCoordinate : undefined} />}
-            {markKind === 'constructed' && <><div className="form-grid"><label className="field"><span>Distance (NM)</span><input type="number" min="0" step="0.1" value={markDistance} onChange={(event) => setMarkDistance(Number(event.target.value))} /></label><label className="field"><span>Bearing</span><input type="number" min="0" max="359.9" value={markBearing} onChange={(event) => setMarkBearing(Number(event.target.value))} /></label></div><div className="segment-control" role="group" aria-label="Bearing reference"><button aria-pressed={bearingReference === 'true'} className={bearingReference === 'true' ? 'active' : ''} onClick={() => setBearingReference('true')}>True</button><button aria-pressed={bearingReference === 'magnetic'} className={bearingReference === 'magnetic' ? 'active' : ''} onClick={() => setBearingReference('magnetic')}>Magnetic</button></div>{bearingReference === 'magnetic' && <label className="field"><span>Magnetic declination (east positive)</span><input type="number" step="0.1" value={declination} onChange={(event) => setDeclination(Number(event.target.value))} /></label>}<p className="microcopy"><Ruler size={13} /> Bearing, reference and origin are retained with the mark.</p></>}
+            <MapPointPicker value={markCoordinate} onChange={setMarkCoordinate} secondValue={markKind === 'gate' ? lineEndCoordinate : undefined} onSecondChange={markKind === 'gate' ? setLineEndCoordinate : undefined} />
           </>}
-          {creatingMark && markName.trim() && !newMarkIsValid && <p id="new-mark-validation" className="field-error" role="alert">Enter a valid position. Gates must be at least 3 m wide; distance must be positive, bearing 0–359.9°, and magnetic declination −180–180°.</p>}
+          <footer className="mark-chooser-actions">
+          {creatingMark && !newMarkIsValid && <p id="new-mark-validation" className="field-error" role="alert">{markKind === 'gate' ? 'Move the gate pins at least 3 m apart.' : 'Choose a valid position on the map.'}</p>}
           {(selectedLibraryMark ? selectedLibraryMark.position.kind !== 'gate' : !creatingMark || markKind !== 'gate') && <fieldset className="mark-rounding-picker"><legend>Rounding</legend><div role="radiogroup" aria-label="New mark rounding"><label className={`rounding-arrow rounding-arrow--port ${newMarkRounding === 'port' ? 'is-selected' : ''}`}><input type="radio" name="new-mark-rounding" aria-label="Round new mark to port" checked={newMarkRounding === 'port'} onChange={() => setNewMarkRounding('port')} /><CornerUpLeft size={20} /></label><label className={`rounding-arrow rounding-arrow--starboard ${newMarkRounding === 'starboard' ? 'is-selected' : ''}`}><input type="radio" name="new-mark-rounding" aria-label="Round new mark to starboard" checked={newMarkRounding === 'starboard'} onChange={() => setNewMarkRounding('starboard')} /><CornerUpRight size={20} /></label></div></fieldset>}
           <button className="button button--primary button--wide" aria-describedby={creatingMark && markName.trim() && !newMarkIsValid ? 'new-mark-validation' : undefined} disabled={addingMark || !markName.trim() || (!selectedLibraryMark && (!creatingMark || !newMarkIsValid))} onClick={() => void addCourseMark()}><Plus size={16} /> {addingMark ? 'Adding…' : 'Add to course'}</button>
+          </footer>
         </div>
       </div>}
     </div>
