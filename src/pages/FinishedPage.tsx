@@ -10,7 +10,7 @@ export function FinishedPage({ onReset }: { onReset(): void }) {
   const summary = useMemo(() => summarizeRace(race, session), [race, session])
   const [tab, setTab] = useState<'replay' | 'stats'>('replay')
   return (
-    <div className="finished-page">
+    <div className={`finished-page ${tab === 'replay' ? 'finished-page--replay' : ''}`}>
       <header className="finished-page__header">
         <div className="finished-flag"><Sailboat size={34} /></div>
         <div><span className="eyebrow">Race complete</span><h1>Finished.</h1><p>{race.series} · {race.name} · {race.fleet}</p></div>

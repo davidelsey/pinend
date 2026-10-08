@@ -517,10 +517,12 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .race-replay__key span::before { content: ''; display: inline-block; width: 13px; margin-right: 5px; border-top: 2px solid; vertical-align: middle; }
 .race-replay__key .prestart::before { border-color: #ff9a73; border-top-style: dashed; }
 .race-replay__key .racing::before { border-color: #53d3c2; }
-.race-replay__controls { min-height: 65px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 18px; padding: 10px 13px; background: #071b2f; }
+.race-replay__controls { min-height: 65px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px; background: #071b2f; }
 .race-replay__controls > div { display: grid; gap: 5px; }
-.race-replay__controls span { color: #8fa4ad; font-size: 8px; font-weight: 800; text-transform: uppercase; }
-.race-replay__controls progress { width: 100%; height: 7px; accent-color: var(--sea); }
+.race-replay__controls span { color: #b5c8d0; font-size: 12px; font-weight: 700; }
+.race-replay__controls progress { grid-column: 1 / -1; width: 100%; height: 7px; accent-color: var(--sea); }
+.race-replay__elapsed { text-align: right; font-variant-numeric: tabular-nums; }
+.race-replay__elapsed output { color: #fff; font-size: 22px; font-weight: 800; }
 
 @media (max-width: 820px) {
   .page { width: min(100% - 24px, 680px); padding-top: 18px; }
@@ -567,7 +569,6 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .finished-page__map-heading { display: block; }
   .finished-page__map-heading small { display: block; margin-top: 5px; }
   .race-replay__map, .race-replay__canvas { min-height: 380px; }
-  .race-replay__controls { grid-template-columns: 1fr; }
   .prestart-tactics { grid-template-columns: 1fr 1fr; }
   .signal-buttons { gap: 5px; }
   .signal-buttons button { padding: 9px 3px; }

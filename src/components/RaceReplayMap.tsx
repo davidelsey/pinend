@@ -2,6 +2,7 @@ import { Maximize2, Pause, Play, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SensorReading } from '../domain/types'
 import { normalizeBearing } from '../domain/geo'
+import { formatRaceDuration } from '../domain/raceSummary'
 import { googleMapOptions, loadGoogleMaps } from '../services/googleMaps'
 import { fitMapToCoordinates, googleCoordinate } from '../services/mapCoordinates'
 
@@ -123,16 +124,18 @@ export function RaceReplayMap({ telemetry, startTime }: Props) {
 
   return (
     <section className="race-replay" aria-label="Actual sailed route and replay">
+      <div className="race-replay__controls">
+        <button className="button button--secondary" aria-label={playing ? 'Pause replay' : 'Play replay'} disabled={!points.length || !loaded || Boolean(mapError)} onClick={playing ? () => setPlaying(false) : startPlayback}>{playing ? <><Pause size={18} /> Pause</> : <><Play size={18} /> Play</>}</button>
+        <button className="button button--secondary" aria-label="Restart replay" disabled={!points.length || !loaded || Boolean(mapError)} onClick={() => { replayStartedAt.current = Date.now(); setProgress(0); setPlaying(true) }}><RotateCcw size={18} /> Restart</button>
+        <div className="race-replay__elapsed"><span>{replayTimestamp < startTime ? 'Before start' : 'Elapsed time'}</span><output aria-label="Replay elapsed time">{points.length ? `${replayTimestamp < startTime ? '−' : ''}${formatRaceDuration(Math.abs(replayTimestamp - startTime))}` : '—'}</output></div>
+        <progress aria-label="Race replay progress" max="1" value={progress} />
+      </div>
       <div className="race-replay__map">
         <div ref={canvasRef} className="race-replay__canvas" role="img" aria-label="Map of the actual sailed route" />
         {mapError && <div className="map-provider-error" role="status">{mapError}</div>}
         {!points.length && <div className="race-replay__empty" role="status">No GPS track was recorded for this race.</div>}
         <div className="map-controls"><button disabled={!loaded || !points.length} onClick={() => mapRef.current && fitMapToCoordinates(mapRef.current, points, 48)}><Maximize2 size={16} /> Fit route</button></div>
         <div className="race-replay__key"><span className="prestart">Pre-start</span><span className="racing">Racing</span></div>
-      </div>
-      <div className="race-replay__controls">
-        <button className="button button--secondary" disabled={!points.length || !loaded || Boolean(mapError)} onClick={playing ? () => setPlaying(false) : startPlayback}>{playing ? <><Pause size={16} /> Pause replay</> : progress < 1 ? <><Play size={16} /> Resume replay</> : <><RotateCcw size={16} /> Replay 30 seconds</>}</button>
-        <div><span>Entire race + pre-start</span><progress aria-label="Race replay progress" max="1" value={progress} /></div>
       </div>
     </section>
   )

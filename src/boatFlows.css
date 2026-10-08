@@ -1,4 +1,24 @@
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.finished-page.finished-page--replay { height: calc(100dvh - 56px); min-height: 0; padding: 0; display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); overflow: hidden; }
+.finished-page--replay .finished-page__overview, .finished-page--replay .finished-results-panel, .finished-page--replay .race-replay { display: contents; }
+.finished-page--replay .finished-page__header { grid-row: 1; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin: 0; padding: 10px 12px; }
+.finished-page--replay .finished-flag { display: none; }
+.finished-page--replay .finished-page__header h1 { font-size: 28px; }
+.finished-page--replay .finished-page__header > .button { grid-column: auto; width: auto; min-height: 40px; padding: 8px 12px; }
+.finished-page--replay .finished-tabs { grid-row: 2; margin: 0 12px; }
+.finished-page--replay .finished-page__map-heading { grid-row: 3; margin: 0; padding: 10px 12px 0; }
+.finished-page--replay .finished-page__map-heading .eyebrow { display: none; }
+.finished-page--replay .finished-page__map-heading h2 { font-size: 18px; margin: 0; }
+.finished-page--replay .finished-page__map-heading small { font-size: 12px; }
+.finished-page--replay .race-replay__controls { grid-row: 4; }
+.finished-page--replay .race-replay__controls .button { min-height: 44px; padding: 10px 12px; }
+.finished-page--replay .race-replay__map { grid-row: 5; min-height: 0; height: 100%; }
+.finished-page--replay .race-replay__canvas { height: 100%; min-height: 0; }
+@media (orientation: landscape) {
+  .finished-page.finished-page--replay { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .finished-page--replay .finished-page__header, .finished-page--replay .finished-tabs, .finished-page--replay .finished-page__map-heading, .finished-page--replay .race-replay__controls { grid-column: 2; }
+  .finished-page--replay .race-replay__map { grid-column: 1; grid-row: 1 / -1; }
+}
 .app-shell .app-header--simple { height: 56px; padding: 0 12px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 8px; }
 .app-page-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; letter-spacing: -.03em; }
 .app-header-title { min-width: 0; }
