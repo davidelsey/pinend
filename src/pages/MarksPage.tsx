@@ -47,6 +47,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
   const [insertMarkAt, setInsertMarkAt] = useState<number | null>(null)
   const [newMarkRounding, setNewMarkRounding] = useState<CourseWaypoint['rounding']>('port')
   const [addingMark, setAddingMark] = useState(false)
+  const [showAddHint, setShowAddHint] = useState(false)
   const [markKind, setMarkKind] = useState<'fixed' | 'gate'>('fixed')
   const [markName, setMarkName] = useState('')
   const [selectedMarkId, setSelectedMarkId] = useState<string | null>(null)
@@ -72,6 +73,11 @@ export function MarksPage({ onEnterPrestart }: Props) {
   const validCoordinate = (coordinate: { latitude: number; longitude: number }) => Number.isFinite(coordinate.latitude) && coordinate.latitude >= -90 && coordinate.latitude <= 90 && Number.isFinite(coordinate.longitude) && coordinate.longitude >= -180 && coordinate.longitude <= 180
   const newMarkIsValid = validCoordinate(markCoordinate) && (markKind === 'fixed'
     || (validCoordinate(lineEndCoordinate) && distanceMetres(markCoordinate, lineEndCoordinate) >= 3))
+  const addMarkHint = !creatingMark && !selectedLibraryMark
+    ? 'Choose an existing mark, or select New point or New gate.'
+    : !markName.trim() ? 'Enter a name for your mark.'
+    : creatingMark && !newMarkIsValid ? markKind === 'gate' ? 'Move the gate pins at least 3 m apart.' : 'Choose a valid position on the map.'
+    : null
 
   const setFinishLinked = async (linked: boolean) => {
     const start = marks.find((mark) => mark.id === startWaypoint?.markId)
@@ -147,6 +153,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
     setMarkName('')
     setSelectedMarkId(null)
     setCreatingMark(false)
+    setShowAddHint(false)
     setNewMarkRounding('port')
     window.setTimeout(() => insertionTrigger.current?.focus(), 0)
   }
@@ -287,7 +294,7 @@ export function MarksPage({ onEnterPrestart }: Props) {
       {sightTarget && <SightMarksDialog key={sightTarget.endpoint === 'mark' ? sightTarget.markId : sightTarget.endpoint} now={Date.now()} open initialTarget={sightTarget} initialAction="sight" onClose={() => setSightTarget(null)} />}
       {insertMarkAt !== null && <div className={`modal-backdrop ${creatingMark ? 'mark-create-backdrop' : ''}`} role="dialog" aria-modal="true" aria-label="Add course mark" onKeyDown={handleMarkDialogKeyDown}>
         <div className={`form-modal mark-chooser ${creatingMark ? 'mark-chooser--fullscreen' : ''}`} ref={markDialog}>
-          <div className="panel__heading"><div>{creatingMark ? <button className="text-button" disabled={addingMark} onClick={() => setCreatingMark(false)}>Back</button> : <Crosshair size={18} />}<h2>{creatingMark ? markKind === 'gate' ? 'New gate' : 'New point' : 'Add course mark'}</h2></div>{!creatingMark && <button className="text-button" disabled={addingMark} onClick={() => closeMarkCreator()}>Cancel</button>}</div>
+          <div className="panel__heading"><div>{!creatingMark && <Crosshair size={18} />}<h2>{creatingMark ? markKind === 'gate' ? 'New gate' : 'New point' : 'Add course mark'}</h2></div><button className="text-button" disabled={addingMark} onClick={() => closeMarkCreator()}>Cancel</button></div>
           {!creatingMark && <div className="segment-control" role="group" aria-label="Add mark from">
             <button disabled={addingMark} aria-pressed={!creatingMark} className={!creatingMark ? 'active' : ''} onClick={() => { setCreatingMark(false); setSelectedMarkId(null) }}>Existing mark</button>
             <button disabled={addingMark} aria-pressed={creatingMark && markKind !== 'gate'} className={creatingMark && markKind !== 'gate' ? 'active' : ''} onClick={() => { setCreatingMark(true); setSelectedMarkId(null); setMarkKind('fixed') }}>New point</button>
@@ -305,9 +312,10 @@ export function MarksPage({ onEnterPrestart }: Props) {
             <MapPointPicker value={markCoordinate} onChange={setMarkCoordinate} secondValue={markKind === 'gate' ? lineEndCoordinate : undefined} onSecondChange={markKind === 'gate' ? setLineEndCoordinate : undefined} />
           </>}
           <footer className="mark-chooser-actions">
-          {creatingMark && !newMarkIsValid && <p id="new-mark-validation" className="field-error" role="alert">{markKind === 'gate' ? 'Move the gate pins at least 3 m apart.' : 'Choose a valid position on the map.'}</p>}
+          {showAddHint && addMarkHint && <p id="add-mark-hint" className="field-error" role="status">{addMarkHint}</p>}
+          {creatingMark && !newMarkIsValid && !(showAddHint && addMarkHint) && <p id="new-mark-validation" className="field-error" role="alert">{markKind === 'gate' ? 'Move the gate pins at least 3 m apart.' : 'Choose a valid position on the map.'}</p>}
           {(selectedLibraryMark ? selectedLibraryMark.position.kind !== 'gate' : !creatingMark || markKind !== 'gate') && <fieldset className="mark-rounding-picker"><legend>Rounding</legend><div role="radiogroup" aria-label="New mark rounding"><label className={`rounding-arrow rounding-arrow--port ${newMarkRounding === 'port' ? 'is-selected' : ''}`}><input type="radio" name="new-mark-rounding" aria-label="Round new mark to port" checked={newMarkRounding === 'port'} onChange={() => setNewMarkRounding('port')} /><CornerUpLeft size={20} /></label><label className={`rounding-arrow rounding-arrow--starboard ${newMarkRounding === 'starboard' ? 'is-selected' : ''}`}><input type="radio" name="new-mark-rounding" aria-label="Round new mark to starboard" checked={newMarkRounding === 'starboard'} onChange={() => setNewMarkRounding('starboard')} /><CornerUpRight size={20} /></label></div></fieldset>}
-          <button className="button button--orange button--wide" aria-describedby={creatingMark && markName.trim() && !newMarkIsValid ? 'new-mark-validation' : undefined} disabled={addingMark || !markName.trim() || (!selectedLibraryMark && (!creatingMark || !newMarkIsValid))} onClick={() => void addCourseMark()}><Plus size={16} /> {addingMark ? 'Adding…' : 'Add to course'}</button>
+          <button className="button button--orange button--wide" aria-describedby={showAddHint && addMarkHint ? 'add-mark-hint' : creatingMark && !newMarkIsValid ? 'new-mark-validation' : undefined} aria-disabled={addingMark || Boolean(addMarkHint)} disabled={addingMark} onClick={() => { if (addMarkHint) { setShowAddHint(true); return } void addCourseMark() }}><Plus size={16} /> {addingMark ? 'Adding…' : 'Add to course'}</button>
           </footer>
         </div>
       </div>}
