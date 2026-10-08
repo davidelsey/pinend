@@ -11,7 +11,6 @@ import type { CourseWaypoint, LineObservation, Mark } from '../domain/types'
 import { isFinishWaypoint, isStartWaypoint } from '../domain/course'
 
 type Props = { onEnterPrestart(): void }
-type View = 'course' | 'marks'
 type CourseDrag = { waypointId: string; mode: 'move' | 'duplicate' }
 
 function MarkRow({ mark, selected, onSelect, waypoint, isFinish = false, finishLinked = false, onFinishLinked, onPosition, onSight, onRounding, onRemove }: { mark: Mark; selected: boolean; onSelect(): void; waypoint?: CourseWaypoint; isFinish?: boolean; finishLinked?: boolean; onFinishLinked?(linked: boolean): void; onPosition(mark: Mark): void; onSight(mark: Mark): void; onRounding?(rounding: CourseWaypoint['rounding']): void; onRemove?(): void }) {
@@ -41,7 +40,6 @@ function MarkRow({ mark, selected, onSelect, waypoint, isFinish = false, finishL
 
 export function MarksPage({ onEnterPrestart }: Props) {
   const { marks, race, session, observations, latestReading, saveMark, mutateRace, deleteObservation } = useApp()
-  const [view, setView] = useState<View>('course')
   const [highlightedMarkId, setHighlightedMarkId] = useState<string>()
   const [courseDrag, setCourseDrag] = useState<CourseDrag | null>(null)
   const [dragTargetId, setDragTargetId] = useState<string | null>(null)
@@ -234,13 +232,8 @@ export function MarksPage({ onEnterPrestart }: Props) {
       <div className="race-marks-workspace">
       <CoursePlot marks={marks} race={race} current={latestReading} activeMarkId={highlightedMarkId} zoomControls />
       <div className="race-marks-panel">
-      <div className="segment-control race-marks-tabs" role="tablist" aria-label="Marks view">
-        <button role="tab" aria-selected={view === 'course'} className={view === 'course' ? 'active' : ''} onClick={() => setView('course')}>Course</button>
-        <button role="tab" aria-selected={view === 'marks'} className={view === 'marks' ? 'active' : ''} onClick={() => setView('marks')}>Marks</button>
-      </div>
 
       <div className="race-marks-scroll">
-      {view === 'course' ? (
         <section className="course-builder" aria-label="Course builder">
           <div className="race-mark-list" role="region" aria-label="Course mark list">
             {race.course.map((waypoint, index) => {
@@ -296,11 +289,6 @@ export function MarksPage({ onEnterPrestart }: Props) {
           </div>
           <p className="microcopy"><MapPinned size={13} /> Repeat a mark for another lap, or remove remaining marks to shorten the course.</p>
         </section>
-      ) : (
-        <section className="race-mark-list" aria-label="Race mark list">
-          {raceMarks.map((mark) => <MarkRow key={mark.id} mark={mark} selected={highlightedMarkId === mark.id} onSelect={() => setHighlightedMarkId(mark.id)} isFinish={mark.id === finishWaypoint?.markId} finishLinked={finishLinked} onFinishLinked={mark.id === finishWaypoint?.markId ? (linked) => void setFinishLinked(linked) : undefined} onPosition={setPositionMark} onSight={(item) => setSightTarget({ endpoint: 'mark', markId: item.id })} />)}
-        </section>
-      )}
       </div>
       </div>
       </div>

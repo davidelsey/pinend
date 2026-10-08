@@ -39,7 +39,7 @@ describe('primary local race journey', () => {
     localStorage.setItem('pin-end-local-auth', 'true')
   })
 
-  it('confirms the course through the second-tab race marks workspace', async () => {
+  it('confirms the course through the race marks workspace', async () => {
     await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
@@ -53,7 +53,7 @@ describe('primary local race journey', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
     expect(await screen.findByRole('heading', { name: 'Race marks' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Course' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tablist', { name: 'Marks view' })).not.toBeInTheDocument()
     const course = screen.getByRole('region', { name: 'Course mark list' })
     expect(within(course).getAllByRole('article')[0]).toHaveTextContent('Start line')
     expect(within(course).getAllByRole('article').at(-1)).toHaveTextContent('Finish line')
@@ -87,8 +87,6 @@ describe('primary local race journey', () => {
     fireEvent.pointerUp(duplicateHandle, { pointerId: 2, clientX: 10, clientY: 100 })
     await waitFor(() => expect(within(course).getAllByText('Clark Island')).toHaveLength(2))
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Marks' }))
-    expect(screen.getByRole('region', { name: 'Race mark list' })).toBeInTheDocument()
   })
 
   it('inserts a selected or newly created mark between course waypoints with its rounding', async () => {
@@ -334,13 +332,12 @@ describe('primary local race journey', () => {
     expect(screen.getByRole('region', { name: 'Actual sailed route and replay' })).toBeInTheDocument()
   })
 
-  it('keeps start-line positioning and sighting on the deduplicated Marks view', async () => {
+  it('keeps start-line positioning and sighting in the course list', async () => {
     await openSetup()
 
     expect(await screen.findByRole('heading', { name: 'Make shore time count.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Confirm course/i }))
-    fireEvent.click(await screen.findByRole('tab', { name: 'Marks' }))
-    const markList = screen.getByRole('region', { name: 'Race mark list' })
+    const markList = await screen.findByRole('region', { name: 'Course mark list' })
     expect(within(markList).getByRole('button', { name: 'Position Start line' })).toBeInTheDocument()
     expect(within(markList).getByRole('button', { name: 'Sight Start line' })).toBeInTheDocument()
 
