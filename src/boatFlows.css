@@ -35,6 +35,10 @@
 .race-view--split .race-actions .button { min-height: 46px; padding: 10px 22px; font-size: 16px; }
 .race-view--split .course-map-marker { font-size: 12px; }
 .race-view--split .map-current-label { font-size: 11px; }
+.rounding-skipped { padding: 12px; margin: 14px 0; border: 1px solid #e59753; border-radius: 10px; background: #fff0dc; color: #713709; text-align: left; font-size: 14px; }
+.rounding-skipped strong { display: flex; align-items: center; gap: 8px; }
+.rounding-skipped ul { margin: 8px 0; padding-left: 22px; max-height: 120px; overflow: auto; }
+.rounding-modal .rounding-skipped p { margin: 0; color: #713709; font-size: 13px; }
 @media (orientation: landscape) {
   .race-view--split .race-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .race-view--split .race-layout { grid-column: 1; grid-row: 1; }
