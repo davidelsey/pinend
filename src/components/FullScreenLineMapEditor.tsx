@@ -4,10 +4,12 @@ import { distanceMetres, resolveMarkPosition } from '../domain/geo'
 import { currentCoordinate, type PositionFix } from '../domain/positionFix'
 import type { Coordinate, LineObservation, Mark } from '../domain/types'
 import { MapPointPicker } from './MapPointPicker'
+import { courseCoordinates } from '../services/mapCoordinates'
 
 type Props = {
   mark: Mark
   otherMarks: Mark[]
+  courseMarkIds?: string[]
   fallback?: PositionFix | null
   observations?: LineObservation[]
   now?: number
@@ -16,7 +18,7 @@ type Props = {
   onCancel(): void
 }
 
-export function FullScreenLineMapEditor({ mark, otherMarks, fallback, observations = [], now, onDeleteObservation, onSave, onCancel }: Props) {
+export function FullScreenLineMapEditor({ mark, otherMarks, courseMarkIds = [], fallback, observations = [], now, onDeleteObservation, onSave, onCancel }: Props) {
   const [clock, setClock] = useState(() => now ?? Date.now())
   useEffect(() => {
     if (now !== undefined) return
@@ -43,7 +45,7 @@ export function FullScreenLineMapEditor({ mark, otherMarks, fallback, observatio
   return <div className="mark-map-editor" role="dialog" aria-modal="true" aria-label={`Position ${mark.name}`}>
     <header className="mark-map-editor__header"><div><span>POSITION GATE</span><h2>{mark.name}</h2></div><button className="icon-button" aria-label="Close position editor" onClick={onCancel}><X size={20} /></button></header>
     <main className="mark-map-editor__map">
-      <MapPointPicker value={pointA} onChange={setPointA} secondValue={pointB} onSecondChange={setPointB} endpointLabels={gatePosition.labels ?? ['Pin', 'Boat']} otherMarks={contextMarks} otherGates={contextGates} observations={observations} />
+      <MapPointPicker value={pointA} onChange={setPointA} secondValue={pointB} onSecondChange={setPointB} endpointLabels={gatePosition.labels ?? ['Pin', 'Boat']} otherMarks={contextMarks} otherGates={contextGates} observations={observations} coursePath={courseCoordinates(courseMarkIds, [...otherMarks, mark], mark.id, { latitude: (pointA.latitude + pointB.latitude) / 2, longitude: (pointA.longitude + pointB.longitude) / 2 })} />
       <div className="position-here-actions"><button className="button button--secondary" disabled={!here} aria-describedby={!here ? 'gate-position-fix-status' : undefined} onClick={() => { const current = currentCoordinate(fallback, now ?? Date.now()); if (current) setPointA(current) }}><LocateFixed size={16} /> {gatePosition.labels?.[0] ?? 'Pin'} here</button><button className="button button--secondary" disabled={!here} aria-describedby={!here ? 'gate-position-fix-status' : undefined} onClick={() => { const current = currentCoordinate(fallback, now ?? Date.now()); if (current) setPointB(current) }}><LocateFixed size={16} /> {gatePosition.labels?.[1] ?? 'Boat'} here</button>{!here && <span id="gate-position-fix-status" className="position-here-status" role="status">Waiting for a recent GPS fix within 50 m accuracy</span>}</div>
       {onDeleteObservation && observations.length > 0 && <aside className="mark-map-editor__sightings"><strong>{observations.length} sight rays</strong>{observations.map((observation) => { const endpoint = observation.endpoint === 'committee' || observation.markPoint === 'b' ? 'Boat' : 'Pin'; return <div key={observation.id}><span><b>{endpoint} · {Math.max(0, Math.round((Date.now() - observation.timestamp) / 60000))}m ago</b><small>{observation.bearingTrue.toFixed(1)}° true</small></span><button aria-label={`Delete ${endpoint} sighting`} onClick={() => void onDeleteObservation(observation)}>Delete</button></div> })}</aside>}
     </main>

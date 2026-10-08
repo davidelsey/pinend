@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Mark } from '../domain/types'
 import { FullScreenLineMapEditor } from './FullScreenLineMapEditor'
@@ -8,6 +8,19 @@ const coordinate = { latitude: -33.87234, longitude: 151.23123 }
 const current = { ...coordinate, timestamp: Date.now(), accuracy: 4, source: 'device' as const }
 
 describe('position editors', () => {
+  it('shows the ordered course and updates repeated legs while positioning a mark', async () => {
+    const mark: Mark = { id: 'point', name: 'Point', shortName: 'P', provenance: 'personal', position: { kind: 'fixed', coordinate } }
+    const other: Mark = { id: 'other', name: 'Other', shortName: 'O', provenance: 'personal', position: { kind: 'fixed', coordinate: { latitude: -33.85, longitude: 151.25 } } }
+    const update = vi.spyOn(google.maps.Polyline.prototype, 'setOptions')
+    try {
+      render(<FullScreenMarkMapEditor mark={mark} otherMarks={[other]} courseMarkIds={['point', 'other', 'point']} onSave={() => undefined} onCancel={() => undefined} />)
+      const map = screen.getByRole('img', { name: 'Drag mark on Sydney Harbour map' })
+      await waitFor(() => expect(map.querySelector('.point-map-pin--first')).not.toBeNull())
+      fireEvent(map.querySelector('.point-map-pin--first')!, new CustomEvent('drag', { detail: { lat: -33.84, lng: 151.24 } }))
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({ path: [{ lat: -33.84, lng: 151.24 }, { lat: -33.85, lng: 151.25 }, { lat: -33.84, lng: 151.24 }], editable: false }))
+    } finally { update.mockRestore() }
+  })
+
   it('places a mark at the current boat position', () => {
     const onSave = vi.fn()
     const mark: Mark = { id: 'laid', name: 'Laid mark', shortName: 'LAID', provenance: 'personal', position: { kind: 'variable' } }

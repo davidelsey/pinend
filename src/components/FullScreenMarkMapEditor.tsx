@@ -4,10 +4,12 @@ import { resolveMarkPosition } from '../domain/geo'
 import { currentCoordinate, type PositionFix } from '../domain/positionFix'
 import type { Coordinate, LineObservation, Mark } from '../domain/types'
 import { MapPointPicker } from './MapPointPicker'
+import { courseCoordinates } from '../services/mapCoordinates'
 
 type Props = {
   mark: Mark
   otherMarks: Mark[]
+  courseMarkIds?: string[]
   fallback?: PositionFix | null
   observations?: LineObservation[]
   now?: number
@@ -16,7 +18,7 @@ type Props = {
   onCancel(): void
 }
 
-export function FullScreenMarkMapEditor({ mark, otherMarks, fallback, observations = [], now, onDeleteObservation, onSave, onCancel }: Props) {
+export function FullScreenMarkMapEditor({ mark, otherMarks, courseMarkIds = [], fallback, observations = [], now, onDeleteObservation, onSave, onCancel }: Props) {
   const [clock, setClock] = useState(() => now ?? Date.now())
   useEffect(() => {
     if (now !== undefined) return
@@ -48,7 +50,7 @@ export function FullScreenMarkMapEditor({ mark, otherMarks, fallback, observatio
         <button className="icon-button" aria-label="Close position editor" onClick={onCancel}><X size={20} /></button>
       </header>
       <main className="mark-map-editor__map">
-        <MapPointPicker value={coordinate} onChange={setCoordinate} observations={observations} otherMarks={contextMarks} otherGates={contextGates} />
+        <MapPointPicker value={coordinate} onChange={setCoordinate} observations={observations} otherMarks={contextMarks} otherGates={contextGates} coursePath={courseCoordinates(courseMarkIds, [...otherMarks, mark], mark.id, coordinate)} />
         <div className="position-here-actions"><button className="button button--secondary" disabled={!here} aria-describedby={!here ? 'mark-position-fix-status' : undefined} onClick={() => { const current = currentCoordinate(fallback, now ?? Date.now()); if (current) setCoordinate(current) }}><LocateFixed size={16} /> Set mark here</button>{!here && <span id="mark-position-fix-status" className="position-here-status" role="status">Waiting for a recent GPS fix within 50 m accuracy</span>}</div>
         {observations.length > 0 && <aside className="mark-map-editor__sightings" aria-label={`${mark.name} sighting history`}>
           <strong>{observations.length} sight ray{observations.length === 1 ? '' : 's'}</strong>

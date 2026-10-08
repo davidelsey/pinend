@@ -1,4 +1,17 @@
-import type { Coordinate } from '../domain/types'
+import type { Coordinate, Mark } from '../domain/types'
+import { resolveMarkPosition } from '../domain/geo'
+
+export function courseCoordinates(markIds: string[], marks: Mark[], editedMarkId: string, draft: Coordinate): Coordinate[] {
+  return markIds.flatMap((id) => {
+    const mark = marks.find((item) => item.id === id)
+    if (!mark) return []
+    const linkedId = mark.position.kind === 'gate' ? mark.position.linkedToMarkId : undefined
+    if (id === editedMarkId || linkedId === editedMarkId) return [draft]
+    const position = linkedId ? marks.find((item) => item.id === linkedId)?.position ?? mark.position : mark.position
+    const coordinate = resolveMarkPosition(position)
+    return coordinate ? [coordinate] : []
+  })
+}
 
 export function googleCoordinate(coordinate: Coordinate): google.maps.LatLngLiteral {
   return { lat: coordinate.latitude, lng: coordinate.longitude }
