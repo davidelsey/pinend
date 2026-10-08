@@ -482,6 +482,17 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .finished-page h1 { margin: 3px 0 2px; font-size: 42px; letter-spacing: -.05em; }
 .finished-page__header p { margin: 0; color: #8fa4ad; font-size: 11px; }
 .finished-page__overview { display: grid; gap: 22px; }
+.finished-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #163448; }
+.finished-tabs button { flex: 1; min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: #b5c8d0; font-size: 15px; font-weight: 800; }
+.finished-tabs button[aria-selected="true"] { color: #071b2f; background: #f5f1e8; }
+.finished-results-panel { display: grid; gap: 20px; }
+.finished-results-panel > .panel { color: #f5f1e8; background: #0d2b40; border-color: rgba(255,255,255,.12); }
+.finished-results-panel > .panel h2 { margin: 0 0 12px; color: #f5f1e8; font-size: 24px; }
+.finished-results-panel .timing-list { margin: 0; font-size: 15px; line-height: 1.5; }
+.finished-results-panel .timing-list > div { flex-wrap: wrap; align-items: baseline; gap: 6px 16px; border-color: rgba(255,255,255,.15); }
+.finished-results-panel .timing-list dt { color: #b5c8d0; }
+.finished-results-panel .timing-list dd { margin-left: auto; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.finished-results-panel .timing-list > div:last-child { border-bottom: 0; }
 .finish-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; overflow: hidden; border-radius: 15px; }
 .finish-stats span { min-height: 105px; padding: 17px; color: #7f96a0; background: #0d2b40; }
 .finish-stats svg { color: var(--orange); }
@@ -494,13 +505,14 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .finished-page__map-heading small { color: #78919d; font-size: 9px; }
 .race-replay { overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 18px; background: #082b40; }
 .race-replay__map { position: relative; min-height: 420px; }
-.race-replay__map > svg { display: block; width: 100%; height: min(55vh, 560px); min-height: 420px; }
-.race-replay__empty { min-height: 420px; display: grid; place-items: center; color: #78919d; }
+.race-replay__canvas { width: 100%; height: min(55vh, 560px); min-height: 420px; }
+.race-replay__empty { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 16px; width: max-content; max-width: calc(100% - 32px); border-radius: 10px; background: #071b2fe6; color: #dcebee; text-align: center; }
+.replay-start-marker { border-radius: 6px; padding: 5px 8px; color: #071b2f; background: #ff9a73; border: 2px solid white; font-size: 12px; font-weight: 800; }
 .race-replay__start circle { fill: var(--orange); stroke: white; stroke-width: .5; }
 .race-replay__start text { fill: white; font-size: 2.6px; font-weight: 900; paint-order: stroke; stroke: #082b40; stroke-width: .8px; }
 .race-replay__boat circle { fill: rgba(83,211,194,.2); stroke: #53d3c2; stroke-width: .5; }
 .race-replay__boat path { fill: #53d3c2; stroke: #071b2f; stroke-width: .5; }
-.race-replay__key { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; }
+.race-replay__key { position: absolute; right: 12px; bottom: 32px; display: flex; gap: 6px; pointer-events: none; }
 .race-replay__key span { padding: 6px 8px; border-radius: 7px; color: #dcebee; background: rgba(3,18,30,.8); font-size: 8px; font-weight: 800; }
 .race-replay__key span::before { content: ''; display: inline-block; width: 13px; margin-right: 5px; border-top: 2px solid; vertical-align: middle; }
 .race-replay__key .prestart::before { border-color: #ff9a73; border-top-style: dashed; }
@@ -554,7 +566,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
   .finish-stats strong { font-size: 17px; }
   .finished-page__map-heading { display: block; }
   .finished-page__map-heading small { display: block; margin-top: 5px; }
-  .race-replay__map, .race-replay__map > svg, .race-replay__empty { min-height: 380px; }
+  .race-replay__map, .race-replay__canvas { min-height: 380px; }
   .race-replay__controls { grid-template-columns: 1fr; }
   .prestart-tactics { grid-template-columns: 1fr 1fr; }
   .signal-buttons { gap: 5px; }

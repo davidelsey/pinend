@@ -8,17 +8,29 @@ const point = (timestamp: number, latitude: number): SensorReading => ({ timesta
 describe('RaceReplayMap', () => {
   afterEach(() => vi.useRealTimers())
 
-  it('replays pre-start and race telemetry over exactly 30 seconds', () => {
+  it('replays pre-start and race telemetry on Google Maps over exactly 30 seconds', async () => {
     vi.useFakeTimers()
-    render(<RaceReplayMap telemetry={[point(1_000, -33.87), point(2_000, -33.871), point(12_000, -33.872)]} startTime={2_000} />)
+    await act(async () => { render(<RaceReplayMap telemetry={[point(1_000, -33.87), point(2_000, -33.871), point(12_000, -33.872)]} startTime={2_000} />) })
     expect(screen.getByRole('img', { name: 'Map of the actual sailed route' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Map of the actual sailed route' })).toHaveAttribute('data-fitted', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Replay 30 seconds' }))
     expect(screen.getByRole('progressbar', { name: 'Race replay progress' })).toHaveValue(0)
 
     act(() => vi.advanceTimersByTime(15_000))
     expect(screen.getByLabelText('Replay position at 6500')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Pause replay' }))
+    act(() => vi.advanceTimersByTime(5_000))
+    expect(screen.getByLabelText('Replay position at 6500')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume replay' }))
     act(() => vi.advanceTimersByTime(15_000))
     expect(screen.getByRole('progressbar', { name: 'Race replay progress' })).toHaveValue(1)
     expect(screen.getByRole('button', { name: 'Replay 30 seconds' })).toBeInTheDocument()
+  })
+
+  it('shows an empty state and disables replay without recorded GPS positions', async () => {
+    await act(async () => { render(<RaceReplayMap telemetry={[]} startTime={2_000} />) })
+    expect(screen.getByText('No GPS track was recorded for this race.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Replay 30 seconds' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Fit route' })).toBeDisabled()
   })
 })

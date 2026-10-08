@@ -338,12 +338,17 @@ describe('primary local race journey', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Confirm mark rounding' })).getByRole('button', { name: /Confirm & advance/i }))
 
     expect(await screen.findByRole('heading', { name: 'Finished.' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Route replay' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('region', { name: 'Actual sailed route and replay' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Stats' }))
     const statistics = screen.getByRole('region', { name: 'Race statistics' })
     expect(within(statistics).getByText('Total distance sailed')).toBeInTheDocument()
     expect(within(statistics).getByText('Average GPS speed')).toBeInTheDocument()
     expect(within(statistics).getByText('Total duration')).toBeInTheDocument()
     expect(within(statistics).getByText('Corrected time')).toBeInTheDocument()
     expect(screen.getByText('No handicap')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Actual sailed route and replay' })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Stats' }), { key: 'ArrowLeft' })
     expect(screen.getByRole('region', { name: 'Actual sailed route and replay' })).toBeInTheDocument()
   })
 
