@@ -8,7 +8,6 @@ import { isSupabaseConfigured, signInWithGoogle, signOut, supabase } from './ser
 import { isStartWaypoint } from './domain/course'
 import { BoatPage } from './pages/BoatPage'
 import { MarksPage } from './pages/MarksPage'
-import { PrestartPage } from './pages/PrestartPage'
 import { RacePage } from './pages/RacePage'
 import { SetupPage } from './pages/SetupPage'
 import { DebugPage } from './pages/DebugPage'
@@ -86,20 +85,18 @@ function PinEndApp() {
   const finish = <FinishedPage onReset={() => setView('races')} />
   const raceContent = session.phase === 'finished' ? finish : session.phase === 'setup'
     ? <main className="page"><section className="panel waiting-navigator"><Radio size={32} /><h1>Waiting for the navigator</h1><p>The navigator hasn’t selected a target yet. Your screen will follow as soon as the race is ready.</p><button className="button button--secondary" onClick={openDetail}>Back to race</button></section></main>
-    : session.phase === 'prestart'
-      ? <PrestartPage now={now} onStartRace={() => void updateSession({ phase: 'racing', syncedStartTime: Date.now(), activeWaypointIndex: Math.max(0, race.course.findIndex((waypoint) => !isStartWaypoint(waypoint))) })} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} wakeLockStatus={wakeLock.status} />
-      : <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setView('race')} />
+    : <RacePage now={now} wakeLockStatus={wakeLock.status} onFinish={() => setView('race')} />
   const content = onboarding ? <OnboardingPage onDone={() => { setAddingBoat(false); setView('races') }} onCancel={boats.length ? () => { setAddingBoat(false); localStorage.removeItem('pin-end-invite') } : undefined} />
     : view === 'races' ? <RacesPage onOpen={openDetail} onCreate={() => setView('marks')} />
     : view === 'detail' ? session.phase === 'finished' ? finish : <RaceDetailPage key={race.id} onEdit={() => setView('marks')} onPrepare={() => setView('setup')} onEnter={() => setView('race')} />
-    : view === 'setup' && canManage ? <SetupPage onConfirmCourse={() => setView('marks')} sensorStatus={sensors.status} onEnableSensors={() => void sensors.requestPermission()} />
+    : view === 'setup' && canManage ? <SetupPage onConfirmCourse={() => setView('marks')} />
     : view === 'marks' && canManage ? <MarksPage onEnterPrestart={openDetail} />
     : view === 'boat' ? <BoatPage key={boat.id} />
     : view === 'debug' && import.meta.env.DEV ? <DebugPage /> : raceContent
   return <div className={`app-shell ${inRace ? 'app-shell--racing' : ''} ${view === 'marks' && canManage && !onboarding ? 'app-shell--marks' : ''}`}>
     <header className="app-header app-header--simple">
       <button className="icon-button" aria-label="Back" disabled={(!onboarding && view === 'races') || (onboarding && !boats.length)} onClick={() => { if (onboarding) { setAddingBoat(false); localStorage.removeItem('pin-end-invite') } navigate(view === 'marks' || view === 'setup' ? 'detail' : 'races') }}><ChevronLeft size={22} /></button>
-      <div className="app-header-title"><h1 className="app-page-title">{pageTitle}</h1>{inRace && session.phase === 'racing' && <div className="app-race-status"><span className="race-header__live"><span className="live-dot" />RACING</span><span className="race-header__elapsed" aria-label="Elapsed race time"><Clock3 size={12} />{formatCountdown(session.syncedStartTime - now)}</span></div>}</div>
+      <div className="app-header-title"><h1 className="app-page-title">{pageTitle}</h1>{inRace && <div className="app-race-status"><span className="race-header__live"><span className="live-dot" />{session.phase === 'prestart' ? 'PRE-START' : 'RACING'}</span><span className="race-header__elapsed" aria-label={session.phase === 'prestart' ? 'Time to start' : 'Elapsed race time'}><Clock3 size={12} />{formatCountdown(session.syncedStartTime - now)}</span></div>}</div>
       <div className="app-overflow" ref={menuRef}>
       <button className="icon-button" aria-label="More options" aria-expanded={menuOpen} aria-controls="app-options" onClick={() => setMenuOpen(!menuOpen)}><MoreVertical size={22} /></button>
       {menuOpen && <div className="app-options" id="app-options">
@@ -112,7 +109,7 @@ function PinEndApp() {
       </div>}
       </div>
     </header>
-    {error && <div className="app-alert" role="alert"><span>{error}</span><button onClick={() => void refreshSharing()}>Retry sync</button><button aria-label="Dismiss message" onClick={clearError}><X size={18} /></button></div>}
+    {error && <div className="app-alert" role="alert"><span>{error}</span><button onClick={() => void refreshSharing()}>Try again</button><button aria-label="Dismiss message" onClick={clearError}><X size={18} /></button></div>}
     <div className="app-content">{content}</div>
   </div>
 }

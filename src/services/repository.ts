@@ -173,7 +173,7 @@ export async function clearRepository(db = database): Promise<void> {
 
 const hydrateSession = async (db: PinEndDatabase, session: RaceSession | undefined) => {
   if (!session) return undefined
-  const telemetryQuery = db.telemetry.where('[sessionId+timestamp]').between([session.id, Dexie.minKey], [session.id, Dexie.maxKey])
+  const telemetryQuery = db.telemetry.where('[sessionId+timestamp]').between([session.id, session.trackResetAt ?? Dexie.minKey], [session.id, Dexie.maxKey], false, true)
   const telemetry = session.phase === 'finished'
     ? await telemetryQuery.toArray()
     : (await telemetryQuery.reverse().limit(3_600).toArray()).reverse()
@@ -187,7 +187,8 @@ const hydrateSession = async (db: PinEndDatabase, session: RaceSession | undefin
 
 export const createRaceRepository = (db = database) => ({
   async getCompleteTelemetry(sessionId: string) {
-    return db.telemetry.where('sessionId').equals(sessionId).sortBy('timestamp')
+    const session = await db.sessions.get(sessionId)
+    return db.telemetry.where('[sessionId+timestamp]').between([sessionId, session?.trackResetAt ?? Dexie.minKey], [sessionId, Dexie.maxKey], false, true).toArray()
   },
   async getSession(id: string) {
     return hydrateSession(db, await db.sessions.get(id))
@@ -204,7 +205,11 @@ export const createRaceRepository = (db = database) => ({
     await db.sessions.put({ ...session, telemetry: [] })
   },
   async saveTelemetry(sessionId: string, reading: SensorReading) {
-    await db.telemetry.put({ ...reading, id: `${sessionId}:${reading.timestamp}`, sessionId })
+    await db.transaction('rw', [db.sessions, db.telemetry], async () => {
+      const session = await db.sessions.get(sessionId)
+      if (reading.timestamp <= (session?.trackResetAt ?? 0)) return
+      await db.telemetry.put({ ...reading, id: `${sessionId}:${reading.timestamp}`, sessionId })
+    })
   },
   async resetSession(session: RaceSession) {
     await db.transaction('rw', [db.sessions, db.telemetry], async () => {

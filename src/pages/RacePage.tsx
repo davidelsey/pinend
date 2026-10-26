@@ -18,7 +18,10 @@ import {
 import { useApp } from '../app/AppContext'
 import { CoursePlot } from '../components/CoursePlot'
 import { Metric } from '../components/Metric'
-import { distanceNm, initialBearing, nauticalMilesToMetres, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
+import { StartLineTiming, StartSequenceControls } from '../components/StartSequenceControls'
+import { InstrumentCarousel } from '../components/InstrumentCarousel'
+import { distanceNm, initialBearing, intersectSightings, nauticalMilesToMetres, resolveMarkPosition, velocityMadeGood } from '../domain/geo'
+import { isStartWaypoint } from '../domain/course'
 import { shouldSuggestRounding } from '../domain/rounding'
 import { cyca } from '../data/seed'
 import { fetchForecast, type ForecastSnapshot } from '../services/weather'
@@ -31,12 +34,27 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
     isNavigator,
     race,
     session,
+    observations,
     latestReading,
     updateSession,
   } = useApp()
   const [showRounding, setShowRounding] = useState(false)
   const [dismissedSuggestion, setDismissedSuggestion] = useState<string | null>(null)
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
+  const [showPrestartConfirmation, setShowPrestartConfirmation] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetError, setResetError] = useState('')
+  const prestart = session.phase === 'prestart'
+  const line = useMemo(() => {
+    const startMark = marks.find((mark) => mark.id === race.course.find(isStartWaypoint)?.markId)
+    const endpoint = (name: 'pin' | 'committee') => {
+      const sightings = observations.filter((item) => item.endpoint === name)
+      return sightings.length < 2 ? null : intersectSightings(sightings.at(-2)!, sightings.at(-1)!)
+    }
+    const pin = (startMark?.position.kind === 'gate' ? startMark.position.pointA : null) ?? endpoint('pin')
+    const committee = (startMark?.position.kind === 'gate' ? startMark.position.pointB : null) ?? endpoint('committee')
+    return pin && committee ? { pin, committee } : null
+  }, [marks, observations, race.course])
   const navigationReading = latestReading ?? session.telemetry.at(-1) ?? null
   const activeWaypoint = race.course[session.activeWaypointIndex]
   const alreadyRounded = Boolean(activeWaypoint && session.roundedAt[activeWaypoint.id] != null)
@@ -76,8 +94,8 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   )
 
   useEffect(() => {
-    if (roundingSuggested && isNavigator && !alreadyRounded && !roundingBlocked && dismissedSuggestion !== activeWaypoint?.id) setShowRounding(true)
-  }, [activeWaypoint?.id, alreadyRounded, dismissedSuggestion, isNavigator, roundingBlocked, roundingSuggested])
+    if (!prestart && roundingSuggested && isNavigator && !alreadyRounded && !roundingBlocked && dismissedSuggestion !== activeWaypoint?.id) setShowRounding(true)
+  }, [activeWaypoint?.id, alreadyRounded, dismissedSuggestion, isNavigator, prestart, roundingBlocked, roundingSuggested])
 
   const undoRounding = async () => {
     if (!activeWaypoint || !isNavigator || !alreadyRounded) return
@@ -114,20 +132,45 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
   }
 
   const selectPrevious = async () => {
-    if (!isNavigator || session.activeWaypointIndex <= 0) return
+    if (!isNavigator) return
     setShowRounding(false)
+    if (session.activeWaypointIndex === 0) {
+      if (!prestart) { setResetError(''); setShowPrestartConfirmation(true) }
+      return
+    }
     await updateSession({ activeWaypointIndex: session.activeWaypointIndex - 1 })
   }
 
+  const returnToPrestart = async () => {
+    if (!isNavigator || resetting) return
+    setResetting(true)
+    setResetError('')
+    try {
+      await updateSession({ phase: 'prestart', activeWaypointIndex: 0, autoStartArmed: false, roundedAt: {}, telemetry: [], trackResetAt: Math.max(Date.now(), (session.trackResetAt ?? 0) + 1) })
+      setShowRounding(false)
+      setDismissedSuggestion(null)
+      setShowPrestartConfirmation(false)
+    } catch {
+      setResetError('Could not reset the race. Please try again.')
+    } finally { setResetting(false) }
+  }
+
   const selectNext = async () => {
-    if (session.activeWaypointIndex >= race.course.length - 1) return
+    if (!isNavigator || session.activeWaypointIndex >= race.course.length - 1) return
     setShowRounding(false)
     await updateSession({ activeWaypointIndex: session.activeWaypointIndex + 1 })
   }
 
+  const metrics = <div className="race-metrics">
+    <Metric label="GPS boat speed" value={navigationReading?.speedKnots.toFixed(1) ?? '—'} unit="kn" icon={<Gauge size={15} />} />
+    <Metric label="VMG" value={vmg?.toFixed(1) ?? '—'} unit="kn" icon={<ArrowRight size={15} />} />
+    <Metric label="Course" value={navigationReading ? Math.round(navigationReading.heading).toString().padStart(3, '0') : '—'} unit="°T" icon={<Compass size={15} />} />
+    <div className="race-wind"><Metric label={forecast?.stale ? 'Wind · cached forecast' : 'Wind · forecast'} value={wind ? Math.round(wind.windSpeed).toString() : '—'} unit="kn" icon={<Wind size={15} />} /><span className="race-wind__direction">{wind ? `${Math.round(wind.windDirection).toString().padStart(3, '0')}° T` : 'Unavailable'}</span></div>
+  </div>
+
   return (
-    <div className="race-view race-view--split">
-      <main className="race-main">
+    <div className={`race-view race-view--split${prestart ? ' prestart-race-view' : ''}`}>
+      <main className="race-main" aria-label={prestart ? 'Pre-start instruments' : 'Race instruments'}>
         <div className="race-instruments">
         <section className="race-focus">
           <div className="race-focus__topline">
@@ -142,31 +185,29 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
             </span>
           </div>
           <div className="race-mark-selector">
-            <button disabled={!isNavigator || session.activeWaypointIndex <= 0} aria-label="Previous mark" onClick={() => void selectPrevious()}><ChevronLeft size={24} /></button>
+            <button disabled={!isNavigator || (prestart && session.activeWaypointIndex <= 0)} aria-label="Previous mark" onClick={() => void selectPrevious()}><ChevronLeft size={24} /></button>
             <h1>{activeMark?.name ?? 'Course complete'}</h1>
             <button aria-label="Next mark" disabled={!isNavigator || session.activeWaypointIndex >= race.course.length - 1} onClick={() => void selectNext()}><ChevronRight size={24} /></button>
           </div>
-          <div className="race-bearing"><Navigation size={28} /><strong>{bearing == null ? '—' : Math.round(bearing).toString().padStart(3, '0')}°</strong><span>T</span></div>
-          <div className="race-distance">{distanceDisplay.value} <span>{distanceDisplay.unit} TO MARK</span></div>
+          <div className="race-target-vector">
+            <div className="race-bearing"><Navigation size={28} /><strong>{bearing == null ? '—' : Math.round(bearing).toString().padStart(3, '0')}°</strong><span>T</span></div>
+            <div className="race-distance">{distanceDisplay.value} <span>{distanceDisplay.unit} TO MARK</span></div>
+          </div>
           <div className={`race-eta ${etaSeconds == null ? 'race-eta--unavailable' : ''}`}><Clock3 size={14} /> ETA {etaLabel} <span>AT CURRENT VMG</span></div>
-          <div className="race-actions">
+          {prestart && <StartLineTiming now={now} line={line} reading={navigationReading} />}
+          {!prestart && <div className="race-actions">
             {isNavigator ? <button className="button button--race-next" onClick={() => alreadyRounded ? void undoRounding() : roundingBlocked ? void showCurrentLeg() : setShowRounding(true)}>
               {alreadyRounded ? <RotateCw size={18} /> : roundingBlocked ? <Navigation size={18} /> : <Flag size={18} />} {alreadyRounded ? 'Undo rounding' : roundingBlocked ? 'Show current leg' : activeWaypoint?.role === 'finish' ? 'Finish race' : activeWaypoint?.role === 'start' ? 'Start line crossed' : 'Mark rounded'} {!alreadyRounded && <ChevronRight size={18} />}
             </button> : <p className="crew-following">Following the navigator’s target</p>}
-          </div>
+          </div>}
         </section>
 
-        <div className="race-metrics">
-          <Metric label="GPS boat speed" value={navigationReading?.speedKnots.toFixed(1) ?? '—'} unit="kn" icon={<Gauge size={15} />} />
-          <Metric label="VMG" value={vmg?.toFixed(1) ?? '—'} unit="kn" icon={<ArrowRight size={15} />} />
-          <Metric label="Course" value={navigationReading ? Math.round(navigationReading.heading).toString().padStart(3, '0') : '—'} unit="°T" icon={<Compass size={15} />} />
-          <div className="race-wind"><Metric label={forecast?.stale ? 'Wind · cached forecast' : 'Wind · forecast'} value={wind ? Math.round(wind.windSpeed).toString() : '—'} unit="kn" icon={<Wind size={15} />} /><span className="race-wind__direction">{wind ? `${Math.round(wind.windDirection).toString().padStart(3, '0')}° T` : 'Unavailable'}</span></div>
-        </div>
+        {prestart ? <InstrumentCarousel sync={<StartSequenceControls />} stats={metrics} /> : metrics}
         </div>
 
         <div className="race-layout">
           <section className="race-map-panel">
-            <CoursePlot marks={marks} race={race} current={navigationReading} activeMarkId={activeMark?.id} activeWaypointIndex={session.activeWaypointIndex} />
+            <CoursePlot marks={marks} race={race} current={navigationReading} activeMarkId={activeMark?.id} activeWaypointIndex={session.activeWaypointIndex} line={prestart ? line : undefined} />
             <div className="map-progress">
               {race.course.map((waypoint, index) => (
                 <span key={waypoint.id} className={index === session.activeWaypointIndex ? 'active' : session.roundedAt[waypoint.id] != null ? 'done' : ''} />
@@ -177,7 +218,7 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
         </div>
       </main>
 
-      {showRounding && !roundingBlocked && !alreadyRounded && (
+      {showRounding && !prestart && !roundingBlocked && !alreadyRounded && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm mark rounding">
           <div className="rounding-modal">
             <div className="rounding-modal__icon"><Flag size={26} /></div>
@@ -193,6 +234,17 @@ export function RacePage({ now, wakeLockStatus, onFinish }: Props) {
           </div>
         </div>
       )}
+
+      {showPrestartConfirmation && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Return to pre-start?" onKeyDown={(event) => { if (event.key === 'Escape' && !resetting) setShowPrestartConfirmation(false) }}>
+        <div className="rounding-modal">
+          <div className="rounding-modal__icon"><AlertTriangle size={26} /></div>
+          <h2>Return to pre-start?</h2>
+          <p>All recorded roundings and the GPS track for this race will be deleted. Your sightings will be kept.</p>
+          {resetError && <p className="form-error" role="alert">{resetError}</p>}
+          <button className="button button--orange button--wide" disabled={resetting} onClick={() => void returnToPrestart()}>{resetting ? 'Returning…' : 'Delete roundings and track'}</button>
+          <button autoFocus className="button button--ghost button--wide" disabled={resetting} onClick={() => setShowPrestartConfirmation(false)}>Keep racing</button>
+        </div>
+      </div>}
 
       {wakeLockStatus === 'blocked' && (
         <div className="race-warning"><AlertTriangle size={15} /> Screen lock was blocked by the device. Keep the display active manually.</div>

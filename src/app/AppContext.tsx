@@ -65,6 +65,7 @@ type AppContextValue = {
 
 const AppContext = createContext<AppContextValue | null>(null)
 const simulatorStorageKey = 'pin-end-dev-simulator'
+const boatSyncError = 'We couldn’t load your latest boat data. Please try again in a moment.'
 
 type SimulatorSnapshot = {
   enabled: boolean
@@ -159,7 +160,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (nextSails.length) await database.sails.bulkPut(nextSails)
       if (nextCrew.length) await database.crew.bulkPut(nextCrew)
       for (const progress of state.progress) {
-        await repository.saveSession(progress.session)
+        const stored = await database.sessions.get(progress.session.id)
+        if ((progress.session.trackResetAt ?? 0) > (stored?.trackResetAt ?? 0)) await repository.resetSession(progress.session)
+        else await repository.saveSession(progress.session)
         for (const reading of progress.session.telemetry) await repository.saveTelemetry(progress.session.id, reading)
       }
     })
@@ -184,10 +187,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const result = await sharing.current.refresh()
       await applyShared(result.state)
       setSyncStatus(sharing.current.hasPending() ? 'Syncing changes…' : 'Live · updated just now')
-      if (result.warning) setError(result.warning)
-    } catch (reason) {
+      setError((previous) => result.warning || (previous === boatSyncError ? '' : previous))
+    } catch {
       setSyncStatus('Not synced · showing saved data')
-      setError(reason instanceof Error ? reason.message : 'Could not synchronize the boat.')
+      setError(boatSyncError)
     }
   }, [applyShared])
 
@@ -241,7 +244,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const saved = await repository.getSessionForRace(selectedRace.id)
           if (saved) setSession(saved)
         }
-      } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load your boats.') }
+      } catch (reason) {
+        setError(reason instanceof Error && reason.message === 'Sign in again to load your boats.'
+          ? reason.message
+          : boatSyncError)
+      }
       finally { setLoading(false) }
     })()
   }, [applyShared, refreshSharing, repository])
@@ -319,17 +326,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (supabase && access?.navigatorId !== state.userId) { setError('Only the assigned navigator can change race progress.'); return }
     if (state.session.phase === 'finished') { setError('Finished race history is read-only.'); return }
     const next = { ...state.session, ...patch, updatedAt: Date.now() }
+    const resetsTrack = (next.trackResetAt ?? 0) > (state.session.trackResetAt ?? 0)
+    if (next.trackResetAt != null) next.telemetry = next.telemetry.filter((reading) => reading.timestamp > next.trackResetAt!)
     if (patch.phase === 'finished') {
       next.courseSnapshot = structuredClone(state.race)
       next.marksSnapshot = structuredClone(state.marks.filter((mark) => state.race.course.some((waypoint) => waypoint.markId === mark.id)))
     }
     setActiveSession(next)
-    if (patch.telemetry?.length === 0 && next.id !== state.session.id) await repository.resetSession(next)
+    if (resetsTrack) await repository.resetSession(next)
     else await repository.saveSession(next)
     if (patch.phase === 'finished') {
       const completed = await repository.getSessionForRace(next.raceId)
       if (completed) { setActiveSession(completed); sharing.current?.queueProgress(state.boat.id, completed) }
-    } else if (!patch.telemetry || Date.now() - lastTrackSync.current >= 10_000) {
+    } else if (resetsTrack || !patch.telemetry || Date.now() - lastTrackSync.current >= 10_000) {
       sharing.current?.queueProgress(state.boat.id, next)
       lastTrackSync.current = Date.now()
     }
@@ -474,12 +483,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const recordLatestReading = useCallback(async () => {
     if (!latestReading || !isNavigator) return
-    const last = session.telemetry.at(-1)
+    const recordingSession = current.current.session
+    if (latestReading.timestamp <= (recordingSession.trackResetAt ?? 0)) return
+    const last = recordingSession.telemetry.at(-1)
     if (last?.timestamp === latestReading.timestamp) return
-    const telemetry = [...session.telemetry.slice(-3_599), latestReading]
-    await repository.saveTelemetry(session.id, latestReading)
+    await repository.saveTelemetry(recordingSession.id, latestReading)
+    const activeSession = current.current.session
+    if (activeSession.id !== recordingSession.id || latestReading.timestamp <= (activeSession.trackResetAt ?? 0)) return
+    const telemetry = [...activeSession.telemetry.slice(-3_599), latestReading]
     await updateSession({ telemetry })
-  }, [isNavigator, latestReading, repository, session.id, session.telemetry, updateSession])
+  }, [isNavigator, latestReading, repository, updateSession])
 
   const sails = allSails.filter((sail) => sail.boatId === boat.id)
 

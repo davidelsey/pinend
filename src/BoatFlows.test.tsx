@@ -16,7 +16,7 @@ describe('boat-first journeys', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Create a boat/ }))
     fireEvent.change(screen.getByLabelText('Boat name'), { target: { value: 'Saltwater' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create boat' }))
-    expect(await screen.findByRole('heading', { name: 'See you on the line.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Races' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'New race' }))
     const dialog = screen.getByRole('dialog', { name: 'New race' })
     fireEvent.change(within(dialog).getByLabelText('Race name'), { target: { value: 'Harbour race' } })
@@ -29,7 +29,7 @@ describe('boat-first journeys', () => {
     fireEvent.click(screen.getByRole('button', { name: /Create a boat/ }))
     fireEvent.change(screen.getByLabelText('Boat name'), { target: { value: 'Windward' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create boat' }))
-    await screen.findByRole('heading', { name: 'See you on the line.' })
+    await screen.findByRole('heading', { name: 'Races' })
     expect(screen.queryByText('Harbour race')).not.toBeInTheDocument()
     expect(await database.sessions.toArray()).toEqual(original)
     const saltwater = (await database.boats.toArray()).find((boat) => boat.name === 'Saltwater')!
@@ -41,7 +41,7 @@ describe('boat-first journeys', () => {
   it('opens an unfinished past race as a race detail, not a replay', async () => {
     localStorage.removeItem('pin-end-empty')
     const view = render(<App />)
-    await screen.findByRole('heading', { name: 'See you on the line.' })
+    await screen.findByRole('heading', { name: 'Races' })
     view.unmount()
     await database.races.toCollection().modify({ scheduledStart: '2020-01-01T10:00:00Z' })
     render(<App />)
@@ -57,7 +57,7 @@ describe('boat-first journeys', () => {
   it('refreshes the default start to two hours ahead rounded to the nearest quarter hour', async () => {
     localStorage.removeItem('pin-end-empty')
     render(<App />)
-    await screen.findByRole('heading', { name: 'See you on the line.' })
+    await screen.findByRole('heading', { name: 'Races' })
     for (const [now, expected] of [
       ['2030-12-12T12:07:29', '2030-12-12T14:00'],
       ['2030-12-12T12:07:30', '2030-12-12T14:15'],

@@ -4,6 +4,8 @@ Pin End is an offline-first race preparation and on-water sailing PWA. The home 
 
 Open a race to prepare its course or enter race mode. The navigator chooses the shared next waypoint; all crew screens follow. Selecting Start before the gun enters pre-start, while selecting it after the gun supports a late start. Entering a later leg keeps the original start time and leaves missing history unrecorded. Finished races open their recorded map, timings, and replay. Leaving a view or selecting another target never clears recorded timing.
 
+Pre-start and racing use the same map and instrument layout. Pre-start lets you switch between four start synchronization buttons and four boat statistics, using the toggle or a horizontal swipe. Going back beyond the first leg asks for confirmation before returning to pre-start and deleting that race's roundings and GPS track. Sightings, course, crew, sails, and the synchronized start time are retained; use a synchronization button or exact start time to arm the next start. Apply `supabase/migrations/20261025000000_confirmed_prestart_reset.sql` so shared navigation also honors the track reset.
+
 The app also includes sail wardrobes, fixed/variable/constructed marks, camera-assisted sightings, tactical line-crossing estimates, GPS speed and VMG-based ETAs, wake-lock handling, and a development sensor simulator.
 
 ## Run locally
@@ -14,6 +16,8 @@ npm run dev
 ```
 
 Open the displayed local URL and choose **Open local demo** for the seeded CYCA race, or **Create local workspace** for first-use onboarding. Local workspaces store data in IndexedDB. Cross-account invitations and shared navigation require the Supabase migration below; local mode does not simulate remote crew.
+
+The development server uses `http://localhost:5175`. It exits if that port is already occupied so Google sign-in always returns to the configured local URL. With Supabase configured, run `npm run check:auth-redirect` to verify the hosted redirect allow list without signing in.
 
 Useful verification commands:
 
@@ -63,7 +67,7 @@ Create a Google OAuth Web client and configure its client ID and secret directly
 https://YOUR_PROJECT.supabase.co/auth/v1/callback
 ```
 
-Set the Supabase Auth Site URL to the production Vercel URL. Add `http://localhost:5173/**`, the exact production URL, and (if used) `https://*-YOUR_TEAM_SLUG.vercel.app/**` to the redirect allow list. Never place the Google client secret or a Supabase secret/service-role key in this repository or the browser environment.
+Set the Supabase Auth Site URL to the production Vercel URL. Add the exact local origin `http://localhost:5175`, the exact production URL, and (if used) `https://*-YOUR_TEAM_SLUG.vercel.app/**` to the redirect allow list. The app requests its origin without a trailing slash. Never place the Google client secret or a Supabase secret/service-role key in this repository or the browser environment.
 
 Import this repository into Vercel, keep the detected Vite settings, and add all four values from `.env.example` to the Production and Preview environments. Local development can omit `VITE_GOOGLE_MAPS_MAP_ID` and use Google's demo map ID, but production requires a project map ID. Restrict the browser key to the Maps JavaScript API and to localhost plus your Vercel domains. `vercel.json` supplies the SPA fallback and safe service-worker caching headers.
 

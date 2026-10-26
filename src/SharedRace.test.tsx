@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { database } from './services/repository'
+import { createRaceRepository, database } from './services/repository'
 import { seedBoat, seedRace, seedMarks, createSeedSession } from './data/seed'
 import type { SharedState } from './services/boatSharing'
 
@@ -54,5 +54,26 @@ describe('shared crew race screens', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     expect(screen.getByText(/Offline · last synced target/)).toBeInTheDocument()
     await waitFor(() => expect(server.getUser).not.toHaveBeenCalled())
+  })
+
+  it('follows a confirmed navigator reset without restoring old track points or deleting sightings', async () => {
+    const state = server.state as SharedState
+    const fix = { latitude: -33.86, longitude: 151.24, timestamp: Date.now() - 1_000, accuracy: 3, heading: 90, speedKnots: 6, source: 'device' as const }
+    state.progress[0].session.telemetry = [fix]
+    state.progress[0].session.roundedAt = { 'leg-start': fix.timestamp }
+    render(<App />)
+    await resume()
+    const repository = createRaceRepository(database)
+    const session = state.progress[0].session
+    const sighting = { id: 'crew-sighting', sessionId: session.id, endpoint: 'pin' as const, observer: fix, bearingTrue: 90, accuracy: 3, timestamp: fix.timestamp }
+    await repository.saveObservation(sighting)
+    expect(await repository.getCompleteTelemetry(session.id)).toHaveLength(1)
+    state.progress[0] = { ...state.progress[0], revision: 2, session: { ...session, phase: 'prestart', activeWaypointIndex: 0, autoStartArmed: false, trackResetAt: Date.now(), roundedAt: {}, telemetry: [] } }
+    fireEvent(window, new Event('online'))
+    await screen.findByText('PRE-START')
+    await waitFor(async () => expect(await repository.getCompleteTelemetry(session.id)).toEqual([]))
+    expect(await repository.getObservations(session.id)).toEqual([sighting])
+    expect(screen.getByRole('button', { name: /5:00 Warning/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Previous mark' })).toBeDisabled()
   })
 })

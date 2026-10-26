@@ -56,6 +56,30 @@ describe('offline race repository', () => {
     await expect(repository.getObservations('session-1')).resolves.toEqual([])
   })
 
+  it('keeps sightings and another race when clearing a track, and rejects old fixes arriving after the reset', async () => {
+    database = new PinEndDatabase(`pin-end-test-${crypto.randomUUID()}`)
+    const repository = createRaceRepository(database)
+    const session: RaceSession = { id: 'reset-session', raceId: 'reset-race', phase: 'racing', syncedStartTime: 100, activeWaypointIndex: 1, selectedSailIds: ['main'], roundedAt: { start: 110 }, telemetry: [], updatedAt: 200 }
+    const other = { ...session, id: 'other-session', raceId: 'other-race' }
+    const oldFix = { latitude: -33.86, longitude: 151.24, timestamp: 150, accuracy: 3, heading: 90, speedKnots: 6, source: 'device' as const }
+    const sighting: LineObservation = { id: 'sighting', sessionId: session.id, endpoint: 'pin', observer: oldFix, bearingTrue: 90, accuracy: 3, timestamp: 140 }
+    await repository.saveSession(session)
+    await repository.saveSession(other)
+    await repository.saveTelemetry(session.id, oldFix)
+    await repository.saveTelemetry(other.id, oldFix)
+    await repository.saveObservation(sighting)
+    await repository.resetSession({ ...session, phase: 'prestart', activeWaypointIndex: 0, roundedAt: {}, trackResetAt: 300, updatedAt: 300 })
+    await repository.saveTelemetry(session.id, oldFix)
+    const newFix = { ...oldFix, timestamp: 350 }
+    await repository.saveTelemetry(session.id, newFix)
+
+    const reloaded = createRaceRepository(database)
+    await expect(reloaded.getSession(session.id)).resolves.toMatchObject({ phase: 'prestart', roundedAt: {}, telemetry: [newFix], selectedSailIds: ['main'], syncedStartTime: 100 })
+    await expect(reloaded.getCompleteTelemetry(session.id)).resolves.toEqual([expect.objectContaining({ timestamp: 350 })])
+    await expect(reloaded.getObservations(session.id)).resolves.toEqual([sighting])
+    await expect(reloaded.getSession(other.id)).resolves.toMatchObject({ roundedAt: { start: 110 }, telemetry: [oldFix] })
+  })
+
   it('round-trips all local data through a cloud snapshot', async () => {
     database = new PinEndDatabase(`pin-end-test-${crypto.randomUUID()}`)
     const repository = createRaceRepository(database)

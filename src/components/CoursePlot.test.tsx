@@ -96,17 +96,23 @@ describe('CoursePlot', () => {
     expect(container.querySelector('.course-map-canvas')).toHaveAttribute('data-zoom', '12')
   })
 
-  it('lets the user align the map to the device heading', async () => {
+  it('toggles one orientation button between north up and the device heading', async () => {
     const { container } = render(<CoursePlot marks={seedMarks} race={seedRace} current={{ latitude: -33.87, longitude: 151.24, deviceHeading: 92, courseOverGround: 135 }} />)
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'North up' })).toBeEnabled())
-    expect(screen.getByRole('button', { name: 'North up' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'North up' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: 'Device aligned' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('You, travelling 135 degrees')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Device aligned' }))
+    fireEvent.click(screen.getByRole('button', { name: 'North up' }))
 
     expect(screen.getByRole('button', { name: 'Device aligned' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('img', { name: 'Course map, device aligned at 092 degrees' })).toBeInTheDocument()
     await waitFor(() => expect(container.querySelector('.course-map-canvas')).toHaveAttribute('data-bearing', '92'))
+    expect(screen.queryByRole('button', { name: 'North up' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Device aligned' }))
+    expect(screen.getByRole('button', { name: 'North up' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('img', { name: 'Course map, north up' })).toBeInTheDocument()
+    expect(container.querySelector('.course-map-canvas')).toHaveAttribute('data-bearing', '0')
   })
 
   it('collapses colocated start and finish gate labels', async () => {
@@ -132,6 +138,9 @@ describe('CoursePlot', () => {
     expect(screen.queryByText('Boat')).not.toBeInTheDocument()
     view.rerender(<CoursePlot marks={marks} race={race} activeMarkId="finish" />)
     expect(screen.getByLabelText('START / FINISH: Pin')).toHaveClass('course-map-marker--active')
-    expect(screen.getByLabelText('START / FINISH: Boat')).toHaveClass('course-map-marker--active')
+    expect(screen.getByLabelText('START / FINISH: Pin')).toHaveTextContent('START / FINISH')
+    expect(screen.getByLabelText('START / FINISH: Boat')).not.toHaveClass('course-map-marker--active')
+    expect(view.container.querySelectorAll('.course-map-marker')).toHaveLength(2)
+    expect(view.container.querySelectorAll('.course-map-marker--active')).toHaveLength(1)
   })
 })

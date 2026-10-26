@@ -47,10 +47,23 @@ do $$ begin
     raise exception 'Stale offline update was accepted';
   exception when raise_exception then if sqlerrm not like 'SHARED_CONFLICT:%' then raise; end if; end;
 end $$;
-select public.save_boat_progress('boat-test','race-test','{"id":"session-test","raceId":"race-test","phase":"finished","activeWaypointIndex":2}',2);
+select public.save_boat_progress('boat-test','race-test','{"id":"session-test","raceId":"race-test","phase":"prestart","activeWaypointIndex":0,"trackResetAt":3000,"telemetry":[],"roundedAt":{}}',2);
+do $$ begin
+  if (select jsonb_array_length(session->'telemetry') from public.boat_race_progress) <> 0 then raise exception 'Reset restored old track points'; end if;
+  if (select session->'roundedAt' from public.boat_race_progress) <> '{}'::jsonb then raise exception 'Reset kept roundings'; end if;
+  begin
+    perform public.save_boat_progress('boat-test','race-test','{"id":"session-test","raceId":"race-test","phase":"racing","activeWaypointIndex":1,"telemetry":[{"timestamp":1000}]}',3);
+    raise exception 'A stale session restored the old track';
+  exception when raise_exception then if sqlerrm not like 'SHARED_CONFLICT:%' then raise; end if; end;
+end $$;
+select public.save_boat_progress('boat-test','race-test','{"id":"session-test","raceId":"race-test","phase":"racing","activeWaypointIndex":1,"trackResetAt":3000,"telemetry":[{"timestamp":2000},{"timestamp":4000}],"roundedAt":{}}',3);
+do $$ begin
+  if (select session->'telemetry' from public.boat_race_progress) <> '[{"timestamp":4000}]'::jsonb then raise exception 'Old GPS fixes survived reset cutoff'; end if;
+end $$;
+select public.save_boat_progress('boat-test','race-test','{"id":"session-test","raceId":"race-test","phase":"finished","activeWaypointIndex":2,"trackResetAt":3000}',4);
 do $$ begin
   begin
-    perform public.save_boat_progress('boat-test','race-test','{"id":"session-test","raceId":"race-test","phase":"racing","activeWaypointIndex":0}',3);
+    perform public.save_boat_progress('boat-test','race-test','{"id":"session-test","raceId":"race-test","phase":"racing","activeWaypointIndex":0,"trackResetAt":3000}',5);
     raise exception 'Finished history could be reset';
   exception when raise_exception then if sqlerrm not like 'Finished race history%' then raise; end if; end;
 end $$;

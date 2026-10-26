@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  Anchor,
-  BatteryCharging,
   Check,
   ChevronRight,
   CloudSun,
-  Download,
-  Radio,
   Sailboat,
   UserRound,
   UserRoundPlus,
@@ -17,7 +13,7 @@ import { cyca } from '../data/seed'
 import { CREW_POSITIONS, type CrewPosition } from '../domain/types'
 import { fetchForecast, type ForecastSnapshot } from '../services/weather'
 
-type Props = { onConfirmCourse(): void; sensorStatus: string; onEnableSensors(): void }
+type Props = { onConfirmCourse(): void }
 
 const toLocalInput = (iso: string) => {
   const date = new Date(iso)
@@ -25,10 +21,11 @@ const toLocalInput = (iso: string) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
-export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Props) {
-  const { marks, boat, sails, crew, races, race, session, isNavigator, saveRace, saveSail, saveCrewMember, updateSession, online } = useApp()
+export function SetupPage({ onConfirmCourse }: Props) {
+  const { marks, boat, sails, crew, races, race, session, isNavigator, saveRace, saveSail, saveCrewMember, updateSession } = useApp()
   const [forecast, setForecast] = useState<ForecastSnapshot | null>(null)
   const [crewEntry, setCrewEntry] = useState('')
+  const [handicapInput, setHandicapInput] = useState<string | null>(null)
   const courseReady = race.course.length > 0 && race.course.every((waypoint) => marks.some((item) => item.id === waypoint.markId))
   const seriesOptions = [...new Set(races.map((item) => item.series).filter(Boolean))].sort()
   const fleetOptions = [...new Set(races.map((item) => item.fleet).filter(Boolean))].sort()
@@ -39,6 +36,11 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
 
   const updateRaceField = (field: 'series' | 'name' | 'fleet', value: string) =>
     void saveRace({ ...race, [field]: value })
+
+  const confirmCourse = async () => {
+    if (race.handicap == null) await saveRace({ ...race, handicap: 1 })
+    onConfirmCourse()
+  }
 
   const toggleSail = (sailId: string) => {
     const selected = session.selectedSailIds.includes(sailId)
@@ -73,15 +75,6 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
 
   return (
     <div className="page setup-page">
-      <section className="hero hero--setup">
-        <div>
-          <span className="eyebrow"><Anchor size={14} /> Race setup</span>
-          <h1>Make shore time count.</h1>
-          <p>Everything here is packed onto this phone before you leave coverage.</p>
-        </div>
-        <div className="hero__boat"><Sailboat size={72} strokeWidth={1.2} /></div>
-      </section>
-
       <div className="content-grid">
         <div className="content-stack">
           <datalist id="setup-series-options">{seriesOptions.map((value) => <option key={value} value={value} />)}</datalist>
@@ -96,7 +89,7 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
               <label className="field"><span>Series</span><input role="combobox" list="setup-series-options" value={race.series} onChange={(e) => updateRaceField('series', e.target.value)} /></label>
               <label className="field"><span>Race</span><input value={race.name} onChange={(e) => updateRaceField('name', e.target.value)} /></label>
               <label className="field"><span>Fleet</span><input role="combobox" list="setup-fleet-options" value={race.fleet} onChange={(e) => updateRaceField('fleet', e.target.value)} /></label>
-              <label className="field"><span>Handicap / TCF</span><input aria-label="Current race handicap / TCF" type="number" min="0.001" step="0.001" placeholder="Optional" value={race.handicap ?? ''} onChange={(e) => void saveRace({ ...race, handicap: Number(e.target.value) > 0 ? Number(e.target.value) : undefined })} /></label>
+              <label className="field"><span>Handicap / TCF</span><input aria-label="Current race handicap / TCF" type="number" min="0.001" step="0.001" value={handicapInput ?? (race.handicap ?? 1).toFixed(3)} onChange={(e) => { setHandicapInput(e.target.value); void saveRace({ ...race, handicap: Number(e.target.value) > 0 ? Number(e.target.value) : 1 }) }} onBlur={() => setHandicapInput(null)} /></label>
               <label className="field">
                 <span>Scheduled start</span>
                 <input
@@ -178,22 +171,12 @@ export function SetupPage({ onConfirmCourse, sensorStatus, onEnableSensors }: Pr
             ))}
             <p className="microcopy">{forecast ? `${forecast.source}${forecast.stale ? ' · cached' : ''}` : 'Forecast unavailable'} · advisory only</p>
           </section>
-
-          <section className="panel readiness-panel">
-            <div className="panel__heading"><div><Download size={18} /><h2>Offline readiness</h2></div></div>
-            <div className="readiness-item readiness-item--good"><Check size={16} /><span>App & race data</span><strong>Ready</strong></div>
-            <div className="readiness-item"><CloudSun size={16} /><span>Google basemap</span><strong>{online ? 'Live' : 'Unavailable'}</strong></div>
-            <div className="readiness-item"><Radio size={16} /><span>Device sensors</span><strong>{sensorStatus}</strong></div>
-            <div className="readiness-item"><BatteryCharging size={16} /><span>Screen awake</span><strong>On in race</strong></div>
-            <div className="readiness-item"><CloudSun size={16} /><span>Forecast</span><strong>{online ? 'Updated' : 'Cached'}</strong></div>
-            <button className="button button--secondary button--wide" onClick={onEnableSensors}>Prepare device sensors</button>
-          </section>
         </aside>
       </div>
 
       <div className="sticky-action">
         <div><strong>{courseReady ? 'Race pack ready' : 'Add at least one course mark'}</strong><span>{race.course.length} marks · {session.selectedSailIds.length} sails · saved on device</span></div>
-        <button className="button button--primary" disabled={!courseReady} onClick={onConfirmCourse}>Confirm course <ChevronRight size={18} /></button>
+        <button className="button button--primary" disabled={!courseReady} onClick={() => void confirmCourse()}>Confirm course <ChevronRight size={18} /></button>
       </div>
     </div>
   )

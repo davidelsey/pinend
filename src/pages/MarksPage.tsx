@@ -295,7 +295,6 @@ export function MarksPage({ onEnterPrestart }: Props) {
               ) : null
             })}
           </div>
-          <p className="microcopy"><MapPinned size={13} /> Repeat a mark for another lap, or remove remaining marks to shorten the course.</p>
         </section>
       </div>
       </div>

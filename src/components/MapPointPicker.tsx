@@ -175,7 +175,7 @@ export function MapPointPicker({ value, onChange, secondValue, onSecondChange, e
       </div>
       <div ref={containerRef} className={`point-picker__map ${readOnly ? 'point-picker__readonly' : ''}`} role="img" aria-label={label} />
       {mapError && <div className="map-provider-error" role="status">{mapError}</div>}
-      <span><Crosshair size={13} /> {readOnly ? 'Sight rays' : secondValue ? 'Drag either pin · pinch to zoom' : 'Drag to position · pinch to zoom'}</span>
+      {readOnly && <span><Crosshair size={13} /> Sight rays</span>}
       <i><MapPin size={13} /> Google Maps · live connection</i>
     </div>
   )

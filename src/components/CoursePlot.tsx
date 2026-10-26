@@ -183,12 +183,13 @@ export function CoursePlot({ marks, race, current, activeMarkId, activeWaypointI
     })
     visibleGates.forEach((gate) => {
       const label = model.sharedStartFinish && gate.isStart ? 'START / FINISH' : `${gate.waypointIndex + 1} · ${gate.shortName}`
-      const midpoint = { lat: (gate.pointA.latitude + gate.pointB.latitude) / 2, lng: (gate.pointA.longitude + gate.pointB.longitude) / 2 }
-      addMarker({ map, content: markerElement(label, gateIsActive(gate) ? 'active' : 'line'), position: midpoint, anchorLeft: '0%', anchorTop: '-100%' })
+      const topPointIndex = Math.cos((initialBearing(gate.pointA, gate.pointB) - mapBearing) * Math.PI / 180) > 0 ? 1 : 0
       ;[gate.pointA, gate.pointB].forEach((coordinate, index) => {
+        const isTopPoint = index === topPointIndex
+        const highlighted = gateIsActive(gate) && isTopPoint
         const endpointLabel = gate.position.kind === 'gate' ? gate.position.labels?.[index] ?? (index === 0 ? 'Pin' : 'Boat') : ''
-        const content = markerElement('', gateIsActive(gate) ? 'active' : 'mark')
-        content.classList.add('course-map-endpoint')
+        const content = markerElement(isTopPoint ? label : '', highlighted ? 'active' : 'mark')
+        content.classList.add(highlighted ? 'course-map-waypoint' : 'course-map-endpoint')
         content.setAttribute('aria-label', `${label}: ${endpointLabel}`)
         addMarker({ map, content, position: googleCoordinate(coordinate), anchorLeft: '-50%', anchorTop: '-50%' })
       })
@@ -249,8 +250,9 @@ export function CoursePlot({ marks, race, current, activeMarkId, activeWaypointI
         <button aria-label="Recenter on current location" disabled={!current || !loaded} onClick={() => { if (!current || !mapRef.current) return; mapRef.current.setCenter(googleCoordinate(current)); mapRef.current.setZoom(Math.max(mapRef.current.getZoom() ?? 12, 15)) }}><LocateFixed size={15} /> <span>Recenter</span></button>
         <button aria-label="Fit all course waypoints" disabled={model.coursePoints.length === 0 || !loaded} onClick={() => mapRef.current && fitMapToCoordinates(mapRef.current, model.coursePoints, FIT_PADDING)}><Maximize2 size={15} /> <span>Fit course</span></button>
         {zoomControls && <><button aria-label="Zoom in" disabled={!loaded} onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 12) + 1)}><Plus size={15} /></button><button aria-label="Zoom out" disabled={!loaded} onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 12) - 1)}><Minus size={15} /></button></>}
-        <button aria-label="North up" aria-pressed={!deviceAligned} disabled={!loaded} onClick={() => setOrientation('north')}><Compass size={15} /> <span>North</span></button>
-        <button aria-label="Device aligned" aria-pressed={deviceAligned} disabled={!deviceHeadingAvailable || !loaded} onClick={() => setOrientation('device')}><Navigation size={15} /> <span>Device</span></button>
+        <button aria-label={deviceAligned ? 'Device aligned' : 'North up'} title={orientation === 'device' ? 'Switch to north up' : 'Switch to device aligned'} aria-pressed={deviceAligned} disabled={!loaded || (orientation === 'north' && !deviceHeadingAvailable)} onClick={() => setOrientation((value) => value === 'north' ? 'device' : 'north')}>
+          {deviceAligned ? <Navigation size={15} /> : <Compass size={15} />} <span>{deviceAligned ? 'Device' : 'North'}</span>
+        </button>
       </div>
       {current && <div className="map-current-label"><span /> Current location</div>}
     </div>

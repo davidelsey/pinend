@@ -124,6 +124,8 @@ export type RaceSession = {
   selectedSailIds: string[]
   crewAssignments?: CrewAssignment[]
   telemetry: SensorReading[]
+  /** GPS fixes at or before this confirmed reset are excluded from the track. */
+  trackResetAt?: number
   roundedAt: Record<string, number>
   updatedAt: number
   courseSnapshot?: RaceDefinition
